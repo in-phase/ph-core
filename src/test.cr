@@ -39,3 +39,14 @@ end
 
 
 puts Slice.new(5) { |i| i}
+
+
+one = ["A","B","C"]
+two = one.dup()
+
+two[2] = "CHANGED"
+puts two 
+puts one
+
+
+puts [1,2,3][3..].product()

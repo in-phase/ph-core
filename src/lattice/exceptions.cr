@@ -1,4 +1,4 @@
 module Lattice
-    class DimensionError
+    class DimensionError < Exception
     end
 end
