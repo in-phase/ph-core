@@ -1,3 +1,5 @@
+require "./lattice/n_array"
+
 class A(T)
     def multiply(number)
         if T == A

@@ -1,5 +1,5 @@
 class MutableObject
-    @value = "One"
+    @value = 0
 
     def get : String
         @value
@@ -7,6 +7,12 @@ class MutableObject
 
     def set(val)
         @value = val
+    end
+
+    def clone : MutableObject
+        copy = MutableObject.new()
+        copy.set(@value)
+        copy
     end
 end
 

@@ -9,6 +9,10 @@ module Lattice
         protected def initialize(shape, &block : Int32 -> T)
             @shape = shape.map &.to_u32
             num_elements = shape.product
+            # TODO should we check that shape has only > 0?
+            #if num_elements == 0
+            #    raise SomeError.new()
+            #end
             @buffer = Slice.new(num_elements) {|i| yield i}
         end
 
@@ -26,13 +30,6 @@ module Lattice
             NArray.fill(shape, 0f64)
         end
 
-
-        # TODO rename or remove this!! Mostly for experimentation
-        # Assigns each array element an integer corresponding to its index in the buffer.
-        def self.integers(shape) : NArray(Int32)
-            NArray(Int32).new(shape) {|i| i}
-        end
-
         # Returns an array where `shape[i]` is the size of the NArray in the `i`th dimension.
         def shape : Array(UInt32)
             @shape.clone()
@@ -40,13 +37,33 @@ module Lattice
         
         # Maps a zero-dimensional NArray to the element it contains.
         def to_scalar : T
-            if @shape.size == 1 && @shape[0] == 1
+            if scalar?
                 return @buffer[0]
             else
                 raise DimensionError.new("Cannot cast to scalar: NArray has more than one dimension or more than one element.")
             end
         end
 
+
+
+
+        # TODO check/implement these
+
+        # Checks that the array is a 1-vector (a "zero-dimensional" NArray)
+        def scalar?
+            @shape.size == 1 && @shape[0] == 1
+        end
+
+        # Checks that the shape is greater than 1 in at most one dimension.
+        # (eg, may be a row or column vector; may be flattened without loss of order information)
+        def vector?
+            @shape.count { |i| i != 1 } <= 1
+        end
+
+        # Checks that the array is defined in exactly 2 dimensions.
+        def matrix?
+            @shape.size == 2
+        end
 
 
 
@@ -92,20 +109,50 @@ module Lattice
             NArray(T).new(new_shape, new_buffer.clone())
         end
 
-
+        # Given a fully-qualified coordinate, returns the scalar at that position.
         def get(*coord) : T
             # definitely check that all indices are legal (or else may map to an existing, but very wrong, value)
+            raise NotImplementedError.new()
         end
 
 
-        
-        # abstract def [](index) : AbstractNArray(T)
-
         # Higher-order slicing operations (like slicing in numpy)
-        # abstract def [](*coord) : AbstractNArray(T)
+        def [](*coord) : NArray(T)
+            raise NotImplementedError.new()
+        end
 
-        # Given a fully-qualified coordinate, returns the scalar at that position.
-        # abstract def get(*coord) : T
+
+
+
+        # TODO decide if we want these
+
+        # Adds a dimension at highest level, where each "row" is an input NArray.
+        # If enforce_sizes, then throw error if shapes of objects do not match;
+        # otherwise, pad subarrays along each axis to match whichever is largest in that axis
+        def self.wrap(*objects : NArray(T), enforce_sizes = True) : NArray(T)
+            raise NotImplementedError.new()
+        end
+
+        # creates an NArray-type vector from a tuple of scalars.
+        # Currently can't mix types
+        def self.wrap(*objects : T) : NArray(T)
+            NArray(T).new([objects.size]) {|i| objects[i]}
+        end
+
+        # TODO remove
+        # A function to help with testing during development
+        def get_by_buffer_index(index) : T
+            return @buffer[index]
+        end
+
+        # TODO rename or remove this!! Mostly for experimentation
+        # Assigns each array element an integer corresponding to its index in the buffer.
+        def self.integers(shape) : NArray(Int32)
+            NArray(Int32).new(shape) {|i| i}
+        end
+        
+
+
 
         # flatten 
             # 
