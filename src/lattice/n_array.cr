@@ -9,15 +9,18 @@ module Lattice
         protected def initialize(shape, &block : Int32 -> T)
             @shape = shape.map &.to_u32
             num_elements = shape.product
-            @buffer = Slice(T).new(num_elements)
-
-            @buffer.each_with_index do |_, buffer_index|
-                @buffer[buffer_index] = yield buffer_index
-            end
+    
+            @buffer = Slice.new(num_elements) {|i| yield i}
         end
+        
+        # Fill an array of given size with a given value
+        def self.fill(shape, value : T) : NArray(T)
+            NArray(T).new(shape) { value }
+        end        
 
         def self.zeros(shape) : NArray(Float64)
             NArray(Float64).new(shape) { 0f64 }
+            #NArray.fill(shape, 0f64)
         end
 
 
@@ -36,6 +39,22 @@ module Lattice
         end
 
 
+
+
+        def to_s : String
+            # TODO
+            "Insert beautifully formatted array of size #{@shape} here"
+        end
+
+        # Override for printing a string output to stream (e.g., puts)
+        def to_s(io)
+            io << to_s()
+        end
+
+
+
+
+        
 
 
         # Takes a single index into the NArray, returning a slice of the largest dimension possible.

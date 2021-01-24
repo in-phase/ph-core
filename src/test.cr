@@ -16,10 +16,26 @@ class A(T)
 end
 
 # arr = A[A[1, 2], A[1, 2]] # A(A(Int32))
-arr = A.new([ A.new([1, 2]), A.new([1, 2]) ]) # A(A(Int32))
+#arr = A.new([ A.new([1, 2]), A.new([1, 2]) ]) # A(A(Int32))
 
-puts(arr)
+#puts(arr)
 
-arr = arr.multiply(3)
+#arr = arr.multiply(3)
 
-puts(arr)
+#puts(arr)
+
+class B
+    def self.reflect(var : T) : T
+        var
+    end
+
+
+    def self.fill(size, val : T) : Slice(T)
+        Slice(T).new(5, "hello")
+    end
+end
+
+
+
+
+puts Slice.new(5) { |i| i}
