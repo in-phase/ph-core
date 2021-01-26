@@ -5,53 +5,60 @@ include Lattice
 
 describe Lattice do
     describe NArray do
+        it "properly packs an n-dimensional index" do
+            shape = [3, 7, 4]
+            narr = NArray.new(shape, 0)
+            narr.pack_index(1, 1, 1).should eq (28 + 4 + 1)
+        end
+
+        it "properly packs and unpacks an n-dimensional index" do
+            shape = [3, 7, 4]
+            narr = NArray.new(shape, 0)
+            
+            100.times do
+                random_index = shape.map { |dim| (Random.rand * dim).to_u32 }
+                packed = narr.pack_index(random_index)
+                narr.unpack_index.should eq random_index
+            end
+        end
+        
         it "creates an NArray of zeros" do
-            pp NArray.zeros([1])
+            pp NArray.new([1], 0f64)
         end
         it "can create an NArray of strings" do 
-            pp NArray.fill([2,2], "HELLO")
+            pp NArray.new([2,2], "HELLO")
         end
         it "can retrieve a scalar from a single-element vector" do 
-            NArray.fill([1], 5).to_scalar().should eq 5
+            NArray.new([1], 5).to_scalar().should eq 5
         end
         it "throws an error if trying to retrieve scalar from an array of wrong dimensions" do
             # Empty array
             expect_raises(DimensionError) do
-                NArray.fill([0], 5).to_scalar()        
+                NArray.new([0], 5).to_scalar()        
             end
             # Vector
             expect_raises(DimensionError) do 
-                NArray.fill([2], 5).to_scalar()
+                NArray.new([2], 5).to_scalar()
             end
             # Column vector
             expect_raises(DimensionError) do
-                NArray.fill([1, 2], 5).to_scalar()
+                NArray.new([1, 2], 5).to_scalar()
             end
             # Single-element nested array
             expect_raises(DimensionError) do
-                NArray.fill([1,1], 5).to_scalar()
+                NArray.new([1,1], 5).to_scalar()
             end
         end
         it "returns a safe copy of its shape" do
-            arr = NArray.zeros([3,7])
+            arr = NArray.new([3,7], 0f64)
             shape1 = arr.shape()
             shape1.should eq [3,7]
             shape1[0] = 4
             arr.shape().should eq [3,7]
         end
-        it "recognizes vectors" do 
-            NArray.zeros([1]).vector?.should be_true
-            NArray.zeros([5]).vector?.should be_true
-            NArray.zeros([1,5]).vector?.should be_true
-            NArray.zeros([2,2]).vector?.should be_false
-
-            # Decide
-            # NArray.zeros([0]).vector?
-        end
-
         # TODO revise tests for shallow, and deep, copy once values can be edited
         it "creates a shallow copy" do
-            one = NArray.fill([1], MutableObject.new())
+            one = NArray.new([1], MutableObject.new())
             two = one.dup()
 
             one.get_by_buffer_index(0).should be two.get_by_buffer_index(0)
@@ -59,7 +66,7 @@ describe Lattice do
             # Assert that one[0] is now "Two"
         end
         it "creates a deep copy" do
-            one = NArray.fill([1], MutableObject.new())
+            one = NArray.new([1], MutableObject.new())
             two = one.clone()
 
             one.get_by_buffer_index(0).should_not be two.get_by_buffer_index(0)
@@ -71,7 +78,7 @@ describe Lattice do
         it "can make other nifty arrays (possibly)" do
             one =  NArray.integers([3,2])
             two =  NArray.wrap(1,7,9,4)
-            three = NArray.fill([3,2], 0)
+            three = NArray.new([3,2], 0)
 
             pp one.class, two.class
 

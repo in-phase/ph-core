@@ -3,41 +3,69 @@ require "./exceptions.cr"
 
 module Lattice
     class NArray(T) < AbstractNArray(T)
-        @buffer : Slice(T)
+        protected getter buffer : Slice(T)
         @shape : Array(UInt32)
 
-        # TODO Int cannot be used as a Proc argument type yet. See if this is possible later.
         protected def initialize(shape, &block : Int32 -> T)
-            @shape = shape.map &.to_u32
+            @shape = shape.map do |dim|
+                if dim < 1
+                    raise DimensionError.new("Cannot create NArray: One or more of the provided dimensions was less than one.")
+                end
+
+                dim.to_u32
+            end
+            
             num_elements = shape.product.to_i32
-            # TODO should we check that shape has only > 0?
-            #if num_elements == 0
-            #    raise SomeError.new()
-            #end
             @buffer = Slice.new(num_elements) {|i| yield i }
         end
-
+            
         # Convenience initializer for making copies.
         protected def initialize(@shape, @buffer)
         end
-        
-        # Fill an array of given size with a given value
-        def self.fill(shape, value : T) : NArray(T)
-            NArray(T).new(shape) { value }
-        end        
 
-        # Fill an array of given dimensions with zeros
-        def self.zeros(shape) : NArray(Float64)
-            NArray.fill(shape, 0f64)
+        # Fill an array of given size with a given value. Note that if value is an `Object`, only its reference will be copied
+        # - all elements would refer to a single object.
+        def initialize(shape, value : T) : NArray(T)
+            NArray(T).new(shape) { value }
+        end
+
+
+        def valid_indices?(indices)
+            if indices.size != @shape.size
+                return false
+            end
+
+            @shape.each_with_index do |length, dim|
+                #if indices[dim] + 1 < 
+            end
+        end
+
+        def pack_indices(indices)
+            indices.reduce_with_index(0) do |memo, array_index, dim|
+                step = @shape[(dim + 1)..]? || 1
+                memo += step * indices[dim]
+            end
+        end
+
+        def unpack_index(index)
+
+            indices = Array(UInt32).new(@shape.size)
+
+            @shape.each_with_index do |length, dim|
+                indices[dim] = index % length
+                index //= length
+            end
         end
 
         # Returns an array where `shape[i]` is the size of the NArray in the `i`th dimension.
         def shape : Array(UInt32)
-            # TODO note: made this Int32 here because for initialize #1 to work, shape must be 
-            # 
             @shape.clone()
         end
-        
+
+        def dimensions : UInt32
+            @shape.size
+        end
+
         # Maps a zero-dimensional NArray to the element it contains.
         def to_scalar : T
             if scalar?
@@ -47,25 +75,9 @@ module Lattice
             end
         end
 
-
-
-
-        # TODO check/implement these
-
         # Checks that the array is a 1-vector (a "zero-dimensional" NArray)
         def scalar?
             @shape.size == 1 && @shape[0] == 1
-        end
-
-        # Checks that the shape is greater than 1 in at most one dimension.
-        # (eg, may be a row or column vector; may be flattened without loss of order information)
-        def vector?
-            @shape.count { |i| i != 1 } <= 1
-        end
-
-        # Checks that the array is defined in exactly 2 dimensions.
-        def matrix?
-            @shape.size == 2
         end
 
 
@@ -95,17 +107,17 @@ module Lattice
         end
         
         # Takes a single index into the NArray, returning a slice of the largest dimension possible.
-        # For example, if `a` is a matrix, `a[0]` will be a vector. 
+        # For example, if `a` is a matrix, `a[0]` will be a vector. There is a special case when 
+        # indexing into a 1D `NArray` - the scalar at the index provided will be wrapped in an
+        # `NArray`. This is to preserve type-safety - if you want to extract the scalar as type `T`,
+        # invoke `#to_scalar`.
         def [](index) : NArray(T)
-
-            # Check if index is legal (less than @shape[0]) - or see if Slice will throw appropriate error itself if memory bounds are exceeded
-
-            # If a 1-vector, possibly: return the object as is, and warn the user that they can't index any further/suggest they use .get() or .to_scalar()?
-
-            # Otherwise:
+            if dimensions == 1
+                new_shape = [1u32]
+            else
+                new_shape = @shape[1..]
+            end
             # The "step size" of the top level dimension (row) is the product of the lower dimensions.
-            # Note - .product has defined the "product of an empty array" to be 1, which is desireable for us if the array is one-dimensional (@shape has one element)
-            new_shape = @shape[1..]
             step = new_shape.product
 
             new_buffer = @buffer[index * step, step]
@@ -118,7 +130,6 @@ module Lattice
             raise NotImplementedError.new("not implemented")
         end
 
-
         # Higher-order slicing operations (like slicing in numpy)
         def [](*coord) : NArray(T)
             raise NotImplementedError.new("not implemented")
@@ -126,22 +137,9 @@ module Lattice
 
 
 
-
-        # TODO decide if we want these
-
-        protected def get_buffer : Slice(T)
-            @buffer
-        end
-
-        # A function to help with testing during development,
-        # probably not too useful otherwise
-        def get_by_buffer_index(index) : T
-            return @buffer[index]
-        end
-
-
-        # Get the smallest shape that each object may be contained in
-        def self.least_common_shape(objects)
+        # Given a list of `NArray`s, returns the smallest shape array in which any one of those `NArrays` can be contained.
+        # TODO: Example
+        def self.common_container(*objects)
             shapes = objects.to_a.map { |x| x.shape() }
             max_dimension = (shapes.map &.size).max
             container = (0...max_dimension).map do |dim_idx|
@@ -152,13 +150,15 @@ module Lattice
         end
 
 
+       
+
         # Adds a dimension at highest level, where each "row" is an input NArray.
         # If pad is false, then throw error if shapes of objects do not match;
         # otherwise, pad subarrays along each axis to match whichever is largest in that axis
         def self.wrap(*objects : NArray(T), pad = false) : NArray(T)
             shapes = objects.to_a.map { |x| x.shape() }
             if pad
-                container = least_common_shape(objects)
+                container = least_common_shape(*objects)
                 # pad all arrays to this size
                 raise NotImplementedError.new("As of this time, NArray.wrap() cannot pad arrays for you. Come back after reshaping has been implemented, or get off the couch and go do it yourself.")
             else
@@ -182,6 +182,16 @@ module Lattice
         end
 
         
+
+        # TODO decide if we want these
+
+        # A function to help with testing during development,
+        # probably not too useful otherwise
+        # TODO remove
+        def get_by_buffer_index(index) : T
+            return @buffer[index]
+        end
+
         
 
         # TODO rename or remove this!! Mostly for experimentation
