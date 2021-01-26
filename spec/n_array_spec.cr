@@ -23,12 +23,27 @@ describe Lattice do
                 narr.unpack_index(packed).should eq random_index
             end
         end
-        
-        it "creates an NArray of zeros" do
-            pp NArray.new([1], 0f64)
+        it "can access an element given a fully-qualified index" do
+            shape = [1, 2, 3]
+            narr = NArray(Int32).new(shape) { |i| i }
+            narr.get(0,1,2).should eq 5
+            narr.get(0,0,0).should eq 0
+            expect_raises(IndexError) do
+                narr.get(1,1,1)
+            end
         end
-        it "can create an NArray of strings" do 
-            pp NArray.new([2,2], "HELLO")
+        
+        it "creates an NArray of primitives" do
+            arr = NArray.new([1], 0f64)
+            arr.should_not be_nil
+            arr.shape.should eq [1]
+            arr.get(0).should eq 0f64
+        end
+        it "can create an NArray of non-primitives" do 
+            arr = NArray.new([2,2], "HELLO")
+            arr.should_not be_nil
+            arr.shape.should eq [2,2]
+            arr.get(1,1).should eq "HELLO"
         end
         it "can retrieve a scalar from a single-element vector" do 
             NArray.new([1], 5).to_scalar().should eq 5
@@ -63,17 +78,13 @@ describe Lattice do
             one = NArray.new([1], MutableObject.new())
             two = one.dup()
 
-            one.get_by_buffer_index(0).should be two.get_by_buffer_index(0)
-            # change the value of two[0] to "Two"
-            # Assert that one[0] is now "Two"
+            one.get(0).should be two.get(0)
         end
         it "creates a deep copy" do
             one = NArray.new([1], MutableObject.new())
             two = one.clone()
 
-            one.get_by_buffer_index(0).should_not be two.get_by_buffer_index(0)
-            # change the value of two[0] to "Two"
-            # Assert that one[0] is still "One"
+            one.get(0).should_not be two.get(0)
         end
 
         # TODO formalize or remove

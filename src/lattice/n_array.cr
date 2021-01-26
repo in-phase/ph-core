@@ -134,12 +134,12 @@ module Lattice
 
         # Given a fully-qualified coordinate, returns the scalar at that position.
         def get(*coord) : T
-            # definitely check that all indices are legal (or else may map to an existing, but very wrong, value)
-            raise NotImplementedError.new("not implemented")
+            @buffer[pack_index(coord)]
         end
 
         # Higher-order slicing operations (like slicing in numpy)
         def [](*coord) : NArray(T)
+            # TODO implement
             raise NotImplementedError.new("not implemented")
         end
 
@@ -155,10 +155,7 @@ module Lattice
                 sizes_in_dim.compact.max
             end
             container
-        end
-
-
-       
+        end       
 
         # Adds a dimension at highest level, where each "row" is an input NArray.
         # If pad is false, then throw error if shapes of objects do not match;
@@ -190,19 +187,7 @@ module Lattice
         end
 
         
-
-
-        # A function to help with testing during development,
-        # probably not too useful otherwise
-        # TODO remove
-        def get_by_buffer_index(index) : T
-            return @buffer[index]
-        end
-
-
-        
-
-
+        # TODO implement these
 
         # flatten 
             # 
@@ -213,6 +198,17 @@ module Lattice
         # reshaping?
         # to float???
         # slice?
+
+
+
+
+        # A function to help with testing during development,
+        # probably not too useful otherwise
+        # TODO remove
+        def get_by_buffer_index(index) : T
+            return @buffer[index]
+        end
+
             
     end
 end
