@@ -2,18 +2,19 @@ require "./n_array_abstract.cr"
 require "./exceptions.cr"
 
 module Lattice
-    class NArray(T) # < AbstractNArray(T)
+    class NArray(T) < AbstractNArray(T)
         @buffer : Slice(T)
         @shape : Array(UInt32)
 
+        # TODO Int cannot be used as a Proc argument type yet. See if this is possible later.
         protected def initialize(shape, &block : Int32 -> T)
             @shape = shape.map &.to_u32
-            num_elements = shape.product
+            num_elements = shape.product.to_i32
             # TODO should we check that shape has only > 0?
             #if num_elements == 0
             #    raise SomeError.new()
             #end
-            @buffer = Slice.new(num_elements) {|i| yield i}
+            @buffer = Slice.new(num_elements) {|i| yield i }
         end
 
         # Convenience initializer for making copies.
@@ -32,6 +33,8 @@ module Lattice
 
         # Returns an array where `shape[i]` is the size of the NArray in the `i`th dimension.
         def shape : Array(UInt32)
+            # TODO note: made this Int32 here because for initialize #1 to work, shape must be 
+            # 
             @shape.clone()
         end
         
@@ -112,13 +115,13 @@ module Lattice
         # Given a fully-qualified coordinate, returns the scalar at that position.
         def get(*coord) : T
             # definitely check that all indices are legal (or else may map to an existing, but very wrong, value)
-            raise NotImplementedError.new()
+            raise NotImplementedError.new("not implemented")
         end
 
 
         # Higher-order slicing operations (like slicing in numpy)
         def [](*coord) : NArray(T)
-            raise NotImplementedError.new()
+            raise NotImplementedError.new("not implemented")
         end
 
 
@@ -126,24 +129,60 @@ module Lattice
 
         # TODO decide if we want these
 
+        protected def get_buffer : Slice(T)
+            @buffer
+        end
+
+        # A function to help with testing during development,
+        # probably not too useful otherwise
+        def get_by_buffer_index(index) : T
+            return @buffer[index]
+        end
+
+
+        # Get the smallest shape that each object may be contained in
+        def self.least_common_shape(objects)
+            shapes = objects.to_a.map { |x| x.shape() }
+            max_dimension = (shapes.map &.size).max
+            container = (0...max_dimension).map do |dim_idx|
+                sizes_in_dim = shapes.map { |shape| shape[dim_idx]? }
+                sizes_in_dim.compact.max
+            end
+            container
+        end
+
+
         # Adds a dimension at highest level, where each "row" is an input NArray.
-        # If enforce_sizes, then throw error if shapes of objects do not match;
+        # If pad is false, then throw error if shapes of objects do not match;
         # otherwise, pad subarrays along each axis to match whichever is largest in that axis
-        def self.wrap(*objects : NArray(T), enforce_sizes = True) : NArray(T)
-            raise NotImplementedError.new()
+        def self.wrap(*objects : NArray(T), pad = false) : NArray(T)
+            shapes = objects.to_a.map { |x| x.shape() }
+            if pad
+                container = least_common_shape(objects)
+                # pad all arrays to this size
+                raise NotImplementedError.new("As of this time, NArray.wrap() cannot pad arrays for you. Come back after reshaping has been implemented, or get off the couch and go do it yourself.")
+            else
+                container = shapes[0]
+                # check that all arrays are same size
+                if shapes.any? { |shape| shape != container }
+                    raise DimensionError.new("Cannot wrap these arrays: shapes do not match. Pass argument pad:true if you want to reshape arrays as necessary.")
+                end
+            end
+            container.insert(0, objects.size.to_u32)
+            # This currently creates an array, then reconverts into a slice. possibly use a more direct method, copying buffers directly?
+            # Although if we generalize to concatenating arrays of different types this may be superior?
+            combined_buffer = objects.reduce([] of T) { |memo, i| memo.concat(i.get_buffer.to_a) }
+            NArray(T).new(container) { |i| combined_buffer[i] }
         end
 
         # creates an NArray-type vector from a tuple of scalars.
         # Currently can't mix types
-        def self.wrap(*objects : T) : NArray(T)
+        def self.wrap(*objects : T) : NArray(T)        
             NArray(T).new([objects.size]) {|i| objects[i]}
         end
 
-        # TODO remove
-        # A function to help with testing during development
-        def get_by_buffer_index(index) : T
-            return @buffer[index]
-        end
+        
+        
 
         # TODO rename or remove this!! Mostly for experimentation
         # Assigns each array element an integer corresponding to its index in the buffer.

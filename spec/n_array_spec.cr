@@ -69,11 +69,21 @@ describe Lattice do
 
         # TODO formalize or remove
         it "can make other nifty arrays (possibly)" do
-            pp NArray.integers([3,2])
-            pp NArray.wrap(1,7,9,4)
+            one =  NArray.integers([3,2])
+            two =  NArray.wrap(1,7,9,4)
+            three = NArray.fill([3,2], 0)
+
+            pp one.class, two.class
+
+            #NArray.wrap(one, two, pad: true)
+            NArray.wrap(one, three)
+
+            expect_raises(DimensionError) do
+                NArray.wrap(one, two)
+            end
             
             # this doesn't work
-            # pp NArray.wrap(1, 7, "foo")
+            #pp NArray.wrap(1, 7, "foo")
         end
 
     end
