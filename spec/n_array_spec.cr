@@ -8,7 +8,9 @@ describe Lattice do
         it "properly packs an n-dimensional index" do
             shape = [3, 7, 4]
             narr = NArray.new(shape, 0)
-            narr.pack_index(1, 1, 1).should eq (28 + 4 + 1)
+            narr.pack_index([1, 1, 1]).should eq (28 + 4 + 1)
+
+            # TODO check edge cases, failure cases
         end
 
         it "properly packs and unpacks an n-dimensional index" do
@@ -18,7 +20,7 @@ describe Lattice do
             100.times do
                 random_index = shape.map { |dim| (Random.rand * dim).to_u32 }
                 packed = narr.pack_index(random_index)
-                narr.unpack_index.should eq random_index
+                narr.unpack_index(packed).should eq random_index
             end
         end
         
@@ -76,11 +78,9 @@ describe Lattice do
 
         # TODO formalize or remove
         it "can make other nifty arrays (possibly)" do
-            one =  NArray.integers([3,2])
+            one =  NArray.new([3,2], 1)
             two =  NArray.wrap(1,7,9,4)
             three = NArray.new([3,2], 0)
-
-            pp one.class, two.class
 
             #NArray.wrap(one, two, pad: true)
             NArray.wrap(one, three)

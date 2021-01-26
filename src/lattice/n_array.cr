@@ -11,7 +11,6 @@ module Lattice
                 if dim < 1
                     raise DimensionError.new("Cannot create NArray: One or more of the provided dimensions was less than one.")
                 end
-
                 dim.to_u32
             end
             
@@ -25,36 +24,45 @@ module Lattice
 
         # Fill an array of given size with a given value. Note that if value is an `Object`, only its reference will be copied
         # - all elements would refer to a single object.
-        def initialize(shape, value : T) : NArray(T)
-            NArray(T).new(shape) { value }
+        def initialize(shape, value : T)
+            initialize(shape) { value }
         end
 
-
-        def valid_indices?(indices)
-            if indices.size != @shape.size
+        # Checks if a given list of integers represent an index that is in range for this `NArray`.
+        def valid_index?(indices)
+            if indices.size > @shape.size
                 return false
             end
-
-            @shape.each_with_index do |length, dim|
-                #if indices[dim] + 1 < 
+            indices.each_with_index do |length, dim|
+                if @shape[dim] <= length
+                    return false
+                end
             end
+            true
         end
 
-        def pack_indices(indices)
-            indices.reduce_with_index(0) do |memo, array_index, dim|
-                step = @shape[(dim + 1)..]? || 1
+        # Convert from n-dimensional indexing to a buffer location.
+        def pack_index(indices) : UInt32
+            if !valid_index?(indices)
+                raise IndexError.new("Cannot pack index: the given index is out of bounds for this NArray along at least one dimension.")
+            end
+            memo = 0
+            indices.each_with_index do |array_index, dim|
+                #step = @shape[(dim + 1)..]? || 1
+                step = @shape[(dim+1)..].product
                 memo += step * indices[dim]
             end
+            memo.to_u32
         end
 
-        def unpack_index(index)
-
-            indices = Array(UInt32).new(@shape.size)
-
-            @shape.each_with_index do |length, dim|
+        # Convert from a buffer location to an n-dimensional indexing 
+        def unpack_index(index) : Array(UInt32)
+            indices = Array(UInt32).new(@shape.size, 0)
+            @shape.reverse.each_with_index do |length, dim|
                 indices[dim] = index % length
                 index //= length
             end
+            indices.reverse
         end
 
         # Returns an array where `shape[i]` is the size of the NArray in the `i`th dimension.
@@ -158,7 +166,7 @@ module Lattice
         def self.wrap(*objects : NArray(T), pad = false) : NArray(T)
             shapes = objects.to_a.map { |x| x.shape() }
             if pad
-                container = least_common_shape(*objects)
+                container = common_container(*objects)
                 # pad all arrays to this size
                 raise NotImplementedError.new("As of this time, NArray.wrap() cannot pad arrays for you. Come back after reshaping has been implemented, or get off the couch and go do it yourself.")
             else
@@ -171,7 +179,7 @@ module Lattice
             container.insert(0, objects.size.to_u32)
             # This currently creates an array, then reconverts into a slice. possibly use a more direct method, copying buffers directly?
             # Although if we generalize to concatenating arrays of different types this may be superior?
-            combined_buffer = objects.reduce([] of T) { |memo, i| memo.concat(i.get_buffer.to_a) }
+            combined_buffer = objects.reduce([] of T) { |memo, i| memo.concat(i.buffer.to_a) }
             NArray(T).new(container) { |i| combined_buffer[i] }
         end
 
@@ -183,7 +191,6 @@ module Lattice
 
         
 
-        # TODO decide if we want these
 
         # A function to help with testing during development,
         # probably not too useful otherwise
@@ -192,13 +199,7 @@ module Lattice
             return @buffer[index]
         end
 
-        
 
-        # TODO rename or remove this!! Mostly for experimentation
-        # Assigns each array element an integer corresponding to its index in the buffer.
-        def self.integers(shape) : NArray(Int32)
-            NArray(Int32).new(shape) {|i| i}
-        end
         
 
 
