@@ -1,7 +1,7 @@
 module Lattice
   abstract class AbstractNArray(T)
     # Returns an array where `shape[i]` is the size of the NArray in the `i`th dimension.
-    abstract def shape : Array(UInt32)
+    abstract def shape : Array(Int32)
 
     # Maps a zero-dimensional NArray to the element it contains.
     abstract def to_scalar : T

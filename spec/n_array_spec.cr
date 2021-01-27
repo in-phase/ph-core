@@ -5,12 +5,25 @@ include Lattice
 
 describe Lattice do
     describe NArray do
+        it "canonicalizes ranges" do
+            narr = NArray.new([4,4,4], 0)
+
+            ranges = [0...4, -1..0, 1.., 1..., ..3]
+            ranges.each do |range|
+                puts narr.canonicalize_range(range, 0)
+            end
+
+        end
+        
         it "properly packs an n-dimensional index" do
             shape = [3, 7, 4]
             narr = NArray.new(shape, 0)
             narr.pack_index([1, 1, 1]).should eq (28 + 4 + 1)
 
             # TODO check edge cases, failure cases
+            shape = [5]
+            narr = NArray.new(shape, 0)
+            narr.pack_index([2]).should eq 2
         end
 
         it "properly packs and unpacks an n-dimensional index" do
@@ -23,6 +36,16 @@ describe Lattice do
                 narr.unpack_index(packed).should eq random_index
             end
         end
+
+        it "exposes unpacked indices to the user in a constructor" do
+            narr = NArray(Int32).build([3, 3]) do |coord|
+                next 1 if coord[0] == coord[1]
+                next 0
+            end
+
+            pp narr
+        end
+
         it "can access an element given a fully-qualified index" do
             shape = [1, 2, 3]
             narr = NArray(Int32).new(shape) { |i| i }
