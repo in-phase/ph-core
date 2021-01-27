@@ -6,13 +6,41 @@ include Lattice
 describe Lattice do
     describe NArray do
         it "canonicalizes ranges" do
-            narr = NArray.new([4,4,4], 0)
+            narr = NArray.new([4], 0)
 
-            ranges = [0...4, -1..0, 1.., 1..., ..3]
-            ranges.each do |range|
-                puts narr.canonicalize_range(range, 0)
+            good_ranges = [0...4, -1..0, 1..,  1..., ..2,  -2..-1, -2...-5, 1..1]
+            canon =       [0..3,   3..0, 1..3, 1..3, 0..2, 2..3,    2..0,   1..1]
+            good_ranges.each_with_index do |range, i|
+                range, dir = narr.canonicalize_range(range, 0)
+                range.should eq canon[i]
             end
+            bad_ranges = [-5..-3, 2..4, 1...1]
+            bad_ranges.each do |range|
+                expect_raises(IndexError) do
+                    narr.canonicalize_range(range,0)
+                end
+            end
+        end
 
+        it "makes slices" do
+            narr = NArray.new([2,2], 0)
+            puts narr.extract_buffer_indices(1,0)
+            narr = NArray.new([3,3,3], 0)
+            puts narr.extract_buffer_indices(0..2 , 0) # first item of each rows 1-3
+
+            narr = NArray.build([3,3,3]) {|i| i} # Builds an NArray where the value of each element is its coords
+            pp narr
+            pp narr[1..2, 1..2, 1..2]
+
+        end
+        it "edits values by a boolean map" do
+            mask = NArray(Bool).build([3, 3]) { |coord| coord[0] != coord[1] }
+
+            narr = NArray.new([3,3], 0)
+
+            narr[mask] = 1
+            pp narr
+            
         end
         
         it "properly packs an n-dimensional index" do
