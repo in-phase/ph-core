@@ -9,9 +9,9 @@ module Lattice
         getter buffer : Slice(T)
         @shape : Array(Int32)
 
-        def self.build(shape, &block : Array(Int32) -> T)
+        def self.build(shape, &block : Array(Int32), Int32 -> T)
             NArray(T).new(shape) do |packed_index|
-                yield unpack_index(packed_index, shape)
+                yield unpack_index(packed_index, shape), packed_index
             end
         end
 
@@ -24,9 +24,33 @@ module Lattice
             end
             
             num_elements = shape.product.to_i32
-            @buffer = Slice.new(num_elements) {|i| yield i }
+            @buffer = Slice(T).new(num_elements) {|i| yield i }
         end
 
+        # protected def recursive_probe_array(data, shape = [])
+        #     if data.is_a? Array
+        #         if data.empty?
+        #             raise DimensionError.new("Could not profile nested array: Found an array with size zero.")
+        #         end
+
+        #         shape << data.size
+        #         return recursive_probe_array(data[0], shape)
+        #     else
+        #         return shape
+        #     end
+        # end
+
+        # protected def recursive_copy_to_buffer(data, shape, current_dim = 0, buffer = )
+            
+        #     # check that current array matches expected length for this dimension
+            
+            
+            
+        # end
+
+        # def initialize(data_array)
+
+        # end
         # TODO  Constructor accepting nested array
 
         # Convenience initializer for making copies.
@@ -365,8 +389,8 @@ module Lattice
 
         # creates an NArray-type vector from a tuple of scalars.
         # Currently can't mix types
-        def self.wrap(*objects : T) : NArray(T)        
-            NArray(T).new([objects.size]) {|i| objects[i]}
+        def self.wrap(*objects : T) : NArray(T)
+            NArray(Int32 | String).new([objects.size]) {|i| objects[i]}
         end
 
         def get_buffer_idx(index) : T
@@ -419,12 +443,6 @@ module Lattice
             end
         end
 
-        # def []=(*args : *U) forall U
-        #     {% begin %}
-        #         set([{% for i in 0...(U.size - 1) %}args[{{i}}] {% if i < U.size - 2 %}, {% end %}{% end %}], args.last)
-        #     {% end %}
-        # end
-
         def map_with_index!(&block : T, Int32 -> T) forall T
             @buffer.map_with_index! do |elem, idx|
                 yield elem, idx
@@ -439,11 +457,21 @@ module Lattice
             end
         end
 
-        # TODO implement these
+        def map_with_indices!(&block : T, Array(Int32), Int32 -> U) forall U
+            map_with_index! do |elem, idx|
+                yield elem, unpack_index(idx), idx
+            end
+        end
 
+
+        def reshape(new_shape)
+            NArray(T).new(new_shape, @buffer)
+        end
+
+        # TODO implement these
+        
         # deletion
         # constructors
-        # reshaping?
             
     end
 end

@@ -1,6 +1,5 @@
 require "./spec_helper"
 require "./test_objects"
-require "big"
 
 include Lattice
 
@@ -185,30 +184,12 @@ describe Lattice do
             one.get(0).should_not be two.get(0)
         end
 
-        # TODO formalize or remove
-        it "can make other nifty arrays (possibly)" do
-            one =  NArray.new([3,2], 1)
-            two =  NArray.wrap(1,7,9,4)
-            three = NArray.new([3,2], 0)
 
-            #NArray.wrap(one, two, pad: true)
-            NArray.wrap(one, three)
-
-            expect_raises(DimensionError) do
-                NArray.wrap(one, two)
-            end
-            
-            # this doesn't work
-            #pp NArray.wrap(1, 7, "foo")
-        end
 
         it "can do Enumerable stuff" do
 
-            narr = NArray(BigInt).new([3,3,3]) { |i| BigInt.new(i + 1) }
-            puts narr.minmax
 
             # override
-            puts narr.map {|i| i**2 }.product
             # zip
             # map
 
@@ -224,7 +205,27 @@ describe Lattice do
 
             puts stringnarr.join
 
-      
+            narr = NArray(Int32).new([2, 3]) { |i| i + 2 }
+            puts narr
+
+            puts narr.reshape([3, 2])
+        end
+        # TODO formalize or remove
+        it "can make other nifty arrays (possibly)" do
+            one =  NArray.new([3,2], 1)
+            two =  NArray.wrap(1,7,9,4)
+            three = NArray.new([3,2], 0)
+
+            #NArray.wrap(one, two, pad: true)
+            NArray.wrap(one, three)
+
+            # expect_raises(DimensionError) do
+            #     NArray.wrap(one, two)
+            # end
+            
+            # this doesn't work
+            pp NArray.wrap(1, 7, "foo")
         end
     end
+
 end

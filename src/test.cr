@@ -1,54 +1,27 @@
-require "./lattice/n_array"
-
-class A(T)
-    def multiply(number)
-        if T == A
-            @arg.each do |element|
-                element.multiply(number)
-            end
-        else
-            @arg.each_with_index do |element, index|
-                @arg[index] = element * number
-            end
-        end
-    end
-
-    def initialize(@arg : Array(T))
-    end
+macro whatever
 end
 
-# arr = A[A[1, 2], A[1, 2]] # A(A(Int32))
-#arr = A.new([ A.new([1, 2]), A.new([1, 2]) ]) # A(A(Int32))
+def get_best_type(nested : T) forall T
+    {% begin %}
+        {% puts T < Array %}
+        {% puts T.type_vars %}
+        {% puts T.type_vars[0] %}
+        {% puts T.type_vars[0].union_types %}
+        {% puts T.type_vars[0].union_types[2].type_vars[0].union_types %}
 
-#puts(arr)
+        
+    {% end %}
 
-#arr = arr.multiply(3)
-
-#puts(arr)
-
-class B
-    def self.reflect(var : T) : T
-        var
-    end
-
-
-    def self.fill(size, val : T) : Slice(T)
-        Slice(T).new(5, "hello")
-    end
 end
 
+[ [1], ["hello"] ] # Array(Int32) | Array(String)
+
+# if Array -> .type_vars[0].union_types  -> list of types
+# check 
 
 
+A = [[3], ["Hi"], [0.45]]
 
-puts Slice.new(5) { |i| i}
+puts get_best_type([[[1, 2, 3]], ["hello", 1f64, 10], [12, 13, 14]])
 
-
-one = ["A","B","C"]
-two = one.dup()
-
-two[2] = "CHANGED"
-puts two 
-puts one
-
-
-puts [1,2,3][3..].product()
+# puts get_best_type(4)
