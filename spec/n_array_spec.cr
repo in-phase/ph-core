@@ -1,5 +1,6 @@
 require "./spec_helper"
 require "./test_objects"
+require "big"
 
 include Lattice
 
@@ -110,12 +111,14 @@ describe Lattice do
         end
 
         it "exposes unpacked indices to the user in a constructor" do
-            narr = NArray(Int32).build([3, 3]) do |coord|
-                next 1 if coord[0] == coord[1]
+            narr = NArray(Int32).build([3, 3,3]) do |coord|
+                next 1 if coord[0] == coord[1] == coord[2]
                 next 0
             end
+            narr[2,2,2] = 437
+            puts narr
 
-            pp narr
+            #pp narr
         end
 
         it "can access an element given a fully-qualified index" do
@@ -199,5 +202,29 @@ describe Lattice do
             #pp NArray.wrap(1, 7, "foo")
         end
 
+        it "can do Enumerable stuff" do
+
+            narr = NArray(BigInt).new([3,3,3]) { |i| BigInt.new(i + 1) }
+            puts narr.minmax
+
+            # override
+            puts narr.map {|i| i**2 }.product
+            # zip
+            # map
+
+
+            narr_small = NArray(Int64).new([2,3]) { |i| (i + 1).to_i64 }
+            puts narr_small.product
+
+
+            # don't override
+            #puts narr.partition {|i| i % 2 == 0}
+
+            stringnarr = NArray(String).new([3,3,3]) { |i| "na" * i + " batman\n" }
+
+            puts stringnarr.join
+
+      
+        end
     end
 end

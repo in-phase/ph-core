@@ -1,9 +1,12 @@
 require "./n_array_abstract.cr"
 require "./exceptions.cr"
+require "./n_array_formatter.cr"
 
 module Lattice
     class NArray(T) < AbstractNArray(T)
-        protected getter buffer : Slice(T)
+        include Enumerable(T)
+
+        getter buffer : Slice(T)
         @shape : Array(Int32)
 
         def self.build(shape, &block : Array(Int32) -> T)
@@ -27,7 +30,8 @@ module Lattice
         # TODO  Constructor accepting nested array
 
         # Convenience initializer for making copies.
-        protected def initialize(@shape, @buffer)
+        protected def initialize(shape, @buffer)
+            @shape = shape.dup
         end
 
         # Fill an array of given size with a given value. Note that if value is an `Object`, only its reference will be copied
@@ -113,27 +117,25 @@ module Lattice
 
 
         def to_s : String
-            # TODO
-            # Possibly have format options which control behaviour of this eventually
-            "Insert beautifully formatted array of size #{@shape} here"
+            NArrayFormatter.format(self)
         end
 
         # Override for printing a string output to stream (e.g., puts)
         def to_s(io : IO)
-            io << to_s()
+            NArrayFormatter.print(self, io)
         end
 
 
         # Creates a deep copy of this NArray; 
         # Allocates a new buffer of the same shape, and calls #clone on every item in the buffer.
         def clone : NArray(T)
-            NArray(T).new(@shape.clone(), @buffer.clone())
+            NArray(T).new(@shape, @buffer.clone())
         end
 
         # Creates a shallow copy of this NArray;
         # Allocates a new buffer of the same shape, and duplicates every item in the buffer.
         def dup : NArray(T)
-            NArray(T).new(@shape.clone(), @buffer.dup())
+            NArray(T).new(@shape, @buffer.dup())
         end
         
         # Takes a single index into the NArray, returning a slice of the largest dimension possible.
@@ -235,7 +237,7 @@ module Lattice
                 # the [] method requires me to pass coord as an Array rather than Tuple,
                 # which for some reason broke here if I didn't check it as an Int32.
                 # TODO consider changing this back if we use macros for [], and if that allows Tuples
-                when Int32 
+                when Int32
     
                     index = canonicalize_index(rule, axis)
                     if index < 0 || index >= @shape[axis]
@@ -277,7 +279,7 @@ module Lattice
 
 
         # replaces an indexed chunk with a given chunk of the same shape.
-        def set_chunk(coord, value : NArray(T))
+        def set(coord, value : NArray(T))
             shape, mapping = extract_buffer_indices(coord)
 
             # check that the replacement slice matches the 
@@ -302,24 +304,29 @@ module Lattice
 
         # TODO macro-ify this
         # Takes a valid slicing operation in [], and sets the obtained values to the value after =. 
-        def []=(*args)
-            value = args.last?
-            coord = args.to_a[...-1]
+        # def []=(*args)
+        #     value = args.last?
+        #     coord = args.to_a[...-1]
 
-            case value
-            when NArray
-                set(coord, value.as(NArray))
+        #     case value
+        #     when NArray
+        #         set(coord, value.as(NArray))
                 
-            when T 
-                set(coord, value.as(T))
-            else
-                puts "Neither"
-                # Maybe attempt casting to T?
+        #     when T 
+        #         set(coord, value.as(T))
+        #     else
+        #         puts "Neither"
+        #         # Maybe attempt casting to T?
 
-                #raise TypeError.new("Cannot set values: type of input does not match type of NArray.")
-            end
+        #         #raise TypeError.new("Cannot set values: type of input does not match type of NArray.")
+        #     end
+        # end
+
+        def []=(*args : *U) forall U
+            {% begin %}
+                set([{% for i in 0...(U.size - 1) %}args[{{i}}] {% if i < U.size - 2 %}, {% end %}{% end %}], args.last)
+            {% end %}
         end
-
 
         # Given a list of `NArray`s, returns the smallest shape array in which any one of those `NArrays` can be contained.
         # TODO: Example
@@ -362,16 +369,81 @@ module Lattice
             NArray(T).new([objects.size]) {|i| objects[i]}
         end
 
-        
-        # TODO implement these
+        def get_buffer_idx(index) : T
+            @buffer[index]
+        end
 
-        # flatten 
-            # 
+        def flatten : NArray(T)
+            NArray.new([@shape.product], @buffer.dup)
+        end
+
+        def to_a : Array(T)
+            @buffer.to_a
+        end
+
+        def each_with_index(&block : T, Int32 -> )
+            @buffer.each_with_index do |elem, idx|
+                yield elem, idx
+            end
+        end
+
+        def each(&block : T -> )
+            each_with_index do |elem|
+                yield elem
+            end
+        end
+
+        def each_with_indices(&block : T, Array(Int32), Int32 -> )
+            each_with_index do |elem, idx|
+                yield elem, unpack_index(idx), idx
+            end
+        end
+
+        def map_with_index(&block : T, Int32 -> U) forall U
+            buffer = Slice(U).new(@shape.product) do |idx|
+                yield @buffer[idx], idx
+            end
+
+            NArray(U).new(@shape, buffer)
+        end
+
+        def map(&block : T -> U) forall U
+            map_with_index do |elem|
+                yield elem
+            end
+        end
+        
+        def map_with_indices(&block : T, Array(Int32), Int32 -> U) forall U
+            map_with_index do |elem, idx|
+                yield elem, unpack_index(idx), idx
+            end
+        end
+
+        # def []=(*args : *U) forall U
+        #     {% begin %}
+        #         set([{% for i in 0...(U.size - 1) %}args[{{i}}] {% if i < U.size - 2 %}, {% end %}{% end %}], args.last)
+        #     {% end %}
+        # end
+
+        def map_with_index!(&block : T, Int32 -> T) forall T
+            @buffer.map_with_index! do |elem, idx|
+                yield elem, idx
+            end
+            
+            self
+        end
+
+        def map!(&block : T -> U) forall U
+            map_with_index! do |elem|
+                yield elem
+            end
+        end
+
+        # TODO implement these
 
         # deletion
         # constructors
         # reshaping?
-        # to float???
             
     end
 end
