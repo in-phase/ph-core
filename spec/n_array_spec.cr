@@ -24,13 +24,57 @@ describe Lattice do
 
         it "makes slices" do
             narr = NArray.new([2,2], 0)
-            puts narr.extract_buffer_indices(1,0)
+            puts narr.extract_buffer_indices([1,0])
             narr = NArray.new([3,3,3], 0)
-            puts narr.extract_buffer_indices(0..2 , 0) # first item of each rows 1-3
+            puts narr.extract_buffer_indices([0..2 , 0]) # first item of each rows 1-3
 
-            narr = NArray.build([3,3,3]) {|i| i} # Builds an NArray where the value of each element is its coords
+            #narr = NArray.build([3,3,3]) {|i| i} # Builds an NArray where the value of each element is its coords
+            narr = NArray.new([3,3,3], 0)
+            
+            narr[1..2, 1..2, 1..2] = 5
             pp narr
-            pp narr[1..2, 1..2, 1..2]
+
+
+                        # matrix[2, ..]
+            # mapping = [1]
+            # mapping[sliced_array_axis] == where in matrix you must put that index
+
+            # output_arr = new(shape) do |indices|
+                # goes from output array index to full array index
+
+            # end
+            
+            # begin >= -shape, < shape 
+            # end >= -shape, < shape
+            # 1...1 raises indexerror? (range of no elements)
+            # 3..1 flips horizontally
+            # ... -> all
+            # 2.. -> index 2 (inclusive) to end
+            # ..-1 -> up to that
+            # .. -> all
+
+            
+            # img : 128 x 64 x 3, we want a 32 x 32 square from the top left corner
+            # img[0...32, 0...32] <- type: Range (not full depth)
+
+            # just the top row:
+            # img[..., 6] <- Range and Integer (not full depth)
+
+            # just red:
+            # img[..,..,0] <- Range/Integer, at full depth
+
+            # img[.., -32..32] <- puts the beach above the sky
+
+            # img[0..-10] <- everything but the last ten rows
+            
+            # img[-10..-5] <- Only the five rows five before the end
+
+            # img[-1..0] <- horizontal flip of the image
+            # img[0..-1] <- identity
+
+            # boolean mask: find all elems that are 0 and make them 1
+            # mask = img[..,..] == 0 
+            # img[mask] = 1
 
         end
         it "edits values by a boolean map" do

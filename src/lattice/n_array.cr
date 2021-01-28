@@ -200,8 +200,12 @@ module Lattice
         end
 
 
-        def extract_buffer_indices(*coord) : Tuple(Array(Int32), Array(Int32))
+        # maps an n-dimensional 
+        # to a list of buffer indices that 
+        def extract_buffer_indices(coord) : Tuple(Array(Int32), Array(Int32))
             shape = [] of Int32
+
+            # The behaviour of this method will change if we are using non-row-major ordering.
 
             # At each dimension of iteration, chunk_start_indices will expand according to the "rule".
             # For example, if unwrapping (1, 1..2, 1) for an Narray of shape [3,3,3] - in the first iteration,
@@ -227,7 +231,12 @@ module Lattice
                     end
 
                     shape << rule.size
-                else
+                # Originally, all other cases handled here. (else)
+                # the [] method requires me to pass coord as an Array rather than Tuple,
+                # which for some reason broke here if I didn't check it as an Int32.
+                # TODO consider changing this back if we use macros for [], and if that allows Tuples
+                when Int32 
+    
                     index = canonicalize_index(rule, axis)
                     if index < 0 || index >= @shape[axis]
                         raise IndexError.new("Could not canonicalize index: #{rule} is not a sensible index in axis #{index}.")
@@ -237,6 +246,8 @@ module Lattice
                         new_indices << ref + index * step
                     end
                     shape << 1
+                else 
+                   puts "Not a Range or Integer!" # throw error here?
                 end
                 chunk_start_indices = new_indices
             end
@@ -244,76 +255,12 @@ module Lattice
             {shape, chunk_start_indices}
         end
 
-
         #Higher-order slicing operations (like slicing in numpy)
         def [](*coord) : NArray(T)
-
-            # create output NArray
-            # for each parameter in coord:
-            #   check if it's a range or integer
-            #   if range:
-            #        iterate through and copy selected elements to output NArray
-            #   if integer:
-            #        
-
-            shape, mapping = extract_buffer_indices(*coord)
-
+            shape, mapping = extract_buffer_indices(coord)
             NArray(T).new(shape) {|i| @buffer[mapping[i]]}
-
-            # extract_buffer_indices to get shape and 
-
-            # matrix[2, ..]
-            # mapping = [1]
-            # mapping[sliced_array_axis] == where in matrix you must put that index
-
-            # output_arr = new(shape) do |indices|
-                # goes from output array index to full array index
-
-            # end
-            
-            # begin >= -shape, < shape 
-            # end >= -shape, < shape
-            # 1...1 raises indexerror? (range of no elements)
-            # 3..1 flips horizontally
-            # ... -> all
-            # 2.. -> index 2 (inclusive) to end
-            # ..-1 -> up to that
-            # .. -> all
-
-            
-            # img : 128 x 64 x 3, we want a 32 x 32 square from the top left corner
-            # img[0...32, 0...32] <- type: Range (not full depth)
-
-            # just the top row:
-            # img[..., 6] <- Range and Integer (not full depth)
-
-            # just red:
-            # img[..,..,0] <- Range/Integer, at full depth
-
-            # img[.., -32..32] <- puts the beach above the sky
-
-            # img[0..-10] <- everything but the last ten rows
-            
-            # img[-10..-5] <- Only the five rows five before the end
-
-            # img[-1..0] <- horizontal flip of the image
-            # img[0..-1] <- identity
-
-            # boolean mask: find all elems that are 0 and make them 1
-            # mask = img[..,..] == 0 
-            # img[mask] = 1
         end
 
-
-        # TODO fix! Compiler cannot differentiate *coord and value
-        # replaces all values in a given slice with the given value.
-        def []=(*coord, value : T)
-            shape, mapping = extract_buffer_indices(*coord)
-
-            mapping.each do |index|
-                @buffer[index] = value
-            end
-        end
 
         # replaces all values in a boolean mask with a given value
         def []=(bool_mask : NArray(Bool), value : T)
@@ -328,10 +275,10 @@ module Lattice
             end
         end
 
-        # TODO also won't work :(
-        # replaces a provided slice with a given slice of the same shape.
-        def []=(*coord, value : NArray(T))
-            shape, mapping = extract_buffer_indices(*coord)
+
+        # replaces an indexed chunk with a given chunk of the same shape.
+        def set_chunk(coord, value : NArray(T))
+            shape, mapping = extract_buffer_indices(coord)
 
             # check that the replacement slice matches the 
             if value.shape != shape
@@ -342,6 +289,37 @@ module Lattice
                 @buffer[dst_idx] = value.buffer[src_idx]
             end
         end
+
+        # replaces all values in an indexed chunk with the given value.
+        def set(coord, value : T)
+            shape, mapping = extract_buffer_indices(coord)
+
+            mapping.each do |index|
+                @buffer[index] = value
+            end
+        end
+
+
+        # TODO macro-ify this
+        # Takes a valid slicing operation in [], and sets the obtained values to the value after =. 
+        def []=(*args)
+            value = args.last?
+            coord = args.to_a[...-1]
+
+            case value
+            when NArray
+                set(coord, value.as(NArray))
+                
+            when T 
+                set(coord, value.as(T))
+            else
+                puts "Neither"
+                # Maybe attempt casting to T?
+
+                #raise TypeError.new("Cannot set values: type of input does not match type of NArray.")
+            end
+        end
+
 
         # Given a list of `NArray`s, returns the smallest shape array in which any one of those `NArrays` can be contained.
         # TODO: Example
@@ -394,16 +372,6 @@ module Lattice
         # constructors
         # reshaping?
         # to float???
-
-
-
-        # A function to help with testing during development,
-        # probably not too useful otherwise
-        # TODO remove
-        def get_by_buffer_index(index) : T
-            return @buffer[index]
-        end
-
             
     end
 end
