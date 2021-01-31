@@ -27,31 +27,69 @@ module Lattice
             @buffer = Slice(T).new(num_elements) {|i| yield i }
         end
 
-        # protected def recursive_probe_array(data, shape = [])
-        #     if data.is_a? Array
-        #         if data.empty?
-        #             raise DimensionError.new("Could not profile nested array: Found an array with size zero.")
-        #         end
+        def self.new(nested_array)
+            shape = recursive_probe_array(nested_array)
+            expected_element_count = shape.product
 
-        #         shape << data.size
-        #         return recursive_probe_array(data[0], shape)
-        #     else
-        #         return shape
-        #     end
-        # end
+            elements = container_for_base_types(nested_array, expected_element_count)
+            
+            puts typeof(elements[0])
 
-        # protected def recursive_copy_to_buffer(data, shape, current_dim = 0, buffer = )
-            
-        #     # check that current array matches expected length for this dimension
-            
-            
-            
-        # end
+            recursive_extract_to_array(nested_array, shape, elements)
 
-        # def initialize(data_array)
+            # fill elements
+            buffer = Slice.new(elements.to_unsafe, expected_element_count)
+            
+            # Do the typical `new` stuff
+            instance = NArray(typeof(elements[0])).allocate
+            instance.initialize(shape, buffer)
+            instance
+        end
 
-        # end
-        # TODO  Constructor accepting nested array
+        protected def self.recursive_probe_array(data, shape = [] of Int32)
+            if data.is_a? Array
+                if data.empty?
+                    raise DimensionError.new("Could not profile nested array: Found an array with size zero.")
+                end
+
+                shape << data.size
+                return recursive_probe_array(data[0], shape)
+            else
+                return shape
+            end
+        end
+
+        protected def self.recursive_extract_to_array(data, shape, buffer, current_dim = 0)
+            
+            # check if current array matches expected length for this dimension
+            if data.size != shape[current_dim]
+                raise DimensionError.new("Error converting nested array to NArray: Dimensions of nested array were not constant. (Expected #{shape[current_dim]}, found #{data.size})")
+            end
+
+            # Base case: this is the lowest level in shape (expect elements are scalars)
+            if current_dim == shape.size - 1
+                
+                data.each do |scalar|
+                    if scalar.is_a?(Enumerable)
+                        raise DimensionError.new("Error converting nested array to NArray: Inconsistent number of dimensions depending on path.")
+                    end
+
+                    if scalar.is_a?(typeof(buffer[0]))
+                        buffer << scalar
+                    end
+                end
+                
+            # Case 2: this is not the last dimension in shape (expect elements are arrays)
+            else
+                data.each do |subarray|
+                    if !subarray.is_a?(Enumerable) # is not actually a subarray
+                        raise DimensionError.new("Error converting nested array to NArray: Inconsistent number of dimensions depending on path.")
+                    end
+
+                    recursive_extract_to_array(subarray, shape, buffer, current_dim + 1)
+                end
+            end
+        end
 
         # Convenience initializer for making copies.
         protected def initialize(shape, @buffer)
@@ -326,25 +364,6 @@ module Lattice
         end
 
 
-        # TODO macro-ify this
-        # Takes a valid slicing operation in [], and sets the obtained values to the value after =. 
-        # def []=(*args)
-        #     value = args.last?
-        #     coord = args.to_a[...-1]
-
-        #     case value
-        #     when NArray
-        #         set(coord, value.as(NArray))
-                
-        #     when T 
-        #         set(coord, value.as(T))
-        #     else
-        #         puts "Neither"
-        #         # Maybe attempt casting to T?
-
-        #         #raise TypeError.new("Cannot set values: type of input does not match type of NArray.")
-        #     end
-        # end
 
         def []=(*args : *U) forall U
             {% begin %}
@@ -388,9 +407,8 @@ module Lattice
         end
 
         # creates an NArray-type vector from a tuple of scalars.
-        # Currently can't mix types
-        def self.wrap(*objects : T) : NArray(T)
-            NArray(Int32 | String).new([objects.size]) {|i| objects[i]}
+        def self.wrap(*objects)
+            NArray.new(objects.to_a)
         end
 
         def get_buffer_idx(index) : T
@@ -472,6 +490,41 @@ module Lattice
         
         # deletion
         # constructors
-            
+        
+        # TODO: Document properly
+        # Given a nested array, returns the union type needed to store any of the leaf-level scalars contained within.
+        # For example:
+        # union_of_base_types([["a", 1], ['b', false]], 15) # => Array(String | Int32 | Char | Bool)
+        private def self.container_for_base_types(nested : T, size) forall T
+        private def self.container_for_base_types(nested : T, size) forall T
+        private def self.container_for_base_types(nested : T, size) forall T
+            {% begin %}
+                {% 
+                scalar_types = [] of TypeNode
+                identified = [] of TypeNode
+                identified << T
+                %}
+
+                {% for type_to_check in identified %}
+
+                    # If the object is array-like, mark each type in its type parameter as needing to be checked
+                    {% if type_to_check.type_vars.size == 1 && type_to_check < Enumerable %} # has one generic type var that extends enumerate
+                        {% type_var = type_to_check.type_vars[0] %}
+
+                        {% for type in type_var.union_types %}
+                            {% identified << type %}     
+                        {% end %}
+                    
+                    # If the object is a scalar, push the type to the scalar_types list    
+                    {% else %} 
+                        {% scalar_types << type_to_check %}
+                    {% end %}
+                {% end %}
+
+                {% ret_types = scalar_types.uniq %}
+                
+                return Array({% for i in 0...(ret_types.size) %} {% if i > 0 %} | {% end %} {{ ret_types[i] }} {% end %}).new(initial_capacity: size)
+            {% end %}
+        end
     end
 end

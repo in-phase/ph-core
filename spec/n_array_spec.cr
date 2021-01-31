@@ -219,12 +219,14 @@ describe Lattice do
             #NArray.wrap(one, two, pad: true)
             NArray.wrap(one, three)
 
-            # expect_raises(DimensionError) do
-            #     NArray.wrap(one, two)
-            # end
+            expect_raises(DimensionError) do
+                NArray.wrap(one, two)
+            end
             
-            # this doesn't work
-            pp NArray.wrap(1, 7, "foo")
+            puts NArray.wrap(1, 7, "foo")
+
+            puts NArray.new([[1, 2, 3], ["hello", 1f64, 10], [12, 13, 14]])
+
         end
     end
 
