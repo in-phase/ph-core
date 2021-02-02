@@ -496,8 +496,6 @@ module Lattice
         # For example:
         # union_of_base_types([["a", 1], ['b', false]], 15) # => Array(String | Int32 | Char | Bool)
         private def self.container_for_base_types(nested : T, size) forall T
-        private def self.container_for_base_types(nested : T, size) forall T
-        private def self.container_for_base_types(nested : T, size) forall T
             {% begin %}
                 {% 
                 scalar_types = [] of TypeNode
