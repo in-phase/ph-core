@@ -497,8 +497,12 @@ module Lattice
 
                 new_buffer = @buffer.map_with_index do |elem, buf_idx|
                     \{% begin %}
+                        # Note: Be careful with this section. Adding newlines can break this code because it might put commas on their
+                        # own lines.
                         elem.{{call.name.id}}(
-                            \{% for i in 0...(U.size) %}\{% if i > 0 %}, \{% end %}\{% if U[i] < NArray %}args[\{{i}}].buffer[buf_idx]\{% else %}args[\{{i}}]\{% end %}\{% end %}
+                            \{% for i in 0...(U.size) %}\
+                                \{% if U[i] < NArray %} args[\{{i}}].buffer[buf_idx] \{% else %} args[\{{i}}] \{% end %} \{% if i < U.size - 1 %}, \{% end %}
+                            \{% end %}\
                         )
                     \{% end %}
                 end
