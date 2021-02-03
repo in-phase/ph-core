@@ -14,9 +14,8 @@ end
 # 11                  label w as discovered
 # 12                  Q.enqueue(w)
 
-
 # Push to array: << or push
-# 
+#
 
 # A GENERIC COMPILE-TIME ITERATIVE BREADTH FIRST SEARCH TYPE CHECKING ALGORITHM
 
@@ -28,11 +27,11 @@ end
 # this macro will return an ArrayLiteral storing each individual non-enumerable the array
 # contains
 def union_of_base_types(nested : T) forall T
-    {% begin %}
-        {% 
-        scalar_types = [] of TypeNode
-        identified = [] of TypeNode
-        identified << T
+  {% begin %}
+        {%
+          scalar_types = [] of TypeNode
+          identified = [] of TypeNode
+          identified << T
         %}
 
         {% for type_to_check in identified %}
@@ -66,13 +65,11 @@ puts "test".as(Int32 | String)
 #      end
 
 #     # For nonprimitives: must initialize with something (can't just set size)
-    
 
 # # end
 
 # if Array -> .type_vars[0].union_types  -> list of types
-# check 
-
+# check
 
 # A = [[3], ["Hi"], [0.45]]
 # puts test_typing([[[1, 2, 3]], ["hello", 1f64, 10], [12, 13, 14]])
@@ -82,11 +79,10 @@ puts "test".as(Int32 | String)
 # get_best_type([[1, 2], ['a', 'b']])
 puts union_of_base_types([[[1, 2, 3]], ["hello", 1f64, 10], [12, 13, 14]])
 
-
 arr = [[[1, 2, 3]], ["hello", 1f64, 10], [12, 13, 14]]
 puts typeof(arr.flatten[0])
 flat_arr = arr.flatten
 puts typeof(flat_arr)
 
-my_slice = Slice(typeof(flat_arr[0])).new(flat_arr.size) {|i| flat_arr[i] }
-puts my_slice 
+my_slice = Slice(typeof(flat_arr[0])).new(flat_arr.size) { |i| flat_arr[i] }
+puts my_slice

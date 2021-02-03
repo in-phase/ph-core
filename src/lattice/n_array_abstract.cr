@@ -7,7 +7,7 @@ module Lattice
     abstract def to_scalar : T
 
     # Takes a single index into the NArray, returning a slice of the largest dimension possible.
-    # For example, if `a` is a matrix, `a[0]` will be a vector. 
+    # For example, if `a` is a matrix, `a[0]` will be a vector.
     abstract def [](index) : AbstractNArray(T)
 
     # Higher-order slicing operations (like slicing in numpy)
@@ -21,6 +21,5 @@ module Lattice
 
     # Returns a shallow copy of the array.
     abstract def dup : AbstractNArray(T)
-
   end
 end
