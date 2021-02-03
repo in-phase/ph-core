@@ -92,14 +92,14 @@ module Lattice
         end
 
         # Convenience initializer for making copies.
-        protected def initialize(shape, @buffer)
+        protected def initialize(shape, @buffer : Slice(T))
             @shape = shape.dup
         end
 
         # Fill an array of given size with a given value. Note that if value is an `Object`, only its reference will be copied
         # - all elements would refer to a single object.
-        def initialize(shape, value : T)
-            initialize(shape) { value }
+        def self.fill(shape, value : T)
+            NArray(T).new(shape) { value }
         end
 
         # Checks if a given list of integers represent an index that is in range for this `NArray`.
@@ -481,10 +481,34 @@ module Lattice
             end
         end
 
-
         def reshape(new_shape)
             NArray(T).new(new_shape, @buffer)
         end
+
+        macro method_missing(call)
+            def {{call.name.id}}(*args : *U) forall U
+                \{% for i in 0...(U.size) %}
+                    \{% if U[i] < NArray %}
+                        if args[\{{i}}].shape != @shape
+                            raise DimensionError.new("Could not apply .{{call.name.id}} elementwise - Shape of argument does match dimension of `self`")
+                        end
+                    \{% end %}
+                \{% end %}
+
+                new_buffer = @buffer.map_with_index do |elem, buf_idx|
+                    \{% begin %}
+                        elem.{{call.name.id}}(
+                            \{% for i in 0...(U.size) %}\{% if i > 0 %}, \{% end %}\{% if U[i] < NArray %}args[\{{i}}].buffer[buf_idx]\{% else %}args[\{{i}}]\{% end %}\{% end %}
+                        )
+                    \{% end %}
+                end
+                
+                NArray.new(shape, new_buffer)
+            end
+        end
+
+
+
 
         # TODO implement these
         
