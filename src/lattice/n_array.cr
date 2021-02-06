@@ -150,7 +150,11 @@ module Lattice
       end
     end
 
-    protected def self.recursive_extract_to_array(data, shape, buffer, current_dim = 0)
+    # Populated a pre-initialized buffer of appropriate union type with nested array elements in lexicographic order.
+    # See `recursive_probe_array` and `recursive_probe_array` for more information about the union type
+    # and shape parameter.
+    # Raises a `DimensionError` if the number of dimensions is inconsistent. 
+    protected def self.recursive_extract_to_array(nested_array data, shape, buffer, current_dim = 0)
       # check if current array matches expected length for this dimension
       if data.size != shape[current_dim]
         raise DimensionError.new("Error converting nested array to NArray: Dimensions of nested array were not constant. (Expected #{shape[current_dim]}, found #{data.size})")
@@ -181,17 +185,32 @@ module Lattice
     end
 
 
-    # Fill an array of given size with a given value. Note that if value is an `Object`, only its reference will be copied
-    # - all elements would refer to a single object.
+    # Fills an `NArray` of given shape with a specified value.
+    # For example, to create a zero vector:
+    # ```
+    # NArray.fill([3, 1], 0)
+    # ```
+    # Will produce
+    # ```text
+    # [[0],
+    #  [0],
+    #  [0]]
+    # ```
+    # Note that this method makes no effort to duplicate *value*, so this should only be used
+    # for `Struct`s. If you want to populate an NArray with `Object`s, see `new(shape, &block)`.
     def self.fill(shape, value : T)
       NArray(T).new(shape) { value }
     end
 
+    # TODO: Code below this line isn't neccessarily well documented
+
     # Checks if a given list of integers represent an index that is in range for this `NArray`.
-    def valid_index?(indices)
+    # TODO: Rename and document
+    def valid_index?(coord)
       NArray.valid_index?(indices, @shape)
     end
 
+    # TODO: Rename and document
     def self.valid_index?(indices, shape)
       if indices.size > shape.size
         return false
@@ -204,6 +223,7 @@ module Lattice
       true
     end
 
+    # TODO: Talk about what this should be named
     def self.pack_index(indices, shape) : Int32
       if !valid_index?(indices, shape)
         raise IndexError.new("Cannot pack index: the given index is out of bounds for this NArray along at least one dimension.")
@@ -236,11 +256,14 @@ module Lattice
       NArray.unpack_index(index, @shape)
     end
 
-    # Returns an array where `shape[i]` is the size of the NArray in the `i`th dimension.
+    # Returns the number of elements in each axis of the `NArray`.
+    # More explicitly, axis *k* contains `shape[k]` elements.
     def shape : Array(Int32)
       @shape.clone
     end
 
+    # Returns the number of dimensions of this `NArray`.
+    # This is equivalent to, but slightly faster than, `shape.size`.
     def dimensions : Int32
       @shape.size
     end
