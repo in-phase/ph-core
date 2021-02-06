@@ -3,18 +3,68 @@ require "./exceptions.cr"
 require "./n_array_formatter.cr"
 
 module Lattice
+  # An `NArray` is a multidimensional array for any arbitrary type.
+  # It is the most general implementation of AbstractNArray, and as a result
+  # only implements primitive data operations (construction, data reading,
+  # data writing, and region sampling / slicing).
+  #
+  # `NArray` is designed to provide the best user experience possible, and
+  # that methodology led to the use of the `method_missing` macro for element-wise
+  # operations. Please read its documentation, as it provides a large amount
+  # of functionality that may otherwise appear missing.
   class NArray(T) < AbstractNArray(T)
     include Enumerable(T)
 
+    # Stores the elements of an `NArray` in lexicographic (row-major) order.
     getter buffer : Slice(T)
+    
+    # Contains the number of elements in each axis of the `NArray`.
+    # More explicitly, axis *k* contains *@shape[k]* elements.
     @shape : Array(Int32)
 
-    def self.build(shape, &block : Array(Int32), Int32 -> T)
+    # Constructs an `NArray` using a user-provided *shape* (see `shape`) and a callback.
+    # The provided callback should map a multidimensional index (and an optional packed
+    # index) to the value you wish to store at that position.
+    # For example, to create the 2x2 identity matrix:
+    # ```
+    # Lattice::NArray.build([2, 2]) do |indices|
+    #   if indices[0] == indices[1]
+    #     1
+    #   else
+    #     0
+    #   end
+    # end
+    # ```
+    # Which will create:
+    # ```text
+    # [[1, 0, 0],
+    #   0, 1, 0],
+    #   0, 0, 1]]
+    # ```
+    # The buffer index allows you to easily index elements in lexicographic order.
+    # For example:
+    # ```
+    # NArray.build([5, 1]) { |indices, index| index }
+    # ```
+    # Will create:
+    # ```text
+    # [[0],
+    #  [1],
+    #  [2],
+    #  [3],
+    #  [4]]
+    # ```
+    def self.build(shape, &block : Array(Int32), Int32 -> T) : NArray(T)
       NArray(T).new(shape) do |packed_index|
         yield unpack_index(packed_index, shape), packed_index
       end
     end
 
+    # Creates an `NArray` using only a shape (see `shape`) and a packed index.
+    # This is used internally to make code faster - converting from a packed
+    # index to an unpacked index isn't needed for many constructors, and generating
+    # them would waste resources.
+    # For more information, see `pack_index`, `buffer`, and `build`.
     protected def initialize(shape, &block : Int32 -> T)
       @shape = shape.map do |dim|
         if dim < 1
@@ -27,13 +77,40 @@ module Lattice
       @buffer = Slice(T).new(num_elements) { |i| yield i }
     end
 
+    # Creates an `NArray` from a nested array with uniform dimensions.
+    # For example:
+    # ```
+    # NArray.new([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+    # ```
+    # Would create the 3x3 identity matrix of type `NArray(Int32)`.
+    # 
+    # This constructor will figure out the types of the scalars at the
+    # bottom of the nested array at compile time, which allows mixing
+    # datatypes effortlessly.
+    # For example, to create a matrix with 0.5 on the diagonals:
+    # ```
+    # NArray.new([[0.5, 0, 0], [0, 0.5, 0], [0, 0, 0.5]])
+    # ```
+    # This may seem trivial, but note that the `0.5`s are implicit
+    # `Float32` literals, whereas the `0`s are implicit `Int32` literals.
+    # So, the type returned by that example will actually be an `NArray(Float32 | Int32)`.
+    # This also works for more disorganized examples:
+    # ```
+    # NArray.new([["We can mix types", 2, :do], ["C", 0.0, "l stuff."]])
+    # ```
+    # The above line will create an `NArray(String | Int32 | Symbol | Float32)`.
+    #
+    # When a nested array with non-uniform dimensions is passed, this method will
+    # raise a `DimensionError`.
+    # For example:
+    # ```
+    # NArray.new([[1], [1, 2]]) # => DimensionError
+    # ```
     def self.new(nested_array)
       shape = recursive_probe_array(nested_array)
       expected_element_count = shape.product
 
       elements = container_for_base_types(nested_array, expected_element_count)
-
-      puts typeof(elements[0])
 
       recursive_extract_to_array(nested_array, shape, elements)
 
@@ -46,7 +123,21 @@ module Lattice
       instance
     end
 
-    protected def self.recursive_probe_array(data, shape = [] of Int32)
+    # Creates an `NArray` out of a shape and a pre-populated buffer.
+    # Frequently used internally (for example, this is used in
+    # `reshape` as of Feb 5th 2021).
+    protected def initialize(shape, @buffer : Slice(T))
+      @shape = shape.dup
+    end
+
+    # Returns the estimated dimension of a multidimensional array that is provided as a nested array literal.
+    # Used internally to determine the buffer size for several constructors. Note that this method
+    # does not guarantee that the size reported is accurate.
+    # For example, `NArray.recursive_probe_array([[1], [1, 2]])` will return `[2, 1]`. The `2` comes
+    # from the fact that the top-level array contains 2 elements, and the `1` comes from the size of
+    # the sub-array `[1]`. However, we can clearly see that the size isn't uniform - the second
+    # sub-array is `[1, 2]`, which is two elements, not one!
+    protected def self.recursive_probe_array(nested_array data, shape = [] of Int32) : Array(Int32)
       if data.is_a? Array
         if data.empty?
           raise DimensionError.new("Could not profile nested array: Found an array with size zero.")
@@ -89,10 +180,6 @@ module Lattice
       end
     end
 
-    # Convenience initializer for making copies.
-    protected def initialize(shape, @buffer : Slice(T))
-      @shape = shape.dup
-    end
 
     # Fill an array of given size with a given value. Note that if value is an `Object`, only its reference will be copied
     # - all elements would refer to a single object.
@@ -214,6 +301,45 @@ module Lattice
     # Given a fully-qualified coordinate, returns the scalar at that position.
     def get(*coord) : T
       @buffer[pack_index(coord)]
+    end
+
+    # Given a range in some dimension (typically the domain to slice in), returns a canonical
+    # form where both indexes are positive and the range is strictly inclusive of its bounds.
+    # This method also returns a direction parameter, which is 1 iff `begin` < `end` and
+    # -1 iff `end` < `begin`
+    def canonicalize_range(range, axis) : Tuple(Range(Int32, Int32), Int32)
+      positive_begin = canonicalize_index(range.begin || 0, axis)
+      # definitely not negative, but we're not accounting for exclusivity yet
+      positive_end = canonicalize_index(range.end || (@shape[axis] - 1), axis)
+
+      # The case (positive_end - positive_begin) == 0 will raise an exception below, if the range excludes its end.
+      # Otherwise, we may treat it as an "ascending" array of a single element.
+      direction = positive_end - positive_begin >= 0 ? 1 : -1
+
+      if range.excludes_end? && range.end
+        if positive_begin == positive_end
+          raise IndexError.new("Could not canonicalize range: #{range} does not span any integers.")
+        end
+        # Convert range to inclusive, by adding or subtracting one to the end depending
+        # on whether it is ascending or descending
+        positive_end -= direction
+      end
+
+      # It's possible to engineer a set of indices that are meaningless but would break code
+      # later on. Detect and raise an exception in that case
+      if [positive_begin, positive_end].any? { |idx| idx < 0 || idx >= @shape[axis] }
+        raise IndexError.new("Could not canonicalize range: #{range} is not a sensible index range in axis #{axis}.")
+      end
+
+      {Range.new(positive_begin, positive_end), direction}
+    end
+
+    def canonicalize_index(index, axis)
+      if index < 0
+        return @shape[axis] + index
+      else
+        return index
+      end
     end
 
     # Given a range in some dimension (typically the domain to slice in), returns a canonical
@@ -469,6 +595,10 @@ module Lattice
 
     def reshape(new_shape)
       NArray(T).new(new_shape, @buffer)
+    end
+
+    def to_tensor : Tensor(T)
+      Tensor.new(self)
     end
 
     macro method_missing(call)
