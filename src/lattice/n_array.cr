@@ -420,7 +420,14 @@ module Lattice
       # After iteration 3:  chunk_start_indices = [13, 16] = [12 + 1, 15 + 1]   (2nd item of columns 2 and 3)
       chunk_start_indices = [0]
 
-      coord.each_with_index do |rule, axis|
+      full_coord = coord.to_a
+
+      # fill in implicit ranges
+      (coord.size...@shape.size).each do |axis|
+        full_coord << (...)
+      end
+
+      full_coord.each_with_index do |rule, axis|
         step = (@shape[(axis + 1)..]? || [1]).product
         new_indices = [] of Int32
 
@@ -434,7 +441,7 @@ module Lattice
             end
           end
 
-          shape << rule.size
+          shape << range.size
           # Originally, all other cases handled here. (else)
           # the [] method requires me to pass coord as an Array rather than Tuple,
           # which for some reason broke here if I didn't check it as an Int32.
