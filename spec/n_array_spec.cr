@@ -88,12 +88,12 @@ describe Lattice do
     it "properly packs an n-dimensional index" do
       shape = [3, 7, 4]
       narr = NArray.fill(shape, 0)
-      narr.pack_index([1, 1, 1]).should eq (28 + 4 + 1)
+      narr.coord_to_index([1, 1, 1]).should eq (28 + 4 + 1)
 
       # TODO check edge cases, failure cases
       shape = [5]
       narr = NArray.fill(shape, 0)
-      narr.pack_index([2]).should eq 2
+      narr.coord_to_index([2]).should eq 2
     end
 
     it "properly packs and unpacks an n-dimensional index" do
@@ -102,8 +102,8 @@ describe Lattice do
 
       100.times do
         random_index = shape.map { |dim| (Random.rand * dim).to_u32 }
-        packed = narr.pack_index(random_index)
-        narr.unpack_index(packed).should eq random_index
+        packed = narr.coord_to_index(random_index)
+        narr.index_to_coord(packed).should eq random_index
       end
     end
 
@@ -234,6 +234,20 @@ describe Lattice do
       # puts strarr.byte_slice(0, a)
       # puts strarr.byte_slice(a, 2)
       puts strarr.byte_slice(a, ones)
+      
+      # This should cause compile error!
+      # puts strarr.extreme(a)
+
+      # This should cause a different compile error :)
+      # puts strarr.byte_slice("party", 16, :cool)
+    end
+    it "can iterate slices" do
+      b = NArray(Int32).new([2, 2, 2]) { |i| 20 - i }
+
+      b.slices.each do |slice|
+        puts slice.sum
+      end
+
     end
   end
 end

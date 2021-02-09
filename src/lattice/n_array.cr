@@ -23,12 +23,12 @@ module Lattice
     @shape : Array(Int32)
 
     # Constructs an `NArray` using a user-provided *shape* (see `shape`) and a callback.
-    # The provided callback should map a multidimensional index (and an optional packed
+    # The provided callback should map a multidimensional index, *coord*, (and an optional packed
     # index) to the value you wish to store at that position.
     # For example, to create the 2x2 identity matrix:
     # ```
-    # Lattice::NArray.build([2, 2]) do |indices|
-    #   if indices[0] == indices[1]
+    # Lattice::NArray.build([2, 2]) do |coord|
+    #   if coord[0] == coord[1]
     #     1
     #   else
     #     0
@@ -44,7 +44,7 @@ module Lattice
     # The buffer index allows you to easily index elements in lexicographic order.
     # For example:
     # ```
-    # NArray.build([5, 1]) { |indices, index| index }
+    # NArray.build([5, 1]) { |coord, index| index }
     # ```
     # Will create:
     # ```text
@@ -55,8 +55,8 @@ module Lattice
     #  [4]]
     # ```
     def self.build(shape, &block : Array(Int32), Int32 -> T) : NArray(T)
-      NArray(T).new(shape) do |packed_index|
-        yield unpack_index(packed_index, shape), packed_index
+      NArray(T).new(shape) do |idx|
+        yield index_to_coord(idx, shape), idx
       end
     end
 
@@ -64,7 +64,7 @@ module Lattice
     # This is used internally to make code faster - converting from a packed
     # index to an unpacked index isn't needed for many constructors, and generating
     # them would waste resources.
-    # For more information, see `pack_index`, `buffer`, and `build`.
+    # For more information, see `coord_to_index`, `buffer`, and `build`.
     protected def initialize(shape, &block : Int32 -> T)
       @shape = shape.map do |dim|
         if dim < 1
@@ -206,16 +206,16 @@ module Lattice
 
     # Checks if a given list of integers represent an index that is in range for this `NArray`.
     # TODO: Rename and document
-    def valid_index?(coord)
-      NArray.valid_index?(indices, @shape)
+    def valid_coord?(coord)
+      NArray.valid_coord?(coord, @shape)
     end
 
     # TODO: Rename and document
-    def self.valid_index?(indices, shape)
-      if indices.size > shape.size
+    def self.valid_coord?(coord, shape)
+      if coord.size > shape.size
         return false
       end
-      indices.each_with_index do |length, dim|
+      coord.each_with_index do |length, dim|
         if shape[dim] <= length
           return false
         end
@@ -224,36 +224,36 @@ module Lattice
     end
 
     # TODO: Talk about what this should be named
-    def self.pack_index(indices, shape) : Int32
-      if !valid_index?(indices, shape)
-        raise IndexError.new("Cannot pack index: the given index is out of bounds for this NArray along at least one dimension.")
+    def self.coord_to_index(coord, shape) : Int32
+      if !valid_coord?(coord, shape)
+        raise IndexError.new("Cannot convert coordinate to index: the given index is out of bounds for this NArray along at least one dimension.")
       end
 
       memo = 0
-      indices.each_with_index do |array_index, dim|
+      coord.each_with_index do |array_index, dim|
         step = (shape[(dim + 1)..]? || [1]).product
-        memo += step * indices[dim]
+        memo += step * coord[dim]
       end
       memo
     end
 
     # Convert from n-dimensional indexing to a buffer location.
-    def pack_index(indices) : Int32
-      NArray.pack_index(indices, @shape)
+    def coord_to_index(coord) : Int32
+      NArray.coord_to_index(coord, @shape)
     end
 
-    def self.unpack_index(index, shape) : Array(Int32)
-      indices = Array(Int32).new(shape.size, 0)
+    def self.index_to_coord(index, shape) : Array(Int32)
+      coord = Array(Int32).new(shape.size, 0)
       shape.reverse.each_with_index do |length, dim|
-        indices[dim] = index % length
+        coord[dim] = index % length
         index //= length
       end
-      indices.reverse
+      coord.reverse
     end
 
-    # Convert from a buffer location to an n-dimensional indexing
-    def unpack_index(index) : Array(Int32)
-      NArray.unpack_index(index, @shape)
+    # Convert from a buffer location to an n-dimensional coord
+    def index_to_coord(index) : Array(Int32)
+      NArray.index_to_coord(index, @shape)
     end
 
     # Returns the number of elements in each axis of the `NArray`.
@@ -323,7 +323,7 @@ module Lattice
 
     # Given a fully-qualified coordinate, returns the scalar at that position.
     def get(*coord) : T
-      @buffer[pack_index(coord)]
+      @buffer[coord_to_index(coord)]
     end
 
     # Given a range in some dimension (typically the domain to slice in), returns a canonical
@@ -348,7 +348,7 @@ module Lattice
         positive_end -= direction
       end
 
-      # It's possible to engineer a set of indices that are meaningless but would break code
+      # It's possible to engineer a range with bounds that are meaningless but would break code
       # later on. Detect and raise an exception in that case
       if [positive_begin, positive_end].any? { |idx| idx < 0 || idx >= @shape[axis] }
         raise IndexError.new("Could not canonicalize range: #{range} is not a sensible index range in axis #{axis}.")
@@ -546,6 +546,16 @@ module Lattice
       NArray.new(objects.to_a)
     end
 
+    def slices(axis = 0) : Array(NArray(T))
+
+      # TODO generalize to give slices along any axis
+      new_buffer = @buffer.each(step: step_size).to_a
+      (0...@shape[axis]).map do |idx|
+        self[idx]
+      end
+    end
+
+
     def get_buffer_idx(index) : T
       @buffer[index]
     end
@@ -570,9 +580,9 @@ module Lattice
       end
     end
 
-    def each_with_indices(&block : T, Array(Int32), Int32 ->)
+    def each_with_coord(&block : T, Array(Int32), Int32 ->)
       each_with_index do |elem, idx|
-        yield elem, unpack_index(idx), idx
+        yield elem, index_to_coord(idx), idx
       end
     end
 
@@ -590,9 +600,9 @@ module Lattice
       end
     end
 
-    def map_with_indices(&block : T, Array(Int32), Int32 -> U) forall U
-      map_with_index do |elem, idx|
-        yield elem, unpack_index(idx), idx
+    def map_with_coord(&block : T, Array(Int32), Int32 -> U) forall U
+      map_elems_with_index do |elem, idx|
+        yield elem, index_to_coord(idx), idx
       end
     end
 
@@ -600,7 +610,6 @@ module Lattice
       @buffer.map_with_index! do |elem, idx|
         yield elem, idx
       end
-
       self
     end
 
@@ -610,9 +619,9 @@ module Lattice
       end
     end
 
-    def map_with_indices!(&block : T, Array(Int32), Int32 -> U) forall U
+    def map_with_coord!(&block : T, Array(Int32), Int32 -> U) forall U
       map_with_index! do |elem, idx|
-        yield elem, unpack_index(idx), idx
+        yield elem, index_to_coord(idx), idx
       end
     end
 
@@ -623,27 +632,38 @@ module Lattice
     def to_tensor : Tensor(T)
       Tensor.new(self)
     end
-
+    
     macro method_missing(call)
       def {{call.name.id}}(*args : *U) forall U
-          \{% for i in 0...(U.size) %}
-            \{% if U[i] < NArray %}
-              if args[\{{i}}].shape != @shape
-                raise DimensionError.new("Could not apply .{{call.name.id}} elementwise - Shape of argument does match dimension of `self`")
-              end
-            \{% end %}
-          \{% end %}
+        \{% if !@type.type_vars[0].has_method?({{call.name.id.stringify}}) %}
+          \{% raise( <<-ERROR
+                      undefined method '{{call.name.id}}' for #{@type.type_vars[0]}.
+                      This error is a result of Lattice attempting to apply `{{call.name.id}}`,
+                      an unknown method, to each element of an `NArray`. (See the documentation
+                      of `NArray#method_missing` for more info). For the source of the error, 
+                      use `--error-trace`.
+                      ERROR
+                      ) %}
+        \{% end %}
 
-          new_buffer = @buffer.map_with_index do |elem, buf_idx|
-            \{% begin %}
-              # Note: Be careful with this section. Adding newlines can break this code because it might put commas on their
-              # own lines.
-              elem.{{call.name.id}}(
-                \{% for i in 0...(U.size) %}\
-                  \{% if U[i] < NArray %} args[\{{i}}].buffer[buf_idx] \{% else %} args[\{{i}}] \{% end %} \{% if i < U.size - 1 %}, \{% end %}
-                \{% end %}\
-              )
-            \{% end %}
+        \{% for i in 0...(U.size) %}
+          \{% if U[i] < NArray %}
+            if args[\{{i}}].shape != @shape
+              raise DimensionError.new("Could not apply .{{call.name.id}} elementwise - Shape of argument does match dimension of `self`")
+            end
+          \{% end %}
+        \{% end %}
+
+        new_buffer = @buffer.map_with_index do |elem, buf_idx|
+          \{% begin %}
+            # Note: Be careful with this section. Adding newlines can break this code because it might put commas on their
+            # own lines.
+            elem.{{call.name.id}}(
+              \{% for i in 0...(U.size) %}\
+                \{% if U[i] < NArray %} args[\{{i}}].buffer[buf_idx] \{% else %} args[\{{i}}] \{% end %} \{% if i < U.size - 1 %}, \{% end %}
+              \{% end %}\
+            )
+          \{% end %}
           end
           
           NArray.new(shape, new_buffer)
