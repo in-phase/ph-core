@@ -453,11 +453,14 @@ module Lattice
       {shape, chunk_start_indices}
     end
     
+    def region(coord) : NArray(T)
+      shape, mapping = extract_buffer_indices(coord)
+      NArray(T).new(shape) { |i| @buffer[mapping[i]] }
+    end
 
     # Higher-order slicing operations (like slicing in numpy)
     def [](*coord) : NArray(T)
-      shape, mapping = extract_buffer_indices(coord)
-      NArray(T).new(shape) { |i| @buffer[mapping[i]] }
+      slice(coord)
     end
 
     # replaces all values in a boolean mask with a given value
@@ -544,13 +547,45 @@ module Lattice
 
     def slices(axis = 0) : Array(NArray(T))
 
-      step = 1
-
-      # TODO generalize to give slices along any axis
-      #new_buffer = @buffer.each(step: step).to_a
-      (0...@shape[axis]).map do |idx|
-        self[idx]
+      coord = [] of (Int32 | Range(Int32, Int32))
+      (0...axis).each do |dim|
+        coord << Range.new(0, @shape[dim] - 1)
       end
+
+      coord << 0
+      
+      shape, mapping = extract_buffer_indices(coord)
+      step = step_size(axis)
+      slices = (0...@shape[axis]).map do |slice_number|
+        offset = step * slice_number
+          NArray(T).new(shape) { |i| @buffer[mapping[i] + offset] }
+      end
+
+
+      # narr.slices
+      # narr.slices_copied 
+      # View.slices(narr)
+
+      # create an array, populate with output buffers
+      # fill the first output buffer
+      #   have an iterator that goes over the output buffer indices
+      #   have a function that converts output buffer indices into 
+      # 2x3x3 L__  idx(4) -> 3x3 @ [1, 1] -> 2x3x3 [L, 1, 1] -> convert to the buffer index in a 2x3x3
+      
+      # 2x3x3 L=0 -> 2x3 idx(4) -> [1,1] -> [1, L, 1]
+      # narr[..., 0, ...]
+
+      # for idx in axis
+      #   out << self[..., 0, ...]
+      # # copy the first output buffer to the other ones by adding the offset over and over
+      
+      # step = 1
+
+      # # TODO generalize to give slices along any axis
+      # #new_buffer = @buffer.each(step: step).to_a
+      # (0...@shape[axis]).map do |idx|
+      #   self[idx]
+      # end
     end
 
 
