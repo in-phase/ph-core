@@ -231,7 +231,7 @@ module Lattice
 
       memo = 0
       coord.each_with_index do |array_index, dim|
-        step = (shape[(dim + 1)..]? || [1]).product
+        step = self.step_size(dim, shape)
         memo += step * coord[dim]
       end
       memo
@@ -254,6 +254,16 @@ module Lattice
     # Convert from a buffer location to an n-dimensional coord
     def index_to_coord(index) : Array(Int32)
       NArray.index_to_coord(index, @shape)
+    end
+
+
+    # TODO docs
+    def step_size(axis)
+      NArray.step_size(axis, @shape)
+    end
+
+    def self.step_size(axis, shape)
+      (shape[(axis + 1)..]? || [1]).product
     end
 
     # Returns the number of elements in each axis of the `NArray`.
@@ -357,6 +367,7 @@ module Lattice
       {Range.new(positive_begin, positive_end), direction}
     end
 
+    # TODO docs
     def canonicalize_index(index, axis)
       if index < 0
         return @shape[axis] + index
@@ -365,49 +376,54 @@ module Lattice
       end
     end
 
-    # Given a range in some dimension (typically the domain to slice in), returns a canonical
-    # form where both indexes are positive and the range is strictly inclusive of its bounds.
-    # This method also returns a direction parameter, which is 1 iff `begin` < `end` and
-    # -1 iff `end` < `begin`
-    def canonicalize_range(range, axis) : Tuple(Range(Int32, Int32), Int32)
-      positive_begin = canonicalize_index(range.begin || 0, axis)
-      # definitely not negative, but we're not accounting for exclusivity yet
-      positive_end = canonicalize_index(range.end || (@shape[axis] - 1), axis)
+    # TODO docs
+    # Converts a region specifier to canonical form.
+    # A canonical region specifier obeys the following:
+    # - No implicit trailing ranges; the dimensions of the RS matches that of the NArray. 
+    #     Eg, for a 3x3x3, [.., 2] is non-canonical
+    # - All elements are ranges (single-number indexes must be converted to ranges of a single element)
+    # - Both the start and end of the range must be positive, and in range for the axis in question
+    # - The ranges must be inclusive (eg, 1..2, not 1...3)
+    # - In each range, start < end indicates forward direction; start > end indicates backward
+    def canonicalize_region(coord) : Tuple(Array(Range(Int32, Int32)), Array(Int32), Array(Int32) )
 
-      # The case (positive_end - positive_begin) == 0 will raise an exception below, if the range excludes its end.
-      # Otherwise, we may treat it as an "ascending" array of a single element.
-      direction = positive_end - positive_begin >= 0 ? 1 : -1
-
-      if range.excludes_end? && range.end
-        if positive_begin == positive_end
-          raise IndexError.new("Could not canonicalize range: #{range} does not span any integers.")
-        end
-        # Convert range to inclusive, by adding or subtracting one to the end depending
-        # on whether it is ascending or descending
-        positive_end -= direction
-      end
-
-      # It's possible to engineer a set of indices that are meaningless but would break code
-      # later on. Detect and raise an exception in that case
-      if [positive_begin, positive_end].any? { |idx| idx < 0 || idx >= @shape[axis] }
-        raise IndexError.new("Could not canonicalize range: #{range} is not a sensible index range in axis #{axis}.")
-      end
-
-      {Range.new(positive_begin, positive_end), direction}
-    end
-
-    def canonicalize_index(index, axis)
-      if index < 0
-        return @shape[axis] + index
-      else
-        return index
-      end
-    end
-
-    # maps an n-dimensional
-    # to a list of buffer indices that
-    def extract_buffer_indices(coord) : Tuple(Array(Int32), Array(Int32))
+      full_coord = [] of Range(Int32, Int32)
       shape = [] of Int32
+      directions = [] of Int32
+
+      coord.each_with_index do |rule, axis|
+        case rule
+        when Range
+          range, dir = canonicalize_range(rule, axis)
+          full_coord << range
+          shape << (range.end - range.begin + dir).abs
+          directions << dir
+        when Int32
+          index = canonicalize_index(rule, axis)
+          if index < 0 || index >= @shape[axis]
+            raise IndexError.new("Could not canonicalize index: #{rule} is not a sensible index in axis #{index}.")
+          end
+          full_coord << (index..index)
+          shape << 1
+          directions << 1
+        else 
+          # TODO raise error here
+          puts "Not a Range or Integer"
+        end
+      end
+      # fill in implicit ranges
+      (coord.size...@shape.size).each do |axis|
+        full_coord << (0..(@shape[axis] - 1))
+        shape << @shape[axis]
+        directions << 1
+      end
+
+      {full_coord, shape, directions}
+    end
+
+
+
+    def extract_buffer_indices(coord) : Tuple(Array(Int32), Array(Int32))
 
       # The behaviour of this method will change if we are using non-row-major ordering.
 
@@ -418,52 +434,25 @@ module Lattice
       # After iteration 1:  chunk_start_indices = [9] = 1 * (3*3)               (start of row 2)
       # After iteration 2:  chunk_start_indices = [12, 15] = [9 + 3, 9 + 6]     (starts of columns 2 and 3 in row 2)
       # After iteration 3:  chunk_start_indices = [13, 16] = [12 + 1, 15 + 1]   (2nd item of columns 2 and 3)
+      full_coord, shape, dirs = canonicalize_region(coord)
       chunk_start_indices = [0]
 
-      full_coord = coord.to_a
-
-      # fill in implicit ranges
-      (coord.size...@shape.size).each do |axis|
-        full_coord << (...)
-      end
-
-      full_coord.each_with_index do |rule, axis|
-        step = (@shape[(axis + 1)..]? || [1]).product
+      full_coord.each_with_index do |range, axis|
+        step = step_size(axis)
         new_indices = [] of Int32
 
-        case rule
-        when Range
-          range, dir = canonicalize_range(rule, axis)
-
-          chunk_start_indices.each do |ref|
-            range.step(dir) do |index|
-              new_indices << ref + index * step * 1
-            end
+        chunk_start_indices.each do |ref|
+          range.step(dirs[axis]) do |index|
+            new_indices << ref + index * step * 1
           end
-
-          shape << range.size
-          # Originally, all other cases handled here. (else)
-          # the [] method requires me to pass coord as an Array rather than Tuple,
-          # which for some reason broke here if I didn't check it as an Int32.
-          # TODO consider changing this back if we use macros for [], and if that allows Tuples
-        when Int32
-          index = canonicalize_index(rule, axis)
-          if index < 0 || index >= @shape[axis]
-            raise IndexError.new("Could not canonicalize index: #{rule} is not a sensible index in axis #{index}.")
-          end
-
-          chunk_start_indices.each do |ref|
-            new_indices << ref + index * step
-          end
-          shape << 1
-        else
-          puts "Not a Range or Integer!" # throw error here?
         end
+        
         chunk_start_indices = new_indices
       end
 
       {shape, chunk_start_indices}
     end
+    
 
     # Higher-order slicing operations (like slicing in numpy)
     def [](*coord) : NArray(T)
@@ -555,8 +544,10 @@ module Lattice
 
     def slices(axis = 0) : Array(NArray(T))
 
+      step = 1
+
       # TODO generalize to give slices along any axis
-      new_buffer = @buffer.each(step: step_size).to_a
+      #new_buffer = @buffer.each(step: step).to_a
       (0...@shape[axis]).map do |idx|
         self[idx]
       end
