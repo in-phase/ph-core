@@ -11,7 +11,7 @@ describe Lattice do
         #shape = [100]*20
 
 
-        size = 30
+        size = 5
 
         shape = [size]*5
 

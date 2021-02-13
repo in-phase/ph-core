@@ -76,7 +76,7 @@ describe Lattice do
 
     end
     it "edits values by a boolean map" do
-      mask = NArray(Bool).build([3, 3]) { |coord| coord[0] != coord[1] }
+      mask = NArray.build([3, 3]) { |coord| coord[0] != coord[1] }
 
       narr = NArray.fill([3, 3], 0)
 
@@ -108,7 +108,7 @@ describe Lattice do
     end
 
     it "exposes unpacked indices to the user in a constructor" do
-      narr = NArray(Int32).build([3, 3, 3]) do |coord|
+      narr = NArray.build([3, 3, 3]) do |coord|
         next 1 if coord[0] == coord[1] == coord[2]
         next 0
       end

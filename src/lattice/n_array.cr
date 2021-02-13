@@ -54,7 +54,7 @@ module Lattice
     #  [3],
     #  [4]]
     # ```
-    def self.build(shape, &block : Array(Int32), Int32 -> T) : NArray(T)
+    def self.build(shape, &block : Array(Int32), Int32 -> T)
       NArray(T).new(shape) do |idx|
         yield index_to_coord(idx, shape), idx
       end
@@ -118,9 +118,7 @@ module Lattice
       buffer = Slice.new(elements.to_unsafe, expected_element_count)
 
       # Do the typical `new` stuff
-      instance = NArray(typeof(elements[0])).allocate
-      instance.initialize(shape, buffer)
-      instance
+      self.new(shape, buffer)
     end
 
     # Creates an `NArray` out of a shape and a pre-populated buffer.
@@ -198,7 +196,8 @@ module Lattice
     # ```
     # Note that this method makes no effort to duplicate *value*, so this should only be used
     # for `Struct`s. If you want to populate an NArray with `Object`s, see `new(shape, &block)`.
-    def self.fill(shape, value : T)
+    def self.fill(shape, value : T) 
+      # \{% begin %} \{{ @type.id }}.new(shape) { value } \{% end %}
       NArray(T).new(shape) { value }
     end
 
@@ -742,4 +741,10 @@ module Lattice
       {% end %}
     end
   end
+end
+
+
+class Range::StepIterator
+  getter range
+  getter step
 end
