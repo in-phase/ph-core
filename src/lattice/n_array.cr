@@ -545,21 +545,30 @@ module Lattice
     end
 
     def slices(axis = 0) : Array(NArray(T))
-
       coord = [] of (Int32 | Range(Int32, Int32))
       (0...axis).each do |dim|
         coord << Range.new(0, @shape[dim] - 1)
       end
-
       coord << 0
-      
-      shape, mapping = extract_buffer_indices(coord)
-      step = step_size(axis)
-      slices = (0...@shape[axis]).map do |slice_number|
-        offset = step * slice_number
-          NArray(T).new(shape) { |i| @buffer[mapping[i] + offset] }
-      end
 
+      # Version 1: Theoretically faster, as index calculations occur only once
+      
+      # shape, mapping = extract_buffer_indices(coord)
+      # step = step_size(axis)
+      # slices = (0...@shape[axis]).map do |slice_number|
+      #   offset = step * slice_number
+      #     NArray(T).new(shape) { |i| @buffer[mapping[i] + offset] }
+      # end
+
+      # Version 2: Cleaner, and may be faster if [] does not get indices as an intermediate step
+
+      # Does not currently work; TODO fix
+      # slices = (0...@shape[axis]).map do |slice_number|
+      #   coord[axis] = slice_number
+      #   self[coord]
+      # end
+
+      # Extra brainstorming that I wanted to commit at least once for posterity
 
       # narr.slices
       # narr.slices_copied 
