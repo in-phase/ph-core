@@ -182,6 +182,10 @@ module Lattice
       end
     end
 
+    # each_in_canonical_region(region) do |element, write_index, read_index|
+    #   # read_index
+    # end
+
     # def [](*raw_region) : NArray(T)
     #   region, axis_dirs = canonicalize_region(raw_region)
     # end
