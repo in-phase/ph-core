@@ -25,22 +25,20 @@ describe Lattice do
 
         regions = [[0,0,..., 1,1], [(size // 4)...(size * 3 // 4), (size // 4)..., ...(size * 3 // 4), ..., ...], [..., ..., ..., ..., ... ]]
 
-        # regions.each do  |region|
+        regions.each do  |region|
 
-        #     duration = Time.measure do
-        #         shape, indices = arr.extract_buffer_indices(region)
-        #         indices.map {|i| arr.buffer[i] }
-        #     end
+            duration = Time.measure do
+                shape, indices = arr.extract_buffer_indices(region)
+                indices.map {|i| arr.buffer[i] }
+            end
 
-        #     puts duration
+            puts duration
 
-        # end
-
-        duration = Time.measure do
-          arr.slices(2)
         end
 
-        puts duration
+
+
+
     end
   end
 end

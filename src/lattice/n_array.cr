@@ -407,6 +407,7 @@ module Lattice
           shape << (range.end - range.begin + dir).abs
           directions << dir
         when Int32
+          index = canonicalize_index(rule, axis)
           
           full_coord << (index..index)
           shape << 1
