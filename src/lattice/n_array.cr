@@ -393,6 +393,10 @@ module Lattice
       NArray(T).new(shape) { |i| buffer_arr[i] }
     end
 
+    def [](region : Indexable) : NArray(T)
+      get_region(region)
+    end
+
     # Higher-order slicing operations (like slicing in numpy)
     def [](*region) : NArray(T)
       get_region(region)
@@ -513,7 +517,7 @@ module Lattice
       if positive_end < 0 || positive_end >= @shape[axis]
         raise IndexError.new("Could not canonicalize range: #{range} is not a sensible index range in axis #{axis}.")
       end
-      
+
       # TODO: This function is supposed to support both Range and StepIterator - in the latter case, direction != step_size
       # Need to measure step size and properly return it
       {Range.new(positive_begin, positive_end), direction}

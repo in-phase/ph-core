@@ -28,7 +28,7 @@ describe Lattice do
 
         regions.each_with_index do  |region, idx|
             duration = Time.measure do
-                indices = arr.get_region(region)
+                indices = arr[region]
             end
             puts "#{descriptors[idx]} region: #{duration}"
 
