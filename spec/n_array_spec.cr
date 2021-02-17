@@ -8,10 +8,10 @@ describe Lattice do
     it "canonicalizes ranges" do
       narr = NArray.fill([4], 0)
 
-      good_ranges = [0...4, -1..0, 1.., 1..., ..2, -2..-1, -2...-5, 1..1]
-      canon = [0..3, 3..0, 1..3, 1..3, 0..2, 2..3, 2..0, 1..1]
+      good_ranges = [0...4, -1..0, 1.., 1..., ..2, -2..-1, -2...-5, 1..1, ...]
+      canon = [0..3, 3..0, 1..3, 1..3, 0..2, 2..3, 2..0, 1..1, 0..3]
       good_ranges.each_with_index do |range, i|
-        range, dir = narr.canonicalize_range(range, 0)
+        range, step = narr.canonicalize_range(range, 0)
         range.should eq canon[i]
       end
       bad_ranges = [-5..-3, 2..4, 1...1]
@@ -229,12 +229,18 @@ describe Lattice do
 
       # puts a + b
 
-      puts "Hello World".byte_slice(3, 1)
+      # puts "Hello World".byte_slice(3, 1)
 
       # puts strarr.byte_slice(0, a)
       # puts strarr.byte_slice(a, 2)
-      puts strarr.byte_slice(a, ones)
+      #puts strarr.byte_slice(a, ones)
+
+      words = ["This","is", "an", "array", "of", "words", "which", "we", "will", "pretend", "is", "dictionary"]
+      wordarr = NArray.new(words)
+      #puts wordarr.char_at(0)
       
+      # puts b > 17
+
       # This should cause compile error!
       # puts strarr.extreme(a)
 

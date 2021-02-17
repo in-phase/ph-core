@@ -7,38 +7,32 @@ describe Lattice do
   describe NArray do
     it "creates large, many-dimensional arrays" do
 
-        # This causes arithmetic overflow error:
+        # An excessively large array (with total # elements > max Int32) causes arithmetic overload error
         #shape = [100]*20
 
-
-        size = 40
-
-        shape = [size]*5
+        size = 20
+        dims = 5
+        shape = [size]*dims
 
         duration = Time.measure do
             arr = NArray.fill(shape, 3f64)
         end
-
-        puts "Creation time: #{duration}"
+        
+        puts "\nNArray of shape #{shape}  (#{size ** dims} elements)"
+        puts "  Creation time: #{duration}"
            
         arr = NArray.fill(shape, 3f64)
 
         regions = [[0,0,..., 1,1], [(size // 4)...(size * 3 // 4), (size // 4)..., ...(size * 3 // 4), ..., ...], [..., ..., ..., ..., ... ]]
+        descriptors = ["   Small", "Moderate", "   Whole"]
 
-        regions.each do  |region|
-
+        regions.each_with_index do  |region, idx|
             duration = Time.measure do
-                shape, indices = arr.extract_buffer_indices(region)
-                indices.map {|i| arr.buffer[i] }
+                indices = arr.get_region(region)
             end
-
-            puts duration
+            puts "#{descriptors[idx]} region: #{duration}"
 
         end
-
-
-
-
     end
   end
 end

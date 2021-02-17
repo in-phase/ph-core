@@ -202,6 +202,9 @@ module Lattice
       NArray(T).new(shape) { value }
     end
 
+
+    ### Basic getters and convenience functions
+
     # TODO: Code below this line isn't neccessarily well documented
 
     # Checks if a given list of integers represent an index that is in range for this `NArray`.
@@ -313,6 +316,15 @@ module Lattice
       NArray(T).new(@shape, @buffer.dup)
     end
 
+
+
+
+
+
+
+    ### Buffer data manipulation: slicing, setting, etc
+
+
     # Takes a single index into the NArray, returning a slice of the largest dimension possible.
     # For example, if `a` is a matrix, `a[0]` will be a vector. There is a special case when
     # indexing into a 1D `NArray` - the scalar at the index provided will be wrapped in an
@@ -340,133 +352,50 @@ module Lattice
       @buffer[coord_to_index(coord)]
     end
 
-    # Given a range in some dimension (typically the domain to slice in), returns a canonical
-    # form where both indexes are positive and the range is strictly inclusive of its bounds.
-    # This method also returns a direction parameter, which is 1 iff `begin` < `end` and
-    # -1 iff `end` < `begin`
-    def canonicalize_range(range, axis) : Tuple(Range(Int32, Int32), Int32)
-      positive_begin = canonicalize_index(range.begin || 0, axis)
-      # definitely not negative, but we're not accounting for exclusivity yet
-      positive_end = canonicalize_index(range.end || (@shape[axis] - 1), axis)
 
-      # The case (positive_end - positive_begin) == 0 will raise an exception below, if the range excludes its end.
-      # Otherwise, we may treat it as an "ascending" array of a single element.
-      direction = positive_end - positive_begin >= 0 ? 1 : -1
+    # TODO any way to avoid copying these out yet, too? Iterator magic?
+    def slices(axis = 0) : Array(NArray(T))
+      region = [] of (Int32 | Range(Int32, Int32))
+      (0...axis).each do |dim|
+        region << Range.new(0, @shape[dim] - 1)
+      end
+      region << 0
 
-      if range.excludes_end? && range.end
-        if positive_begin == positive_end
-          raise IndexError.new("Could not canonicalize range: #{range} does not span any integers.")
-        end
-        # Convert range to inclusive, by adding or subtracting one to the end depending
-        # on whether it is ascending or descending
-        positive_end -= direction
+      # Version 1: Theoretically faster, as index calculations occur only once
+      mapping = buffer_indices(region)
+      shape = measure_region(region)
+      step = step_size(axis)
+
+      slices = (0...@shape[axis]).map do |slice_number|
+        offset = step * slice_number
+        NArray(T).new(shape) {|i| mapping[i] + offset}
       end
 
-      # It's possible to engineer a range with bounds that are meaningless but would break code
-      # later on. Detect and raise an exception in that case
-      if [positive_begin, positive_end].any? { |idx| idx < 0 || idx >= @shape[axis] }
-        raise IndexError.new("Could not canonicalize range: #{range} is not a sensible index range in axis #{axis}.")
-      end
+      # Version 2: Cleaner, and may be faster if [] does not get indices as an intermediate step
 
-      {Range.new(positive_begin, positive_end), direction}
-    end
-
-    # TODO docs
-    def canonicalize_index(index, axis)
-      if index < -@shape[axis] || index >= @shape[axis]
-        raise IndexError.new("Could not canonicalize index: #{index} is not a sensible index in axis #{axis}.")
-      end
-      
-      if index < 0
-        return @shape[axis] + index
-      else
-        return index
-      end
-    end
-
-    # TODO docs
-    # Converts a region specifier to canonical form.
-    # A canonical region specifier obeys the following:
-    # - No implicit trailing ranges; the dimensions of the RS matches that of the NArray. 
-    #     Eg, for a 3x3x3, [.., 2] is non-canonical
-    # - All elements are ranges (single-number indexes must be converted to ranges of a single element)
-    # - Both the start and end of the range must be positive, and in range for the axis in question
-    # - The ranges must be inclusive (eg, 1..2, not 1...3)
-    # - In each range, start < end indicates forward direction; start > end indicates backward
-    def canonicalize_region(coord) : Tuple(Array(Range(Int32, Int32)), Array(Int32), Array(Int32) )
-
-      full_coord = [] of Range(Int32, Int32)
-      shape = [] of Int32
-      directions = [] of Int32
-
-      coord.each_with_index do |rule, axis|
-        case rule
-        when Range
-          range, dir = canonicalize_range(rule, axis)
-          full_coord << range
-          shape << (range.end - range.begin + dir).abs
-          directions << dir
-        when Int32
-          index = canonicalize_index(rule, axis)
-          
-          full_coord << (index..index)
-          shape << 1
-          directions << 1
-        else 
-          # TODO raise error here
-          puts "Not a Range or Integer"
-        end
-      end
-      # fill in implicit ranges
-      (coord.size...@shape.size).each do |axis|
-        full_coord << (0..(@shape[axis] - 1))
-        shape << @shape[axis]
-        directions << 1
-      end
-
-      {full_coord, shape, directions}
+      # Does not currently work; TODO fix
+      # slices = (0...@shape[axis]).map do |slice_number|
+      #   region[axis] = slice_number
+      #   next self[region]
+      # end
     end
 
 
+    def get_region(region) : NArray(T)
 
-    def extract_buffer_indices(coord) : Tuple(Array(Int32), Array(Int32))
+      shape = measure_region(region)
 
-      # The behaviour of this method will change if we are using non-row-major ordering.
-
-      # At each dimension of iteration, chunk_start_indices will expand according to the "rule".
-      # For example, if unwrapping (1, 1..2, 1) for an Narray of shape [3,3,3] - in the first iteration,
-      # chunk_start_indices is [0], representing the start of the top-level chunk to be searched.
-      # At start:           chunk_start_indices = [0]                           (start of buffer)
-      # After iteration 1:  chunk_start_indices = [9] = 1 * (3*3)               (start of row 2)
-      # After iteration 2:  chunk_start_indices = [12, 15] = [9 + 3, 9 + 6]     (starts of columns 2 and 3 in row 2)
-      # After iteration 3:  chunk_start_indices = [13, 16] = [12 + 1, 15 + 1]   (2nd item of columns 2 and 3)
-      full_coord, shape, dirs = canonicalize_region(coord)
-      chunk_start_indices = [0]
-
-      full_coord.each_with_index do |range, axis|
-        step = step_size(axis)
-        new_indices = [] of Int32
-
-        chunk_start_indices.each do |ref|
-          range.step(dirs[axis]) do |index|
-            new_indices << ref + index * step * 1
-          end
-        end
-        
-        chunk_start_indices = new_indices
+      # TODO optimize this! Any way to avoid double iteration?
+      buffer_arr = [] of T
+      each_in_region(region) do |elem, idx, src_idx|
+        buffer_arr << elem
       end
-
-      {shape, chunk_start_indices}
-    end
-    
-    def region(coord) : NArray(T)
-      shape, mapping = extract_buffer_indices(coord)
-      NArray(T).new(shape) { |i| @buffer[mapping[i]] }
+      NArray(T).new(shape) { |i| buffer_arr[i] }
     end
 
     # Higher-order slicing operations (like slicing in numpy)
-    def [](*coord) : NArray(T)
-      region(coord)
+    def [](*region) : NArray(T)
+      get_region(region)
     end
 
     # replaces all values in a boolean mask with a given value
@@ -490,15 +419,14 @@ module Lattice
 
     # replaces an indexed chunk with a given chunk of the same shape.
     def set(region, value : NArray(T))
-      shape, mapping = extract_buffer_indices(region)
-
-      # check that the replacement slice matches the
-      if value.shape != shape
+      
+      # check that the replacement slice matches the destination shape
+      if value.shape != measure_region(region)
         raise DimensionError.new("Cannot substitute array: given array does not match shape of specified slice.")
       end
 
-      mapping.each_with_index do |dst_idx, src_idx|
-        @buffer[dst_idx] = value.buffer[src_idx]
+      each_in_region(region) do |elem, other_idx, this_idx|
+        @buffer[this_idx] = value.buffer[other_idx]
       end
     end
 
@@ -508,12 +436,200 @@ module Lattice
       # Try to cast the value to T; throws an error if it fails
       # TODO: decide if this is how we want to handle it
       fill_value = value.as(T)
-      shape, mapping = extract_buffer_indices(region)
 
-      mapping.each do |index|
-        @buffer[index] = fill_value
+      each_in_region(region) do |elem, idx, buffer_idx|
+        @buffer[buffer_idx] = fill_value
       end
     end
+
+    def buffer_indices(region) : Array(Int32)
+      indices = [] of Int32
+      each_in_region(region) do |elem, idx, src_idx|
+        indices << src_idx
+      end
+      indices
+    end
+
+
+    # Returns the `shape` of a region when sampled from this `NArray`.
+    # For example, on a 5x5x5 NArray, `measure_shape(1..3, ..., 5)` => `[3, 5]`.
+    def measure_region(region) : Array(Int32)
+      measure_canonical_region(canonicalize_region(region))
+    end
+
+    def each_in_region(region, &block : T, Int32, Int32 ->)
+      region = canonicalize_region(region)
+      shape = measure_canonical_region(region)
+
+      each_in_canonical_region(region, compute_buffer_step_sizes, &block)
+    end
+
+    # TODO docs
+    def canonicalize_index_unchecked(index, axis)
+      if index < 0
+        return @shape[axis] + index
+      else
+        return index
+      end
+    end
+
+    # TODO docs
+    # see canonicalize_index_unchecked; but throws an error if index is out of range for axis
+    def canonicalize_index(index, axis)
+      if index < -@shape[axis] || index >= @shape[axis]
+        raise IndexError.new("Could not canonicalize index: #{index} is not a sensible index in axis #{axis}.")
+      end
+      if index < 0
+        return @shape[axis] + index
+      else
+        return index
+      end
+    end
+
+
+    # Given a range in some dimension (typically the domain to slice in), returns a canonical
+    # form where both indexes are positive and the range is strictly inclusive of its bounds.
+    # This method also returns a direction parameter, which is 1 iff `begin` < `end` and
+    # -1 iff `end` < `begin`
+    def canonicalize_range(range, axis) : Tuple(Range(Int32, Int32), Int32)
+      positive_begin = canonicalize_index(range.begin || 0, axis)
+      # definitely not negative, but we're not accounting for exclusivity yet
+      positive_end = canonicalize_index_unchecked(range.end || (@shape[axis] - 1), axis)
+
+      # The case (positive_end - positive_begin) == 0 will raise an exception below, if the range excludes its end.
+      # Otherwise, we may treat it as an "ascending" array of a single element.
+      direction = positive_end - positive_begin >= 0 ? 1 : -1
+
+      if range.excludes_end? && range.end
+        if positive_begin == positive_end
+          raise IndexError.new("Could not canonicalize range: #{range} does not span any integers.")
+        end
+        # Convert range to inclusive, by adding or subtracting one to the end depending
+        # on whether it is ascending or descending
+        positive_end -= direction
+      end
+
+      # Since the validity of the end value has not been verified yet, do so here:
+      if positive_end < 0 || positive_end >= @shape[axis]
+        raise IndexError.new("Could not canonicalize range: #{range} is not a sensible index range in axis #{axis}.")
+      end
+      
+      # TODO: This function is supposed to support both Range and StepIterator - in the latter case, direction != step_size
+      # Need to measure step size and properly return it
+      {Range.new(positive_begin, positive_end), direction}
+    end
+
+    
+
+    # TODO combine/revise docs
+    # Converts a region specifier to canonical form.
+    # A canonical region specifier obeys the following:
+    # - No implicit trailing ranges; the dimensions of the RS matches that of the NArray. 
+    #     Eg, for a 3x3x3, [.., 2] is non-canonical
+    # - All elements are ranges (single-number indexes must be converted to ranges of a single element)
+    # - Both the start and end of the range must be positive, and in range for the axis in question
+    # - The ranges must be inclusive (eg, 1..2, not 1...3)
+    # - In each range, start < end indicates forward direction; start > end indicates backward
+
+    # Applies `#canonicalize_index` and `#canonicalize_range` to each element of a region specification.
+    # In order to fully canonicalize the region, it will also add wildcard selectors if the region
+    # has implicit wildcards (if `region.size < shape.size`).
+    #
+    # Returns a tuple containing (in this order):
+    # - The input region in canonicalized form
+    # - An array of equal size to the region that indicates if that index is a scalar (0),
+    #     a range with increasing index (+1), or a range with decreasing index (-1).
+    def canonicalize_region(region) : Array(SteppedRange)
+      canonical_region = region.clone.to_a + [..] * (@shape.size - region.size)
+    
+        canonical_region = canonical_region.map_with_index do |rule, axis|
+            case rule
+            # TODO: Handle StepIterator or whatever
+            when Range
+                # Ranges are the only implementation we support
+                range, step = canonicalize_range(rule, axis)
+                next SteppedRange.new(range, step)
+            else
+                # This branch is supposed to capture numeric objects. We avoid specifying type
+                # explicitly so we can have the most interoperability.
+                index = canonicalize_index(rule, axis)
+                next SteppedRange.new((index..index), 1)
+            end
+        end
+    end
+
+
+    
+
+
+        # See `NArray#measure_region`. The only difference is that this method assumes
+    # the region is already canonicalized, which can provide speedups.
+    # TODO: account for step sizes
+    protected def measure_canonical_region(region) : Array(Int32)
+      shape = [] of Int32
+      if region.size != @shape.size
+        raise DimensionError.new("Could not measure canonical range - A region with #{region.size} dimensions cannot be canonical over a #{@shape.size} dimensional NArray.")
+      end
+
+      # Measure the effect of applied restrictions (if a rule is a number, a dimension
+      # gets dropped. If a rule is a range, a dimension gets resized)
+      region.each do |range|
+        if range.size > 1
+          shape << range.size
+        end
+      end
+
+      return [1] if shape.empty?
+      return shape
+    end
+
+    
+
+
+    # Given an array of step sizes in each coordinate axis, returns the offset in the buffer
+    # that a step of that size represents.
+    # The buffer index of a multidimensional coordinate, x, is equal to x dotted with buffer_step_sizes
+    def compute_buffer_step_sizes
+        ret = @shape.clone
+        ret[-1] = 1
+        ((ret.size - 2)..0).step(-1) do |idx|
+          ret[idx] = ret[idx + 1] * @shape[idx + 1]
+        end
+        ret
+    end
+
+    # TODO: Document
+    def each_in_canonical_region(region, buffer_step_sizes, axis = 0, read_index = 0, write_index = [0], &block : T, Int32, Int32 -> )
+        current_range = region[axis]
+
+        # Base case - yield the scalars in a subspace
+        if axis == @shape.size - 1        
+            current_range.each do |idx|
+                yield @buffer[read_index + idx], write_index[0], read_index + idx
+                write_index[0] += 1
+            end  
+            return
+        end
+
+        # Otherwise, recurse
+        buffer_step_size = buffer_step_sizes[axis]
+        initial_read_index = read_index
+
+        current_range.each do |idx|
+            # navigate to the correct start index
+            read_index = initial_read_index + idx * buffer_step_size
+            each_in_canonical_region(region, buffer_step_sizes, axis + 1, read_index, write_index) do |a, b, c|
+                block.call(a, b, c)
+            end
+        end
+    end
+
+    
+    
+    
+
+
+
 
     # Given a list of `NArray`s, returns the smallest shape array in which any one of those `NArrays` can be contained.
     # TODO: Example
@@ -555,30 +671,7 @@ module Lattice
       NArray.new(objects.to_a)
     end
 
-    def slices(axis = 0) : Array(NArray(T))
-      coord = [] of (Int32 | Range(Int32, Int32))
-      (0...axis).each do |dim|
-        coord << Range.new(0, @shape[dim] - 1)
-      end
-      coord << 0
-
-      # Version 1: Theoretically faster, as index calculations occur only once
-      
-      shape, mapping = extract_buffer_indices(coord)
-      step = step_size(axis)
-      slices = (0...@shape[axis]).map do |slice_number|
-        offset = step * slice_number
-          NArray(T).new(shape) { |i| @buffer[mapping[i] + offset] }
-      end
-
-      # Version 2: Cleaner, and may be faster if [] does not get indices as an intermediate step
-
-      # Does not currently work; TODO fix
-      # slices = (0...@shape[axis]).map do |slice_number|
-      #   coord[axis] = slice_number
-      #   self[coord]
-      # end
-    end
+    
 
 
     def get_buffer_idx(index) : T
@@ -734,10 +827,47 @@ module Lattice
       {% end %}
     end
   end
-end
 
 
-class Range::StepIterator
-  getter range
-  getter step
+  struct SteppedRange
+    getter size : Int32
+    getter range : Range(Int32, Int32)
+    getter step : Int32
+
+    def initialize(@range : Range(Int32, Int32), @step : Int32)
+      @size = ((@range.end - @range.begin) // @step).abs.to_i32 + 1
+    end
+
+    # Given __subspace__, a canonical `Range`, and a  __step_size__, invokes the block with an index
+    # for every nth integer in __subspace__. This is more or less the same as range.each, but supports
+    # going forwards or backwards.
+    # TODO: Better docs
+    # TODO find out why these 2 implementations are so drastically different in performance! Maybe because the functionality has been recently modified? (0.36)
+    def each(&block)
+        idx = @range.begin
+        if @step > 0
+          while idx <= @range.end
+            yield idx
+            idx += @step
+          end
+        else
+          while idx >= @range.end
+            yield idx
+            idx += @step
+          end
+        end
+    #   @range.step(@step) do |i|
+    #     yield i
+    #   end
+    end
+
+    def begin
+      @range.begin
+    end
+
+    def end
+      @range.end
+    end
+  end
 end
+
