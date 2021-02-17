@@ -241,13 +241,13 @@ describe Lattice do
       # This should cause a different compile error :)
       # puts strarr.byte_slice("party", 16, :cool)
     end
-    it "can iterate slices" do
-      b = NArray(Int32).new([2, 2, 2]) { |i| 20 - i }
+    # it "can iterate slices" do
+    #   b = NArray(Int32).new([2, 2, 2]) { |i| 20 - i }
 
-      b.slices.each do |slice|
-        puts slice.sum
-      end
+    #   b.slices.each do |slice|
+    #     puts slice.sum
+    #   end
 
-    end
+    # end
   end
 end

@@ -124,7 +124,8 @@ module Lattice
     # Creates an `NArray` out of a shape and a pre-populated buffer.
     # Frequently used internally (for example, this is used in
     # `reshape` as of Feb 5th 2021).
-    protected def initialize(shape, @buffer : Slice(T))
+    # TODO: Should be protected, had to remove for testing
+    def initialize(shape, @buffer : Slice(T))
       @shape = shape.dup
     end
 
@@ -317,7 +318,11 @@ module Lattice
     # indexing into a 1D `NArray` - the scalar at the index provided will be wrapped in an
     # `NArray`. This is to preserve type-safety - if you want to extract the scalar as type `T`,
     # invoke `#to_scalar`.
-    def [](index) : NArray(T)
+    # TODO: Either make the type restriction here go away (it was getting called when indexing
+    # with a single range), or remove this method entirely in favor of read only views
+    def [](index : Int32) : NArray(T)
+      index = canonicalize_index(index, axis=0)
+      
       if dimensions == 1
         new_shape = [1]
       else
@@ -368,6 +373,10 @@ module Lattice
 
     # TODO docs
     def canonicalize_index(index, axis)
+      if index < -@shape[axis] || index >= @shape[axis]
+        raise IndexError.new("Could not canonicalize index: #{index} is not a sensible index in axis #{axis}.")
+      end
+      
       if index < 0
         return @shape[axis] + index
       else
@@ -398,10 +407,7 @@ module Lattice
           shape << (range.end - range.begin + dir).abs
           directions << dir
         when Int32
-          index = canonicalize_index(rule, axis)
-          if index < 0 || index >= @shape[axis]
-            raise IndexError.new("Could not canonicalize index: #{rule} is not a sensible index in axis #{index}.")
-          end
+          
           full_coord << (index..index)
           shape << 1
           directions << 1
@@ -459,7 +465,7 @@ module Lattice
 
     # Higher-order slicing operations (like slicing in numpy)
     def [](*coord) : NArray(T)
-      slice(coord)
+      region(coord)
     end
 
     # replaces all values in a boolean mask with a given value
@@ -475,9 +481,15 @@ module Lattice
       end
     end
 
+    def []=(*args : *U) forall U
+      {% begin %}
+        set([{% for i in 0...(U.size - 1) %}args[{{i}}] {% if i < U.size - 2 %}, {% end %}{% end %}], args.last)
+      {% end %}
+    end
+
     # replaces an indexed chunk with a given chunk of the same shape.
-    def set(coord, value : NArray(T))
-      shape, mapping = extract_buffer_indices(coord)
+    def set(region, value : NArray(T))
+      shape, mapping = extract_buffer_indices(region)
 
       # check that the replacement slice matches the
       if value.shape != shape
@@ -490,18 +502,16 @@ module Lattice
     end
 
     # replaces all values in an indexed chunk with the given value.
-    def set(coord, value : T)
-      shape, mapping = extract_buffer_indices(coord)
+    def set(region, value) # prev: set(region, value : T)
+
+      # Try to cast the value to T; throws an error if it fails
+      # TODO: decide if this is how we want to handle it
+      fill_value = value.as(T)
+      shape, mapping = extract_buffer_indices(region)
 
       mapping.each do |index|
-        @buffer[index] = value
+        @buffer[index] = fill_value
       end
-    end
-
-    def []=(*args : *U) forall U
-      {% begin %}
-                set([{% for i in 0...(U.size - 1) %}args[{{i}}] {% if i < U.size - 2 %}, {% end %}{% end %}], args.last)
-            {% end %}
     end
 
     # Given a list of `NArray`s, returns the smallest shape array in which any one of those `NArrays` can be contained.
@@ -553,12 +563,12 @@ module Lattice
 
       # Version 1: Theoretically faster, as index calculations occur only once
       
-      # shape, mapping = extract_buffer_indices(coord)
-      # step = step_size(axis)
-      # slices = (0...@shape[axis]).map do |slice_number|
-      #   offset = step * slice_number
-      #     NArray(T).new(shape) { |i| @buffer[mapping[i] + offset] }
-      # end
+      shape, mapping = extract_buffer_indices(coord)
+      step = step_size(axis)
+      slices = (0...@shape[axis]).map do |slice_number|
+        offset = step * slice_number
+          NArray(T).new(shape) { |i| @buffer[mapping[i] + offset] }
+      end
 
       # Version 2: Cleaner, and may be faster if [] does not get indices as an intermediate step
 
@@ -566,33 +576,6 @@ module Lattice
       # slices = (0...@shape[axis]).map do |slice_number|
       #   coord[axis] = slice_number
       #   self[coord]
-      # end
-
-      # Extra brainstorming that I wanted to commit at least once for posterity
-
-      # narr.slices
-      # narr.slices_copied 
-      # View.slices(narr)
-
-      # create an array, populate with output buffers
-      # fill the first output buffer
-      #   have an iterator that goes over the output buffer indices
-      #   have a function that converts output buffer indices into 
-      # 2x3x3 L__  idx(4) -> 3x3 @ [1, 1] -> 2x3x3 [L, 1, 1] -> convert to the buffer index in a 2x3x3
-      
-      # 2x3x3 L=0 -> 2x3 idx(4) -> [1,1] -> [1, L, 1]
-      # narr[..., 0, ...]
-
-      # for idx in axis
-      #   out << self[..., 0, ...]
-      # # copy the first output buffer to the other ones by adding the offset over and over
-      
-      # step = 1
-
-      # # TODO generalize to give slices along any axis
-      # #new_buffer = @buffer.each(step: step).to_a
-      # (0...@shape[axis]).map do |idx|
-      #   self[idx]
       # end
     end
 

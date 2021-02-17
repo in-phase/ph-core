@@ -15,32 +15,32 @@ module Lattice
             yield indices, index
         end.to_tensor
     end
-    arr = Lattice::Tensor(Int32).build([1, 2, 3]) { |multidim_index, i| i }
-    puts arr
-    puts arr.class
+    # arr = Lattice::Tensor(Int32).build([1, 2, 3]) { |multidim_index, i| i }
+    # puts arr
+    # puts arr.class
 
     protected def initialize(shape, &block : Int32 -> T)
         super(shape) { |index| yield index }
         puts "yay"
     end
-    evil = Lattice::Tensor(Int32).new([1, 2, 3]) { |i| i }
-    puts evil
-    puts evil.class
+    # evil = Lattice::Tensor(Int32).new([1, 2, 3]) { |i| i }
+    # puts evil
+    # puts evil.class
 
     def self.new(nested_array)
         puts "it's our new"
         NArray.new(nested_array).to_tensor
     end
-    two = Lattice::Tensor.new([[1], [2], [3]])
-    puts two
-    puts two.class
+    # two = Lattice::Tensor.new([[1], [2], [3]])
+    # puts two
+    # puts two.class
 
     # # Convenience initializer for making copies.
     protected def initialize(shape, @buffer : Slice(T))
         super(shape, @buffer)
         puts "huzzah"
     end
-    tree = Tensor.new([3, 2, 1], evil.buffer)
+    # tree = Tensor.new([3, 2, 1], evil.buffer)
 
     protected def check_type
         
