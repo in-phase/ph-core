@@ -3,31 +3,31 @@ require "./exceptions.cr"
 require "./n_array_formatter.cr"
 
 module Lattice
-  # An `NArray` is a multidimensional array for any arbitrary type.
-  # It is the most general implementation of AbstractNArray, and as a result
+  # An `{{@type}}` is a multidimensional array for any arbitrary type.
+  # It is the most general implementation of Abstract{{@type}}, and as a result
   # only implements primitive data operations (construction, data reading,
   # data writing, and region sampling / slicing).
   #
-  # `NArray` is designed to provide the best user experience possible, and
+  # `{{@type}}` is designed to provide the best user experience possible, and
   # that methodology led to the use of the `method_missing` macro for element-wise
   # operations. Please read its documentation, as it provides a large amount
   # of functionality that may otherwise appear missing.
   class NArray(T) < AbstractNArray(T)
     include Enumerable(T)
 
-    # Stores the elements of an `NArray` in lexicographic (row-major) order.
+    # Stores the elements of an `{{@type}}` in lexicographic (row-major) order.
     getter buffer : Slice(T)
     
-    # Contains the number of elements in each axis of the `NArray`.
+    # Contains the number of elements in each axis of the `{{@type}}`.
     # More explicitly, axis *k* contains *@shape[k]* elements.
     @shape : Array(Int32)
 
-    # Constructs an `NArray` using a user-provided *shape* (see `shape`) and a callback.
+    # Constructs an `{{@type}}` using a user-provided *shape* (see `shape`) and a callback.
     # The provided callback should map a multidimensional index, *coord*, (and an optional packed
     # index) to the value you wish to store at that position.
     # For example, to create the 2x2 identity matrix:
     # ```
-    # Lattice::NArray.build([2, 2]) do |coord|
+    # Lattice::{{@type}}.build([2, 2]) do |coord|
     #   if coord[0] == coord[1]
     #     1
     #   else
@@ -44,7 +44,7 @@ module Lattice
     # The buffer index allows you to easily index elements in lexicographic order.
     # For example:
     # ```
-    # NArray.build([5, 1]) { |coord, index| index }
+    # {{@type}}.build([5, 1]) { |coord, index| index }
     # ```
     # Will create:
     # ```text
@@ -55,12 +55,12 @@ module Lattice
     #  [4]]
     # ```
     def self.build(shape, &block : Array(Int32), Int32 -> T)
-      NArray(T).new(shape) do |idx|
+      {{@type}}.new(shape) do |idx|
         yield index_to_coord(idx, shape), idx
       end
     end
 
-    # Creates an `NArray` using only a shape (see `shape`) and a packed index.
+    # Creates an `{{@type}}` using only a shape (see `shape`) and a packed index.
     # This is used internally to make code faster - converting from a packed
     # index to an unpacked index isn't needed for many constructors, and generating
     # them would waste resources.
@@ -68,7 +68,7 @@ module Lattice
     protected def initialize(shape, &block : Int32 -> T)
       @shape = shape.map do |dim|
         if dim < 1
-          raise DimensionError.new("Cannot create NArray: One or more of the provided dimensions was less than one.")
+          raise DimensionError.new("Cannot create {{@type}}: One or more of the provided dimensions was less than one.")
         end
         dim
       end
@@ -77,34 +77,34 @@ module Lattice
       @buffer = Slice(T).new(num_elements) { |i| yield i }
     end
 
-    # Creates an `NArray` from a nested array with uniform dimensions.
+    # Creates an `{{@type}}` from a nested array with uniform dimensions.
     # For example:
     # ```
-    # NArray.new([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+    # {{@type}}.new([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
     # ```
-    # Would create the 3x3 identity matrix of type `NArray(Int32)`.
+    # Would create the 3x3 identity matrix of type `{{@type}}(Int32)`.
     # 
     # This constructor will figure out the types of the scalars at the
     # bottom of the nested array at compile time, which allows mixing
     # datatypes effortlessly.
     # For example, to create a matrix with 0.5 on the diagonals:
     # ```
-    # NArray.new([[0.5, 0, 0], [0, 0.5, 0], [0, 0, 0.5]])
+    # {{@type}}.new([[0.5, 0, 0], [0, 0.5, 0], [0, 0, 0.5]])
     # ```
     # This may seem trivial, but note that the `0.5`s are implicit
     # `Float32` literals, whereas the `0`s are implicit `Int32` literals.
-    # So, the type returned by that example will actually be an `NArray(Float32 | Int32)`.
+    # So, the type returned by that example will actually be an `{{@type}}(Float32 | Int32)`.
     # This also works for more disorganized examples:
     # ```
-    # NArray.new([["We can mix types", 2, :do], ["C", 0.0, "l stuff."]])
+    # {{@type}}.new([["We can mix types", 2, :do], ["C", 0.0, "l stuff."]])
     # ```
-    # The above line will create an `NArray(String | Int32 | Symbol | Float32)`.
+    # The above line will create an `{{@type}}(String | Int32 | Symbol | Float32)`.
     #
     # When a nested array with non-uniform dimensions is passed, this method will
     # raise a `DimensionError`.
     # For example:
     # ```
-    # NArray.new([[1], [1, 2]]) # => DimensionError
+    # {{@type}}.new([[1], [1, 2]]) # => DimensionError
     # ```
     def self.new(nested_array)
       shape = recursive_probe_array(nested_array)
@@ -121,7 +121,7 @@ module Lattice
       self.new(shape, buffer)
     end
 
-    # Creates an `NArray` out of a shape and a pre-populated buffer.
+    # Creates an `{{@type}}` out of a shape and a pre-populated buffer.
     # Frequently used internally (for example, this is used in
     # `reshape` as of Feb 5th 2021).
     # TODO: Should be protected, had to remove for testing
@@ -132,7 +132,7 @@ module Lattice
     # Returns the estimated dimension of a multidimensional array that is provided as a nested array literal.
     # Used internally to determine the buffer size for several constructors. Note that this method
     # does not guarantee that the size reported is accurate.
-    # For example, `NArray.recursive_probe_array([[1], [1, 2]])` will return `[2, 1]`. The `2` comes
+    # For example, `{{@type}}.recursive_probe_array([[1], [1, 2]])` will return `[2, 1]`. The `2` comes
     # from the fact that the top-level array contains 2 elements, and the `1` comes from the size of
     # the sub-array `[1]`. However, we can clearly see that the size isn't uniform - the second
     # sub-array is `[1, 2]`, which is two elements, not one!
@@ -156,14 +156,14 @@ module Lattice
     protected def self.recursive_extract_to_array(nested_array data, shape, buffer, current_dim = 0)
       # check if current array matches expected length for this dimension
       if data.size != shape[current_dim]
-        raise DimensionError.new("Error converting nested array to NArray: Dimensions of nested array were not constant. (Expected #{shape[current_dim]}, found #{data.size})")
+        raise DimensionError.new("Error converting nested array to {{@type}}: Dimensions of nested array were not constant. (Expected #{shape[current_dim]}, found #{data.size})")
       end
 
       # Base case: this is the lowest level in shape (expect elements are scalars)
       if current_dim == shape.size - 1
         data.each do |scalar|
           if scalar.is_a?(Enumerable)
-            raise DimensionError.new("Error converting nested array to NArray: Inconsistent number of dimensions depending on path.")
+            raise DimensionError.new("Error converting nested array to {{@type}}: Inconsistent number of dimensions depending on path.")
           end
 
           if scalar.is_a?(typeof(buffer[0]))
@@ -175,7 +175,7 @@ module Lattice
       else
         data.each do |subarray|
           if !subarray.is_a?(Enumerable) # is not actually a subarray
-            raise DimensionError.new("Error converting nested array to NArray: Inconsistent number of dimensions depending on path.")
+            raise DimensionError.new("Error converting nested array to {{@type}}: Inconsistent number of dimensions depending on path.")
           end
 
           recursive_extract_to_array(subarray, shape, buffer, current_dim + 1)
@@ -184,10 +184,10 @@ module Lattice
     end
 
 
-    # Fills an `NArray` of given shape with a specified value.
+    # Fills an `{{@type}}` of given shape with a specified value.
     # For example, to create a zero vector:
     # ```
-    # NArray.fill([3, 1], 0)
+    # {{@type}}.fill([3, 1], 0)
     # ```
     # Will produce
     # ```text
@@ -196,10 +196,10 @@ module Lattice
     #  [0]]
     # ```
     # Note that this method makes no effort to duplicate *value*, so this should only be used
-    # for `Struct`s. If you want to populate an NArray with `Object`s, see `new(shape, &block)`.
+    # for `Struct`s. If you want to populate an {{@type}} with `Object`s, see `new(shape, &block)`.
     def self.fill(shape, value : T) 
       # \{% begin %} \{{ @type.id }}.new(shape) { value } \{% end %}
-      NArray(T).new(shape) { value }
+      {{@type}}.new(shape) { value }
     end
 
 
@@ -207,10 +207,10 @@ module Lattice
 
     # TODO: Code below this line isn't neccessarily well documented
 
-    # Checks if a given list of integers represent an index that is in range for this `NArray`.
+    # Checks if a given list of integers represent an index that is in range for this `{{@type}}`.
     # TODO: Rename and document
     def valid_coord?(coord)
-      NArray.valid_coord?(coord, @shape)
+      {{@type}}.valid_coord?(coord, @shape)
     end
 
     # TODO: Rename and document
@@ -229,7 +229,7 @@ module Lattice
     # TODO: Talk about what this should be named
     def self.coord_to_index(coord, shape) : Int32
       if !valid_coord?(coord, shape)
-        raise IndexError.new("Cannot convert coordinate to index: the given index is out of bounds for this NArray along at least one dimension.")
+        raise IndexError.new("Cannot convert coordinate to index: the given index is out of bounds for this {{@type}} along at least one dimension.")
       end
 
       memo = 0
@@ -242,7 +242,7 @@ module Lattice
 
     # Convert from n-dimensional indexing to a buffer location.
     def coord_to_index(coord) : Int32
-      NArray.coord_to_index(coord, @shape)
+      {{@type}}.coord_to_index(coord, @shape)
     end
 
     def self.index_to_coord(index, shape) : Array(Int32)
@@ -256,41 +256,41 @@ module Lattice
 
     # Convert from a buffer location to an n-dimensional coord
     def index_to_coord(index) : Array(Int32)
-      NArray.index_to_coord(index, @shape)
+      {{@type}}.index_to_coord(index, @shape)
     end
 
 
     # TODO docs
     def step_size(axis)
-      NArray.step_size(axis, @shape)
+      {{@type}}.step_size(axis, @shape)
     end
 
     def self.step_size(axis, shape)
       (shape[(axis + 1)..]? || [1]).product
     end
 
-    # Returns the number of elements in each axis of the `NArray`.
+    # Returns the number of elements in each axis of the `{{@type}}`.
     # More explicitly, axis *k* contains `shape[k]` elements.
     def shape : Array(Int32)
       @shape.clone
     end
 
-    # Returns the number of dimensions of this `NArray`.
+    # Returns the number of dimensions of this `{{@type}}`.
     # This is equivalent to, but slightly faster than, `shape.size`.
     def dimensions : Int32
       @shape.size
     end
 
-    # Maps a zero-dimensional NArray to the element it contains.
+    # Maps a zero-dimensional {{@type}} to the element it contains.
     def to_scalar : T
       if scalar?
         return @buffer[0]
       else
-        raise DimensionError.new("Cannot cast to scalar: NArray has more than one dimension or more than one element.")
+        raise DimensionError.new("Cannot cast to scalar: self has more than one dimension or more than one element.")
       end
     end
 
-    # Checks that the array is a 1-vector (a "zero-dimensional" NArray)
+    # Checks that the array is a 1-vector (a "zero-dimensional" {{@type}})
     def scalar?
       @shape.size == 1 && @shape[0] == 1
     end
@@ -304,16 +304,16 @@ module Lattice
       NArrayFormatter.print(self, io)
     end
 
-    # Creates a deep copy of this NArray;
+    # Creates a deep copy of this {{@type}};
     # Allocates a new buffer of the same shape, and calls #clone on every item in the buffer.
-    def clone : NArray(T)
-      NArray(T).new(@shape, @buffer.clone)
+    def clone : self
+      {{@type}}.new(@shape, @buffer.clone)
     end
 
-    # Creates a shallow copy of this NArray;
+    # Creates a shallow copy of this {{@type}};
     # Allocates a new buffer of the same shape, and duplicates every item in the buffer.
-    def dup : NArray(T)
-      NArray(T).new(@shape, @buffer.dup)
+    def dup : self
+      {{@type}}.new(@shape, @buffer.dup)
     end
 
 
@@ -325,14 +325,14 @@ module Lattice
     ### Buffer data manipulation: slicing, setting, etc
 
 
-    # Takes a single index into the NArray, returning a slice of the largest dimension possible.
+    # Takes a single index into the {{@type}}, returning a slice of the largest dimension possible.
     # For example, if `a` is a matrix, `a[0]` will be a vector. There is a special case when
-    # indexing into a 1D `NArray` - the scalar at the index provided will be wrapped in an
-    # `NArray`. This is to preserve type-safety - if you want to extract the scalar as type `T`,
+    # indexing into a 1D `{{@type}}` - the scalar at the index provided will be wrapped in an
+    # `{{@type}}`. This is to preserve type-safety - if you want to extract the scalar as type `T`,
     # invoke `#to_scalar`.
     # TODO: Either make the type restriction here go away (it was getting called when indexing
     # with a single range), or remove this method entirely in favor of read only views
-    def [](index : Int32) : NArray(T)
+    def [](index : Int32) : self
       index = canonicalize_index(index, axis=0)
       
       if dimensions == 1
@@ -344,7 +344,7 @@ module Lattice
       step = new_shape.product
 
       new_buffer = @buffer[index * step, step]
-      NArray(T).new(new_shape, new_buffer.clone)
+      {{@type}}.new(new_shape, new_buffer.clone)
     end
 
     # Given a fully-qualified coordinate, returns the scalar at that position.
@@ -354,7 +354,7 @@ module Lattice
 
 
     # TODO any way to avoid copying these out yet, too? Iterator magic?
-    def slices(axis = 0) : Array(NArray(T))
+    def slices(axis = 0) : Array(self)
       region = [] of (Int32 | Range(Int32, Int32))
       (0...axis).each do |dim|
         region << Range.new(0, @shape[dim] - 1)
@@ -368,7 +368,7 @@ module Lattice
 
       slices = (0...@shape[axis]).map do |slice_number|
         offset = step * slice_number
-        NArray(T).new(shape) {|i| mapping[i] + offset}
+        {{@type}}.new(shape) {|i| mapping[i] + offset}
       end
 
       # Version 2: Cleaner, and may be faster if [] does not get indices as an intermediate step
@@ -381,7 +381,7 @@ module Lattice
     end
 
 
-    def get_region(region) : NArray(T)
+    def get_region(region) : self
 
       shape = measure_region(region)
 
@@ -390,20 +390,20 @@ module Lattice
       each_in_region(region) do |elem, idx, src_idx|
         buffer_arr << elem
       end
-      NArray(T).new(shape) { |i| buffer_arr[i] }
+      {{@type}}.new(shape) { |i| buffer_arr[i] }
     end
 
-    def [](region : Indexable) : NArray(T)
+    def [](region : Indexable) : self
       get_region(region)
     end
 
     # Higher-order slicing operations (like slicing in numpy)
-    def [](*region) : NArray(T)
+    def [](*region) : self
       get_region(region)
     end
 
     # replaces all values in a boolean mask with a given value
-    def []=(bool_mask : NArray(Bool), value : T)
+    def []=(bool_mask : AbstractNArray(Bool), value : T)
       if bool_mask.shape != @shape
         raise DimensionError.new("Cannot perform masking: mask shape does not match array shape.")
       end
@@ -422,7 +422,7 @@ module Lattice
     end
 
     # replaces an indexed chunk with a given chunk of the same shape.
-    def set(region, value : NArray(T))
+    def set(region, value : self)
       
       # check that the replacement slice matches the destination shape
       if value.shape != measure_region(region)
@@ -455,8 +455,8 @@ module Lattice
     end
 
 
-    # Returns the `shape` of a region when sampled from this `NArray`.
-    # For example, on a 5x5x5 NArray, `measure_shape(1..3, ..., 5)` => `[3, 5]`.
+    # Returns the `shape` of a region when sampled from this `{{@type}}`.
+    # For example, on a 5x5x5 {{@type}}, `measure_shape(1..3, ..., 5)` => `[3, 5]`.
     def measure_region(region) : Array(Int32)
       measure_canonical_region(canonicalize_region(region))
     end
@@ -528,7 +528,7 @@ module Lattice
     # TODO combine/revise docs
     # Converts a region specifier to canonical form.
     # A canonical region specifier obeys the following:
-    # - No implicit trailing ranges; the dimensions of the RS matches that of the NArray. 
+    # - No implicit trailing ranges; the dimensions of the RS matches that of the {{@type}}. 
     #     Eg, for a 3x3x3, [.., 2] is non-canonical
     # - All elements are ranges (single-number indexes must be converted to ranges of a single element)
     # - Both the start and end of the range must be positive, and in range for the axis in question
@@ -566,13 +566,13 @@ module Lattice
     
 
 
-        # See `NArray#measure_region`. The only difference is that this method assumes
+        # See `{{@type}}#measure_region`. The only difference is that this method assumes
     # the region is already canonicalized, which can provide speedups.
     # TODO: account for step sizes
     protected def measure_canonical_region(region) : Array(Int32)
       shape = [] of Int32
       if region.size != @shape.size
-        raise DimensionError.new("Could not measure canonical range - A region with #{region.size} dimensions cannot be canonical over a #{@shape.size} dimensional NArray.")
+        raise DimensionError.new("Could not measure canonical range - A region with #{region.size} dimensions cannot be canonical over a #{@shape.size} dimensional {{@type}}.")
       end
 
       # Measure the effect of applied restrictions (if a rule is a number, a dimension
@@ -609,7 +609,9 @@ module Lattice
         # Base case - yield the scalars in a subspace
         if axis == @shape.size - 1        
             current_range.each do |idx|
-                yield @buffer[read_index + idx], write_index[0], read_index + idx
+                # yield @buffer[read_index + idx], write_index[0], read_index + idx
+                # write_index[0] += 1
+                yield @buffer.unsafe_fetch(read_index + idx), write_index.unsafe_fetch(0), read_index + idx
                 write_index[0] += 1
             end  
             return
@@ -635,7 +637,7 @@ module Lattice
 
 
 
-    # Given a list of `NArray`s, returns the smallest shape array in which any one of those `NArrays` can be contained.
+    # Given a list of `{{@type}}`s, returns the smallest shape array in which any one of those `{{@type}}s` can be contained.
     # TODO: Example
     def self.common_container(*objects)
       shapes = objects.to_a.map { |x| x.shape }
@@ -647,15 +649,15 @@ module Lattice
       container
     end
 
-    # Adds a dimension at highest level, where each "row" is an input NArray.
+    # Adds a dimension at highest level, where each "row" is an input {{@type}}.
     # If pad is false, then throw error if shapes of objects do not match;
     # otherwise, pad subarrays along each axis to match whichever is largest in that axis
-    def self.wrap(*objects : NArray(T), pad = false) : NArray(T)
+    def self.wrap(*objects : AbstractNArray(T), pad = false) : NArray
       shapes = objects.to_a.map { |x| x.shape }
       if pad
         container = common_container(*objects)
-        # pad all arrays to this size
-        raise NotImplementedError.new("As of this time, NArray.wrap() cannot pad arrays for you. Come back after reshaping has been implemented, or get off the couch and go do it yourself.")
+        # TODO pad all arrays to this size
+        raise NotImplementedError.new("As of this time, {{@type}}.wrap() cannot pad arrays for you. Come back after reshaping has been implemented, or get off the couch and go do it yourself.")
       else
         container = shapes[0]
         # check that all arrays are same size
@@ -667,11 +669,13 @@ module Lattice
       # This currently creates an array, then reconverts into a slice. possibly use a more direct method, copying buffers directly?
       # Although if we generalize to concatenating arrays of different types this may be superior?
       combined_buffer = objects.reduce([] of T) { |memo, i| memo.concat(i.buffer.to_a) }
+      # TODO: Figure out how this will work with inheritance & Tensor
       NArray(T).new(container) { |i| combined_buffer[i] }
     end
 
-    # creates an NArray-type vector from a tuple of scalars.
+    # creates an {{@type}}-type vector from a tuple of scalars.
     def self.wrap(*objects)
+      # TODO: Figure out how this will work with inheritance & Tensor
       NArray.new(objects.to_a)
     end
 
@@ -682,8 +686,8 @@ module Lattice
       @buffer[index]
     end
 
-    def flatten : NArray(T)
-      NArray.new([@shape.product], @buffer.dup)
+    def flatten : self
+      {{@type}}.new([@shape.product], @buffer.dup)
     end
 
     def to_a : Array(T)
@@ -713,7 +717,9 @@ module Lattice
         yield @buffer[idx], idx
       end
 
-      NArray(U).new(@shape, buffer)
+      {% begin %}
+        {{@type.id}}(U).new(@shape, buffer)
+      {% end %}
     end
 
     def map(&block : T -> U) forall U
@@ -748,28 +754,38 @@ module Lattice
     end
 
     def reshape(new_shape)
-      NArray(T).new(new_shape, @buffer)
+      {{@type}}.new(new_shape, @buffer)
     end
 
     def to_tensor : Tensor(T)
       Tensor.new(self)
     end
     
+    # If a method signature not defined on {{@type}} is called, then `method_missing` will attempt
+    # to apply the method to every element contained in the {{@type}}. Any argument to the method call
+    # that is also an {{@type}} will be applied element-wise.
+    # For example:
+    # ```arr = {{@type}}(Int32).new([2,2,2]) { |i| i }
+    # arr > 4```
+    # will give: [[[false, false], [false, false]], [[false, true], [true true]]]
+    # WARNING: fully exhaustive testing is not possible for this method; use at your own risk.
+    # If a method is defined on both {{@type}} and the type parameter T, precedence will be
+    # given to {{@type}}. Complex overloading may cause problems.
     macro method_missing(call)
       def {{call.name.id}}(*args : *U) forall U
         \{% if !@type.type_vars[0].has_method?({{call.name.id.stringify}}) %}
           \{% raise( <<-ERROR
                       undefined method '{{call.name.id}}' for #{@type.type_vars[0]}.
                       This error is a result of Lattice attempting to apply `{{call.name.id}}`,
-                      an unknown method, to each element of an `NArray`. (See the documentation
-                      of `NArray#method_missing` for more info). For the source of the error, 
+                      an unknown method, to each element of an `{{@type}}`. (See the documentation
+                      of `{{@type}}#method_missing` for more info). For the source of the error, 
                       use `--error-trace`.
                       ERROR
                       ) %}
         \{% end %}
 
         \{% for i in 0...(U.size) %}
-          \{% if U[i] < NArray %}
+          \{% if U[i] < {{@type}} %}
             if args[\{{i}}].shape != @shape
               raise DimensionError.new("Could not apply .{{call.name.id}} elementwise - Shape of argument does match dimension of `self`")
             end
@@ -782,13 +798,13 @@ module Lattice
             # own lines.
             elem.{{call.name.id}}(
               \{% for i in 0...(U.size) %}\
-                \{% if U[i] < NArray %} args[\{{i}}].buffer[buf_idx] \{% else %} args[\{{i}}] \{% end %} \{% if i < U.size - 1 %}, \{% end %}
+                \{% if U[i] < {{@type}} %} args[\{{i}}].buffer[buf_idx] \{% else %} args[\{{i}}] \{% end %} \{% if i < U.size - 1 %}, \{% end %}
               \{% end %}\
             )
           \{% end %}
           end
           
-          NArray.new(shape, new_buffer)
+          {{@type}}.new(shape, new_buffer)
       end
     end
 
