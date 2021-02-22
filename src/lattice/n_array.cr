@@ -66,6 +66,10 @@ module Lattice
     # them would waste resources.
     # For more information, see `coord_to_index`, `buffer`, and `build`.
     protected def initialize(shape, &block : Int32 -> T)
+      if shape.empty?
+        raise DimensionError.new("Cannot create {{@type}}: `shape` was empty.")
+      end
+
       @shape = shape.map do |dim|
         if dim < 1
           raise DimensionError.new("Cannot create {{@type}}: One or more of the provided dimensions was less than one.")
@@ -125,7 +129,7 @@ module Lattice
     # Frequently used internally (for example, this is used in
     # `reshape` as of Feb 5th 2021).
     # TODO: Should be protected, had to remove for testing
-    def initialize(shape, @buffer : Slice(T))
+    protected def initialize(shape, @buffer : Slice(T))
       @shape = shape.dup
     end
 
