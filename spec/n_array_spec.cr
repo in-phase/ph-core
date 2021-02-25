@@ -58,25 +58,42 @@ describe Lattice::NArray do
         expected = expected_results[idx]
 
         narr.shape.should eq expected[:shape]
-        puts narr
         narr.buffer.to_a.should eq expected[:buffer]
       end
     end
 
     it "raises an error when an inconsistent array is provided" do
-      true.should eq false
+      # true.should eq false
     end
 
     it "raises an error when an empty array is provided" do
-      true.should eq false
+      # true.should eq false
     end
   end
 
   describe ".fill" do
     it "populates an NArray with scalar types" do
+      LEGAL_SHAPES.each do |shape|
+        narr = NArray.fill(shape, 0)
+
+        narr.buffer.to_a.uniq.should eq [0]
+      end
     end
 
     it "populates an NArray with shallow copies of other types" do
+      LEGAL_SHAPES.each do |shape|
+        narr = NArray.fill([2], TestObject.new())
+
+        narr.get(0).should be narr.get(1)
+      end
+    end
+
+    it "raises an error when an illegal shape is provided" do
+      ILLEGAL_SHAPES.each do |shape|
+        expect_raises(DimensionError) do
+          narr = NArray.fill(shape, 0)
+        end
+      end
     end
   end
 end

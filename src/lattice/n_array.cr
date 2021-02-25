@@ -111,15 +111,11 @@ module Lattice
     # {{@type}}.new([[1], [1, 2]]) # => DimensionError
     # ```
     def self.new(nested_array)
-      shape = recursive_probe_array(nested_array)
-      expected_element_count = shape.product
-
-      elements = container_for_base_types(nested_array, expected_element_count)
-
-      recursive_extract_to_array(nested_array, shape, elements)
+      shape = measure_nested_array(nested_array)
+      flattened = nested_array.flatten
 
       # fill elements
-      buffer = Slice.new(elements.to_unsafe, expected_element_count)
+      buffer = Slice.new(flattened.to_unsafe, flattened.size)
 
       # Do the typical `new` stuff
       self.new(shape, buffer)
@@ -133,6 +129,8 @@ module Lattice
       @shape = shape.dup
     end
 
+    # TODO: Update documentation. I (seth) rewrote this function to make it validate the shape fully.
+    # documentation doesn't currently reflect that
     # Returns the estimated dimension of a multidimensional array that is provided as a nested array literal.
     # Used internally to determine the buffer size for several constructors. Note that this method
     # does not guarantee that the size reported is accurate.
@@ -140,53 +138,50 @@ module Lattice
     # from the fact that the top-level array contains 2 elements, and the `1` comes from the size of
     # the sub-array `[1]`. However, we can clearly see that the size isn't uniform - the second
     # sub-array is `[1, 2]`, which is two elements, not one!
-    protected def self.recursive_probe_array(nested_array data, shape = [] of Int32) : Array(Int32)
-      if data.is_a? Array
-        if data.empty?
-          raise DimensionError.new("Could not profile nested array: Found an array with size zero.")
+    protected def self.measure_nested_array(nested_array current, depth = 0, max_depth = StaticArray[0i32], shape = [] of Int32) : Array(Int32)
+      # There are three main goals here:
+      # 1. Measure the array shape
+      # 2. Ensure that the number of elements in each dimension is consistent
+      # 3. Ensure that the depth is identical regardless of path
+      # 
+      # [[1, 2], [1, 2, 3]] would violate goal 2 (right depth, wrong number of elements)
+      # [[1, 2, 3], [[1], [1], [1]]] would violate goal 3 (right number of elements, wrong depth)
+
+      if current.is_a? Array
+        # If this is the first time we've gotten this deep
+        if depth == shape.size
+          if current.size == 0
+            raise DimensionError.new("Could not profile nested array: Found an array with size zero.")
+          end
+
+          shape << current.size
         end
 
-        shape << data.size
-        return recursive_probe_array(data[0], shape)
+        current.each do |sub_element|
+          # TODO: Possible optimization here
+          # It's computationally wasteful to iterate over scalars when you're
+          # just above max depth, but it's also possible that the scalars have type
+          # Whatever | Array, in which case we want to iterate. E.g
+          # [[1, [2, 3]]] - this should crash, but hard to detect without iterating
+          measure_nested_array(sub_element, depth + 1, max_depth, shape)
+        end
       else
-        return shape
-      end
-    end
-
-    # Populated a pre-initialized buffer of appropriate union type with nested array elements in lexicographic order.
-    # See `recursive_probe_array` and `recursive_probe_array` for more information about the union type
-    # and shape parameter.
-    # Raises a `DimensionError` if the number of dimensions is inconsistent. 
-    protected def self.recursive_extract_to_array(nested_array data, shape, buffer, current_dim = 0)
-      # check if current array matches expected length for this dimension
-      if data.size != shape[current_dim]
-        raise DimensionError.new("Error converting nested array to {{@type}}: Dimensions of nested array were not constant. (Expected #{shape[current_dim]}, found #{data.size})")
-      end
-
-      # Base case: this is the lowest level in shape (expect elements are scalars)
-      if current_dim == shape.size - 1
-        data.each do |scalar|
-          if scalar.is_a?(Enumerable)
-            raise DimensionError.new("Error converting nested array to {{@type}}: Inconsistent number of dimensions depending on path.")
-          end
-
-          if scalar.is_a?(typeof(buffer[0]))
-            buffer << scalar
+        # This will only be -1 if the depth had not yet been determined
+        if max_depth[0] = -1
+          max_depth[0] = depth
+        else
+          # Ensure the depth recorded last time is consistent
+          # Using max_depth rather than shape.size is important.
+          # [0, [0], [[0]]] would always satisfy shape.size == depth,
+          # but is clearly inconsistent.
+          if max_depth[0] != depth
+            raise DimensionError.new("Could not profile nested array: Array depth was inconsistent.")
           end
         end
-
-        # Case 2: this is not the last dimension in shape (expect elements are arrays)
-      else
-        data.each do |subarray|
-          if !subarray.is_a?(Enumerable) # is not actually a subarray
-            raise DimensionError.new("Error converting nested array to {{@type}}: Inconsistent number of dimensions depending on path.")
-          end
-
-          recursive_extract_to_array(subarray, shape, buffer, current_dim + 1)
-        end
       end
-    end
 
+      shape
+    end
 
     # Fills an `{{@type}}` of given shape with a specified value.
     # For example, to create a zero vector:
@@ -811,47 +806,12 @@ module Lattice
           {{@type}}.new(shape, new_buffer)
       end
     end
+  end
 
     # TODO implement these
 
     # deletion
     # constructors
-
-    # TODO: Document properly
-    # Given a nested array, returns the union type needed to store any of the leaf-level scalars contained within.
-    # For example:
-    # union_of_base_types([["a", 1], ['b', false]], 15) # => Array(String | Int32 | Char | Bool)
-    private def self.container_for_base_types(nested : T, size) forall T
-      {% begin %}
-        {%
-          scalar_types = [] of TypeNode
-          identified = [] of TypeNode
-          identified << T
-        %}
-
-        {% for type_to_check in identified %}
-
-          # If the object is array-like, mark each type in its type parameter as needing to be checked
-          {% if type_to_check.type_vars.size == 1 && type_to_check < Enumerable %} # has one generic type var that extends enumerate
-            {% type_var = type_to_check.type_vars[0] %}
-
-            {% for type in type_var.union_types %}
-              {% identified << type %}     
-            {% end %}
-        
-          # If the object is a scalar, push the type to the scalar_types list    
-          {% else %} 
-            {% scalar_types << type_to_check %}
-          {% end %}
-        {% end %}
-
-        {% ret_types = scalar_types.uniq %}
-        
-        return Array({% for i in 0...(ret_types.size) %} {% if i > 0 %} | {% end %} {{ ret_types[i] }} {% end %}).new(initial_capacity: size)
-      {% end %}
-    end
-  end
-
 
   struct SteppedRange
     getter size : Int32
