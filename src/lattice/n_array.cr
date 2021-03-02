@@ -226,7 +226,7 @@ module Lattice
         memo = 0
         canon_coord.each_with_index do |array_index, dim|
           step = self.step_size(dim, shape)
-          memo += step * coord[dim]
+          memo += step * canon_coord[dim]
         end
         memo
       rescue exception
@@ -322,7 +322,7 @@ module Lattice
     # TODO: Either make the type restriction here go away (it was getting called when indexing
     # with a single range), or remove this method entirely in favor of read only views
     def [](index : Int32) : self
-      index = canonicalize_index(index, axis = 0)
+      index = RegionHelpers.canonicalize_index(index, @shape, axis = 0)
 
       if dimensions == 1
         new_shape = [1]
@@ -351,7 +351,7 @@ module Lattice
 
       # Version 1: Theoretically faster, as index calculations occur only once
       mapping = buffer_indices(region)
-      shape = measure_region(region)
+      shape = RegionHelpers.measure_region(region, @shape)
       step = step_size(axis)
 
       slices = (0...@shape[axis]).map do |slice_number|
@@ -368,7 +368,7 @@ module Lattice
     end
 
     def get_region(region) : self
-      shape = measure_region(region)
+      shape = RegionHelpers.measure_region(region, @shape)
 
       # TODO optimize this! Any way to avoid double iteration?
       buffer_arr = [] of T
@@ -409,7 +409,7 @@ module Lattice
     # replaces an indexed chunk with a given chunk of the same shape.
     def set(region, value : self)
       # check that the replacement slice matches the destination shape
-      if value.shape != measure_region(region)
+      if value.shape != RegionHelpers.measure_region(region, @shape)
         raise DimensionError.new("Cannot substitute array: given array does not match shape of specified slice.")
       end
 
@@ -448,6 +448,13 @@ module Lattice
         ret[idx] = ret[idx + 1] * @shape[idx + 1]
       end
       ret
+    end
+
+    def each_in_region(region, &block : T, Int32, Int32 ->)
+      region = RegionHelpers.canonicalize_region(region, @shape)
+      shape = RegionHelpers.measure_canonical_region(region)
+
+      each_in_canonical_region(region, compute_buffer_step_sizes, &block)
     end
 
     # TODO: Document
@@ -514,6 +521,8 @@ module Lattice
       NArray(T).new(container) { |i| combined_buffer[i] }
     end
 
+    
+
     # creates an {{@type}}-type vector from a tuple of scalars.
     def self.wrap(*objects)
       # TODO: Figure out how this will work with inheritance & Tensor
@@ -567,7 +576,7 @@ module Lattice
     end
 
     def map_with_coord(&block : T, Array(Int32), Int32 -> U) forall U
-      map_elems_with_index do |elem, idx|
+      map_with_index do |elem, idx|
         yield elem, index_to_coord(idx), idx
       end
     end
