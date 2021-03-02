@@ -48,7 +48,7 @@
 #     #     a range with increasing index (+1), or a range with decreasing index (-1).
 #     def canonicalize_region(region) #: Array(SteppedRange)
 #         canonical_region = region.clone + [..] * (@shape.size - region.size)
-    
+
 #         canonical_region = canonical_region.map_with_index do |rule, axis|
 #             case rule
 #             # TODO: Handle StepIterator or whatever
@@ -73,7 +73,7 @@
 #         if region.size != @shape.size
 #           raise DimensionError.new("Could not measure canonical range - A region with #{region.size} dimensions cannot be canonical over a #{@shape.size} dimensional NArray.")
 #         end
-  
+
 #         # Measure the effect of applied restrictions (if a rule is a number, a dimension
 #         # gets dropped. If a rule is a range, a dimension gets resized)
 #         region.each do |range|
@@ -81,7 +81,7 @@
 #             shape << range.size
 #           end
 #         end
-  
+
 #         return [1] if shape.empty?
 #         return shape
 #     end
@@ -98,7 +98,6 @@
 
 #       each_in_canonical_region(region, compute_buffer_step_sizes, &block)
 #     end
-
 
 #     # Given an array of step sizes in each coordinate axis, returns the offset in the buffer
 #     # that a step of that size represents.
@@ -117,11 +116,11 @@
 #         current_range = region[axis]
 
 #         # Base case - yield the scalars in a subspace
-#         if axis == @shape.size - 1        
+#         if axis == @shape.size - 1
 #             current_range.each do |idx|
 #                 yield @buffer[read_index + idx], write_index[0], read_index
 #                 write_index[0] += 1
-#             end  
+#             end
 #             return
 #         end
 
@@ -137,22 +136,20 @@
 #             end
 #         end
 #     end
-    
 
 #     # def [](*raw_region) : NArray(T)
 #     #   region, axis_dirs = canonicalize_region(raw_region)
 #     # end
 
-
 #     struct SteppedRange
 #         getter size : Int32
 #         getter range : Range(Int32, Int32)
 #         getter step : Int32
-  
+
 #         def initialize(@range : Range(Int32, Int32), @step : Int32)
 #           @size = ((@range.end - @range.begin) // @step).abs.to_i32 + 1
 #         end
-  
+
 #         # Given __subspace__, a canonical `Range`, and a  __step_size__, invokes the block with an index
 #         # for every nth integer in __subspace__. This is more or less the same as range.each, but supports
 #         # going forwards or backwards.
@@ -175,11 +172,11 @@
 #         #     yield i
 #         #   end
 #         end
-  
+
 #         def begin
 #           @range.begin
 #         end
-  
+
 #         def end
 #           @range.end
 #         end
@@ -191,44 +188,43 @@
 #     # puts NArray.fill([7,5,3,2], 0).compute_buffer_step_sizes
 #     size = 40
 #     shape = [size]*5
-  
+
 #     duration = Time.measure do
 #         arr = NArray.fill(shape, 3f64)
 #     end
-  
+
 #     puts "Creation time: #{duration}"
-  
-       
+
 #     arr = NArray.fill(shape, 3f64)
-  
+
 #     # region = [..., ..., 0, ..., ...]
 #     # output_slices = [] of NArray(Float64)
-  
+
 #     # duration = Time.measure do
-  
+
 #     #   slices = (0...arr.shape[2]).map do |slice_number|
 #     #     region[2] = slice_number
 #     #     buf = Array(Float64).new(initial_capacity: 40**4)
-  
+
 #     #     arr.each_in_region(region) do |elem, write_idx, source_idx|
 #     #       buf << elem
 #     #     end
-  
+
 #     #     output_slices << NArray.new([40]*4, Slice(Float64).new(pointer: buf.to_unsafe, size: 40**4))
 #     #   end
-  
+
 #     # end
 #     # puts duration
-  
+
 #     regions = [[0,0,..., 1,1], [(size // 4)...(size * 3 // 4), (size // 4)..., ...(size * 3 // 4), ..., ...], [..., ..., ..., ..., ... ]]
-  
+
 #     regions.each do  |region|
 #         duration = Time.measure do
 #             arr.each_in_region(region) do |elem, idx, source_idx|
-              
+
 #             end
 #         end
-  
+
 #         puts duration
 #     end
 #   end

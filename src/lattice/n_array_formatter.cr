@@ -40,7 +40,6 @@ module Lattice
 end
 
 # set defaults
-
 # narr.format(options)
 # narr.format(**namedtuple)
 # narr.foramt(Formatter)

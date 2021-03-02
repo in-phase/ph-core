@@ -1,6 +1,7 @@
 require "./n_array_abstract.cr"
 require "./exceptions.cr"
 require "./n_array_formatter.cr"
+require "./region_helpers.cr"
 
 module Lattice
   # An `{{@type}}` is a multidimensional array for any arbitrary type.
@@ -17,7 +18,7 @@ module Lattice
 
     # Stores the elements of an `{{@type}}` in lexicographic (row-major) order.
     getter buffer : Slice(T)
-    
+
     # Contains the number of elements in each axis of the `{{@type}}`.
     # More explicitly, axis *k* contains *@shape[k]* elements.
     @shape : Array(Int32)
@@ -87,7 +88,7 @@ module Lattice
     # {{@type}}.new([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
     # ```
     # Would create the 3x3 identity matrix of type `{{@type}}(Int32)`.
-    # 
+    #
     # This constructor will figure out the types of the scalars at the
     # bottom of the nested array at compile time, which allows mixing
     # datatypes effortlessly.
@@ -126,6 +127,9 @@ module Lattice
     # `reshape` as of Feb 5th 2021).
     # TODO: Should be protected, had to remove for testing
     protected def initialize(shape, @buffer : Slice(T))
+      if shape.product != @buffer.size
+        raise ArgumentError.new("Cannot create {{@type}}: Given shape does not match number of elements in buffer.")
+      end
       @shape = shape.dup
     end
 
@@ -143,7 +147,7 @@ module Lattice
       # 1. Measure the array shape
       # 2. Ensure that the number of elements in each dimension is consistent
       # 3. Ensure that the depth is identical regardless of path
-      # 
+      #
       # [[1, 2], [1, 2, 3]] would violate goal 2 (right depth, wrong number of elements)
       # [[1, 2, 3], [[1], [1], [1]]] would violate goal 3 (right number of elements, wrong depth)
 
@@ -196,47 +200,38 @@ module Lattice
     # ```
     # Note that this method makes no effort to duplicate *value*, so this should only be used
     # for `Struct`s. If you want to populate an {{@type}} with `Object`s, see `new(shape, &block)`.
-    def self.fill(shape, value : T) 
+    def self.fill(shape, value : T)
       # \{% begin %} \{{ @type.id }}.new(shape) { value } \{% end %}
       {{@type}}.new(shape) { value }
     end
 
-
-    ### Basic getters and convenience functions
+    # ## Basic getters and convenience functions
 
     # TODO: Code below this line isn't neccessarily well documented
 
     # Checks if a given list of integers represent an index that is in range for this `{{@type}}`.
     # TODO: Rename and document
-    def valid_coord?(coord)
-      {{@type}}.valid_coord?(coord, @shape)
+    def has_coord?(coord)
+      RegionHelpers.has_coord?(coord, @shape)
     end
 
-    # TODO: Rename and document
-    def self.valid_coord?(coord, shape)
-      if coord.size > shape.size
-        return false
-      end
-      coord.each_with_index do |length, dim|
-        if shape[dim] <= length
-          return false
-        end
-      end
-      true
+    def has_region?(region)
+      RegionHelpers.has_region?(region)
     end
 
     # TODO: Talk about what this should be named
     def self.coord_to_index(coord, shape) : Int32
-      if !valid_coord?(coord, shape)
+      begin
+        canon_coord = RegionHelpers.canonicalize_coord(coord, shape)
+        memo = 0
+        canon_coord.each_with_index do |array_index, dim|
+          step = self.step_size(dim, shape)
+          memo += step * coord[dim]
+        end
+        memo
+      rescue exception
         raise IndexError.new("Cannot convert coordinate to index: the given index is out of bounds for this {{@type}} along at least one dimension.")
-      end
-
-      memo = 0
-      coord.each_with_index do |array_index, dim|
-        step = self.step_size(dim, shape)
-        memo += step * coord[dim]
-      end
-      memo
+      end      
     end
 
     # Convert from n-dimensional indexing to a buffer location.
@@ -245,6 +240,9 @@ module Lattice
     end
 
     def self.index_to_coord(index, shape) : Array(Int32)
+      if index > shape.product
+        raise IndexError.new("Cannot convert index to coordinate: the given index is out of bounds for this {{@type}} along at least one dimension.")
+      end
       coord = Array(Int32).new(shape.size, 0)
       shape.reverse.each_with_index do |length, dim|
         coord[dim] = index % length
@@ -257,7 +255,6 @@ module Lattice
     def index_to_coord(index) : Array(Int32)
       {{@type}}.index_to_coord(index, @shape)
     end
-
 
     # TODO docs
     def step_size(axis)
@@ -315,14 +312,7 @@ module Lattice
       {{@type}}.new(@shape, @buffer.dup)
     end
 
-
-
-
-
-
-
-    ### Buffer data manipulation: slicing, setting, etc
-
+    # ## Buffer data manipulation: slicing, setting, etc
 
     # Takes a single index into the {{@type}}, returning a slice of the largest dimension possible.
     # For example, if `a` is a matrix, `a[0]` will be a vector. There is a special case when
@@ -332,8 +322,8 @@ module Lattice
     # TODO: Either make the type restriction here go away (it was getting called when indexing
     # with a single range), or remove this method entirely in favor of read only views
     def [](index : Int32) : self
-      index = canonicalize_index(index, axis=0)
-      
+      index = canonicalize_index(index, axis = 0)
+
       if dimensions == 1
         new_shape = [1]
       else
@@ -351,7 +341,6 @@ module Lattice
       @buffer[coord_to_index(coord)]
     end
 
-
     # TODO any way to avoid copying these out yet, too? Iterator magic?
     def slices(axis = 0) : Array(self)
       region = [] of (Int32 | Range(Int32, Int32))
@@ -367,11 +356,10 @@ module Lattice
 
       slices = (0...@shape[axis]).map do |slice_number|
         offset = step * slice_number
-        {{@type}}.new(shape) {|i| mapping[i] + offset}
+        {{@type}}.new(shape) { |i| mapping[i] + offset }
       end
 
       # Version 2: Cleaner, and may be faster if [] does not get indices as an intermediate step
-
       # Does not currently work; TODO fix
       # slices = (0...@shape[axis]).map do |slice_number|
       #   region[axis] = slice_number
@@ -379,9 +367,7 @@ module Lattice
       # end
     end
 
-
     def get_region(region) : self
-
       shape = measure_region(region)
 
       # TODO optimize this! Any way to avoid double iteration?
@@ -422,7 +408,6 @@ module Lattice
 
     # replaces an indexed chunk with a given chunk of the same shape.
     def set(region, value : self)
-      
       # check that the replacement slice matches the destination shape
       if value.shape != measure_region(region)
         raise DimensionError.new("Cannot substitute array: given array does not match shape of specified slice.")
@@ -453,188 +438,45 @@ module Lattice
       indices
     end
 
-
-    # Returns the `shape` of a region when sampled from this `{{@type}}`.
-    # For example, on a 5x5x5 {{@type}}, `measure_shape(1..3, ..., 5)` => `[3, 5]`.
-    def measure_region(region) : Array(Int32)
-      measure_canonical_region(canonicalize_region(region))
-    end
-
-    def each_in_region(region, &block : T, Int32, Int32 ->)
-      region = canonicalize_region(region)
-      shape = measure_canonical_region(region)
-
-      each_in_canonical_region(region, compute_buffer_step_sizes, &block)
-    end
-
-    # TODO docs
-    def canonicalize_index_unchecked(index, axis)
-      if index < 0
-        return @shape[axis] + index
-      else
-        return index
-      end
-    end
-
-    # TODO docs
-    # see canonicalize_index_unchecked; but throws an error if index is out of range for axis
-    def canonicalize_index(index, axis)
-      if index < -@shape[axis] || index >= @shape[axis]
-        raise IndexError.new("Could not canonicalize index: #{index} is not a sensible index in axis #{axis}.")
-      end
-      if index < 0
-        return @shape[axis] + index
-      else
-        return index
-      end
-    end
-
-
-    # Given a range in some dimension (typically the domain to slice in), returns a canonical
-    # form where both indexes are positive and the range is strictly inclusive of its bounds.
-    # This method also returns a direction parameter, which is 1 iff `begin` < `end` and
-    # -1 iff `end` < `begin`
-    def canonicalize_range(range, axis) : Tuple(Range(Int32, Int32), Int32)
-      positive_begin = canonicalize_index(range.begin || 0, axis)
-      # definitely not negative, but we're not accounting for exclusivity yet
-      positive_end = canonicalize_index_unchecked(range.end || (@shape[axis] - 1), axis)
-
-      # The case (positive_end - positive_begin) == 0 will raise an exception below, if the range excludes its end.
-      # Otherwise, we may treat it as an "ascending" array of a single element.
-      direction = positive_end - positive_begin >= 0 ? 1 : -1
-
-      if range.excludes_end? && range.end
-        if positive_begin == positive_end
-          raise IndexError.new("Could not canonicalize range: #{range} does not span any integers.")
-        end
-        # Convert range to inclusive, by adding or subtracting one to the end depending
-        # on whether it is ascending or descending
-        positive_end -= direction
-      end
-
-      # Since the validity of the end value has not been verified yet, do so here:
-      if positive_end < 0 || positive_end >= @shape[axis]
-        raise IndexError.new("Could not canonicalize range: #{range} is not a sensible index range in axis #{axis}.")
-      end
-
-      # TODO: This function is supposed to support both Range and StepIterator - in the latter case, direction != step_size
-      # Need to measure step size and properly return it
-      {Range.new(positive_begin, positive_end), direction}
-    end
-
-    
-
-    # TODO combine/revise docs
-    # Converts a region specifier to canonical form.
-    # A canonical region specifier obeys the following:
-    # - No implicit trailing ranges; the dimensions of the RS matches that of the {{@type}}. 
-    #     Eg, for a 3x3x3, [.., 2] is non-canonical
-    # - All elements are ranges (single-number indexes must be converted to ranges of a single element)
-    # - Both the start and end of the range must be positive, and in range for the axis in question
-    # - The ranges must be inclusive (eg, 1..2, not 1...3)
-    # - In each range, start < end indicates forward direction; start > end indicates backward
-
-    # Applies `#canonicalize_index` and `#canonicalize_range` to each element of a region specification.
-    # In order to fully canonicalize the region, it will also add wildcard selectors if the region
-    # has implicit wildcards (if `region.size < shape.size`).
-    #
-    # Returns a tuple containing (in this order):
-    # - The input region in canonicalized form
-    # - An array of equal size to the region that indicates if that index is a scalar (0),
-    #     a range with increasing index (+1), or a range with decreasing index (-1).
-    def canonicalize_region(region) : Array(SteppedRange)
-      canonical_region = region.clone.to_a + [..] * (@shape.size - region.size)
-    
-        canonical_region = canonical_region.map_with_index do |rule, axis|
-            case rule
-            # TODO: Handle StepIterator or whatever
-            when Range
-                # Ranges are the only implementation we support
-                range, step = canonicalize_range(rule, axis)
-                next SteppedRange.new(range, step)
-            else
-                # This branch is supposed to capture numeric objects. We avoid specifying type
-                # explicitly so we can have the most interoperability.
-                index = canonicalize_index(rule, axis)
-                next SteppedRange.new((index..index), 1)
-            end
-        end
-    end
-
-
-    
-
-
-        # See `{{@type}}#measure_region`. The only difference is that this method assumes
-    # the region is already canonicalized, which can provide speedups.
-    # TODO: account for step sizes
-    protected def measure_canonical_region(region) : Array(Int32)
-      shape = [] of Int32
-      if region.size != @shape.size
-        raise DimensionError.new("Could not measure canonical range - A region with #{region.size} dimensions cannot be canonical over a #{@shape.size} dimensional {{@type}}.")
-      end
-
-      # Measure the effect of applied restrictions (if a rule is a number, a dimension
-      # gets dropped. If a rule is a range, a dimension gets resized)
-      region.each do |range|
-        if range.size > 1
-          shape << range.size
-        end
-      end
-
-      return [1] if shape.empty?
-      return shape
-    end
-
-    
-
-
     # Given an array of step sizes in each coordinate axis, returns the offset in the buffer
     # that a step of that size represents.
     # The buffer index of a multidimensional coordinate, x, is equal to x dotted with buffer_step_sizes
     def compute_buffer_step_sizes
-        ret = @shape.clone
-        ret[-1] = 1
-        ((ret.size - 2)..0).step(-1) do |idx|
-          ret[idx] = ret[idx + 1] * @shape[idx + 1]
-        end
-        ret
+      ret = @shape.clone
+      ret[-1] = 1
+      ((ret.size - 2)..0).step(-1) do |idx|
+        ret[idx] = ret[idx + 1] * @shape[idx + 1]
+      end
+      ret
     end
 
     # TODO: Document
-    def each_in_canonical_region(region, buffer_step_sizes, axis = 0, read_index = 0, write_index = [0], &block : T, Int32, Int32 -> )
-        current_range = region[axis]
+    def each_in_canonical_region(region, buffer_step_sizes, axis = 0, read_index = 0, write_index = [0], &block : T, Int32, Int32 ->)
+      current_range = region[axis]
 
-        # Base case - yield the scalars in a subspace
-        if axis == @shape.size - 1        
-            current_range.each do |idx|
-                # yield @buffer[read_index + idx], write_index[0], read_index + idx
-                # write_index[0] += 1
-                yield @buffer.unsafe_fetch(read_index + idx), write_index.unsafe_fetch(0), read_index + idx
-                write_index[0] += 1
-            end  
-            return
-        end
-
-        # Otherwise, recurse
-        buffer_step_size = buffer_step_sizes[axis]
-        initial_read_index = read_index
-
+      # Base case - yield the scalars in a subspace
+      if axis == @shape.size - 1
         current_range.each do |idx|
-            # navigate to the correct start index
-            read_index = initial_read_index + idx * buffer_step_size
-            each_in_canonical_region(region, buffer_step_sizes, axis + 1, read_index, write_index) do |a, b, c|
-                block.call(a, b, c)
-            end
+          # yield @buffer[read_index + idx], write_index[0], read_index + idx
+          # write_index[0] += 1
+          yield @buffer.unsafe_fetch(read_index + idx), write_index.unsafe_fetch(0), read_index + idx
+          write_index[0] += 1
         end
+        return
+      end
+
+      # Otherwise, recurse
+      buffer_step_size = buffer_step_sizes[axis]
+      initial_read_index = read_index
+
+      current_range.each do |idx|
+        # navigate to the correct start index
+        read_index = initial_read_index + idx * buffer_step_size
+        each_in_canonical_region(region, buffer_step_sizes, axis + 1, read_index, write_index) do |a, b, c|
+          block.call(a, b, c)
+        end
+      end
     end
-
-    
-    
-    
-
-
-
 
     # Given a list of `{{@type}}`s, returns the smallest shape array in which any one of those `{{@type}}s` can be contained.
     # TODO: Example
@@ -677,9 +519,6 @@ module Lattice
       # TODO: Figure out how this will work with inheritance & Tensor
       NArray.new(objects.to_a)
     end
-
-    
-
 
     def get_buffer_idx(index) : T
       @buffer[index]
@@ -759,7 +598,7 @@ module Lattice
     def to_tensor : Tensor(T)
       Tensor.new(self)
     end
-    
+
     # If a method signature not defined on {{@type}} is called, then `method_missing` will attempt
     # to apply the method to every element contained in the {{@type}}. Any argument to the method call
     # that is also an {{@type}} will be applied element-wise.
@@ -808,50 +647,9 @@ module Lattice
     end
   end
 
-    # TODO implement these
+  # TODO implement these
 
-    # deletion
-    # constructors
+  # deletion
+  # constructors
 
-  struct SteppedRange
-    getter size : Int32
-    getter range : Range(Int32, Int32)
-    getter step : Int32
-
-    def initialize(@range : Range(Int32, Int32), @step : Int32)
-      @size = ((@range.end - @range.begin) // @step).abs.to_i32 + 1
-    end
-
-    # Given __subspace__, a canonical `Range`, and a  __step_size__, invokes the block with an index
-    # for every nth integer in __subspace__. This is more or less the same as range.each, but supports
-    # going forwards or backwards.
-    # TODO: Better docs
-    # TODO find out why these 2 implementations are so drastically different in performance! Maybe because the functionality has been recently modified? (0.36)
-    def each(&block)
-        idx = @range.begin
-        if @step > 0
-          while idx <= @range.end
-            yield idx
-            idx += @step
-          end
-        else
-          while idx >= @range.end
-            yield idx
-            idx += @step
-          end
-        end
-    #   @range.step(@step) do |i|
-    #     yield i
-    #   end
-    end
-
-    def begin
-      @range.begin
-    end
-
-    def end
-      @range.end
-    end
-  end
 end
-

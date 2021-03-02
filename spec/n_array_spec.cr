@@ -4,7 +4,7 @@ require "./test_objects"
 include Lattice
 
 # Useful variables
-LEGAL_SHAPES = [[5, 5], [2], [10, 1, 3], [1, 1, 1, 1]]
+LEGAL_SHAPES   = [[5, 5], [2], [10, 1, 3], [1, 1, 1, 1]]
 ILLEGAL_SHAPES = [[0], [] of Int32, [-4], [5, 0, 5]]
 
 describe Lattice::NArray do
@@ -50,7 +50,7 @@ describe Lattice::NArray do
       valid_nesteds = [[[1, 2, 3], [4, 5, 6]], [[[1]], [[1]]]]
       expected_results = [
         {shape: [2, 3], buffer: [1, 2, 3, 4, 5, 6]},
-        {shape: [2, 1, 1], buffer: [1, 1]}
+        {shape: [2, 1, 1], buffer: [1, 1]},
       ]
 
       valid_nesteds.each_with_index do |example, idx|
@@ -82,7 +82,7 @@ describe Lattice::NArray do
 
     it "populates an NArray with shallow copies of other types" do
       LEGAL_SHAPES.each do |shape|
-        narr = NArray.fill([2], TestObject.new())
+        narr = NArray.fill([2], TestObject.new)
 
         narr.get(0).should be narr.get(1)
       end
