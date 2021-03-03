@@ -2,22 +2,23 @@ module Lattice
 
   # A set of methods to manage region specifiers.
   module RegionHelpers
+    extend self
 
     # Checks if `index` is a valid index along `axis` for an array-like object with dimensions specified by `shape`.
-    def self.has_index?(index, shape, axis)
-      index >= - shape[axis] && index < shape[axis]
+    def has_index?(index, shape, axis)
+      index >= -shape[axis] && index < shape[axis]
     end
 
     # Checks if `coord` is a valid coordinate for an array-like object with dimensions specified by `shape`.
     # A coord is a list (Enumerable) of integers specifying an index along each axis in `shape`.
-    def self.has_coord?(coord, shape)
+    def has_coord?(coord, shape)
       coord.to_a.map_with_index {|index, axis| has_index?(coord, shape, axis)}.all?
     end
 
     # Checks if `region` is a valid region specifier for an array-like object with dimensions specified by `shape`.
     # A region specifier (RS) is a list of integers and ranges specifying an index, or set of indices, along
     # each axis in `shape`.
-    def self.has_region?(coord, shape)
+    def has_region?(coord, shape)
       begin
         canonicalize_region(coord, shape)
       rescue exception
@@ -29,7 +30,7 @@ module Lattice
 
     # Returns the canonical (positive) form of `index` along a particular `axis` of `shape`.
     # Throws an `IndexError` if `index` is out of range of `shape` along this axis.
-    def self.canonicalize_index(index, shape, axis)
+    def canonicalize_index(index, shape, axis)
       if !has_index?(index, shape, axis)
         raise IndexError.new("Could not canonicalize index: #{index} is not a valid index in axis #{axis} of shape #{shape}.")
       end
@@ -39,7 +40,7 @@ module Lattice
     # Performs a conversion as in `#canonicalize_index`, but does not guarantee the result is actually a canonical index.
     # This may be useful if additional manipulations must be performed on the result before use, but it is strongly advised
     # that the index be validated before or after this method is called.
-    protected def self.canonicalize_index_unchecked(index, shape, axis)
+    protected def canonicalize_index_unchecked(index, shape, axis)
       if index < 0
         return shape[axis] + index
       else
@@ -50,7 +51,7 @@ module Lattice
     # Converts a `coord` into canonical form, such that each index in `coord` is positive.
     # Throws an `IndexError` if at least one index specified in `coord` is out of range for the 
     # corresponding axis of `shape`.
-    def self.canonicalize_coord(coord, shape) : Array(Int32)
+    def canonicalize_coord(coord, shape) : Array(Int32)
       coord.to_a.map_with_index { |index, axis| canonicalize_index(index, shape, axis).to_i32 }
     end
 
@@ -59,7 +60,7 @@ module Lattice
     # form where both indexes are positive and the range is strictly inclusive of its bounds.
     # This method also returns a direction parameter, which is 1 iff `begin` < `end` and
     # -1 iff `end` < `begin`
-    def self.canonicalize_range(range, shape, axis) : Tuple(Range(Int32, Int32), Int32)
+    def canonicalize_range(range, shape, axis) : Tuple(Range(Int32, Int32), Int32)
       positive_begin = canonicalize_index(range.begin || 0, shape, axis)
       # definitely not negative, but we're not accounting for exclusivity yet
       positive_end = canonicalize_index_unchecked(range.end || (shape[axis] - 1), shape, axis)
@@ -101,8 +102,8 @@ module Lattice
     #           corresponding axis of `shape`, in canonical (positive) form
     #     - if `step > 0`, then `range.begin <= range.end`, and if `step < 0`, then `range.begin <= range.end`
     #     - `range` is inclusive
-    def self.canonicalize_region(region, shape) : Array(SteppedRange)
-      canonical_region = region.clone.to_a + [..] * (shape.size - region.size)
+    def canonicalize_region(region, shape) : Array(SteppedRange)
+      canonical_region = region.to_a + [..] * (shape.size - region.size)
       canonical_region = canonical_region.map_with_index do |rule, axis|
         case rule
         # TODO: Handle StepIterator or whatever
@@ -123,14 +124,14 @@ module Lattice
 
     # Returns the `shape` of a region when sampled from this `{{@type}}`.
     # For example, on a 5x5x5 {{@type}}, `measure_shape(1..3, ..., 5)` => `[3, 5]`.
-    def self.measure_region(region, shape) : Array(Int32)
-      measure_canonical_region(self.canonicalize_region(region, shape))
+    def measure_region(region, shape) : Array(Int32)
+      measure_canonical_region(canonicalize_region(region, shape))
     end
 
     # See `#measure_region`. The only difference is that this method assumes
     # the region is already canonicalized, which can provide speedups.
     # TODO: account for step sizes
-    def self.measure_canonical_region(region) : Array(Int32)
+    def measure_canonical_region(region) : Array(Int32)
       shape = [] of Int32
       # TODO discuss: this check should not be necessary since we are assuming the region is canonical?
       # if region.size != @shape.size
