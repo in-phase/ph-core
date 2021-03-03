@@ -3,6 +3,11 @@ module Lattice
   # A set of methods to manage region specifiers.
   module RegionHelpers
 
+    # Checks if `index` is a valid index along `axis` for an array-like object with dimensions specified by `shape`.
+    def self.has_index?(index, shape, axis)
+      index >= - shape[axis] && index < shape[axis]
+    end
+
     # Checks if `coord` is a valid coordinate for an array-like object with dimensions specified by `shape`.
     # A coord is a list (Enumerable) of integers specifying an index along each axis in `shape`.
     def self.has_coord?(coord, shape)
@@ -21,10 +26,6 @@ module Lattice
       true
     end
 
-    # Checks if `index` is a valid index along `axis` for an array-like object with dimensions specified by `shape`.
-    def self.has_index?(index, shape, axis)
-      index >= - shape[axis] && index < shape[axis]
-    end
 
     # Returns the canonical (positive) form of `index` along a particular `axis` of `shape`.
     # Throws an `IndexError` if `index` is out of range of `shape` along this axis.
