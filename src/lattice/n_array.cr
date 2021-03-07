@@ -357,7 +357,7 @@ module Lattice
 
     def [](region : Enumerable) : self
       region = RegionHelpers.canonicalize_region(region, @shape)
-      shape = RegionHelpers.measure_canonical_region(region, @shape)
+      shape = RegionHelpers.measure_canonical_region(region)
 
       # TODO optimize this! Any way to avoid double iteration?
       buffer_arr = [] of T
@@ -370,7 +370,7 @@ module Lattice
 
     # Higher-order slicing operations (like slicing in numpy)
     def [](*region) : self
-      get_region(region)
+      self[region]
     end
 
     # replaces an indexed chunk with a given chunk of the same shape.
