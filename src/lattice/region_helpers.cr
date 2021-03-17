@@ -18,15 +18,14 @@ module Lattice
     # Checks if `region` is a valid region specifier for an array-like object with dimensions specified by `shape`.
     # A region specifier (RS) is a list of integers and ranges specifying an index, or set of indices, along
     # each axis in `shape`.
-    def has_region?(coord, shape)
+    def has_region?(region, shape)
       begin
-        canonicalize_region(coord, shape)
+        canonicalize_region(region, shape)
       rescue exception
         return false
       end
       true
     end
-
 
     # Returns the canonical (positive) form of `index` along a particular `axis` of `shape`.
     # Throws an `IndexError` if `index` is out of range of `shape` along this axis.
@@ -34,13 +33,13 @@ module Lattice
       if !has_index?(index, shape, axis)
         raise IndexError.new("Could not canonicalize index: #{index} is not a valid index in axis #{axis} of shape #{shape}.")
       end
-      canonicalize_index_unchecked(index, shape, axis)
+      canonicalize_index_unsafe(index, shape, axis)
     end
 
     # Performs a conversion as in `#canonicalize_index`, but does not guarantee the result is actually a canonical index.
     # This may be useful if additional manipulations must be performed on the result before use, but it is strongly advised
     # that the index be validated before or after this method is called.
-    protected def canonicalize_index_unchecked(index, shape, axis)
+    protected def canonicalize_index_unsafe(index, shape, axis)
       if index < 0
         return shape[axis] + index
       else
@@ -63,7 +62,7 @@ module Lattice
     def canonicalize_range(range, shape, axis) : Tuple(Range(Int32, Int32), Int32)
       positive_begin = canonicalize_index(range.begin || 0, shape, axis)
       # definitely not negative, but we're not accounting for exclusivity yet
-      positive_end = canonicalize_index_unchecked(range.end || (shape[axis] - 1), shape, axis)
+      positive_end = canonicalize_index_unsafe(range.end || (shape[axis] - 1), shape, axis)
 
       # The case (positive_end - positive_begin) == 0 will raise an exception below, if the range excludes its end.
       # Otherwise, we may treat it as an "ascending" array of a single element.

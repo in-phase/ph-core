@@ -283,7 +283,7 @@ module Lattice
     end
 
      # Convert from n-dimensional indexing to a buffer location.
-     def coord_to_index(coord) : Int32
+    def coord_to_index(coord) : Int32
       {{@type}}.coord_to_index_fast(coord, @shape, @buffer_step_sizes)
     end
 
