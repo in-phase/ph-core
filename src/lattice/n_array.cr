@@ -15,6 +15,7 @@ module Lattice
   # of functionality that may otherwise appear missing.
   class NArray(T) < AbstractNArray(T)
     include Enumerable(T)
+    include MultiIndexable(T)
 
     # Stores the elements of an `{{@type}}` in lexicographic (row-major) order.
     getter buffer : Slice(T)

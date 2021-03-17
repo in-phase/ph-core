@@ -4,6 +4,8 @@ module Lattice
   module RegionHelpers
     extend self
 
+    # TODO: define "canonical form" of coord/region/index somewhere visible and easy to access.
+
     # Checks if `index` is a valid index along `axis` for an array-like object with dimensions specified by `shape`.
     def has_index?(index, shape, axis)
       index >= -shape[axis] && index < shape[axis]

@@ -3,6 +3,7 @@ require "./n_array.cr"
 module Lattice
   module NArrayFormatter
     extend self
+    # TODO: make this not depend on buffer indices. Generalize to a MultiIndexableFormatter?
 
     protected def print_internal(narr, io, start_dim, buffer_idx, shape)
       io << "["
