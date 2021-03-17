@@ -101,16 +101,23 @@ module Lattice
         def [](region : Enumerable) : self
             get_region(region)
         end
-        
-        {% enumerable_functions = %w([], get_element get_region has_coord? has_region?) %}
 
-        {% for name in enumerable_functions %}
-            # Tuple-accepting overload of `#{{name}}`.
-            def {{name}}(*tuple)
-                {{name}}(tuple)
-            end
-        {% end %}
+        # Tuple-accepting overload of `#{{name}}`.
+        # NOTE: cannot be (easily) generated in the macro since it requires syntax `[tuple]` rather than `[](tuple)`
+        def [](*region) : self
+            get_region(region)
+        end
         
+        {% begin %}
+            {% enumerable_functions = %w(get_element get_region has_coord? has_region?) %}
+
+            {% for name in enumerable_functions %}
+                # Tuple-accepting overload of `#{{name}}`.
+                def {{name.id}}(*tuple)
+                    {{name.id}}(tuple)
+                end
+            {% end %}
+        {% end %}
 
         # TODO: Each methods should exist that allow:
         # - by default, generic lexicographic iteration

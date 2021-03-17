@@ -1,4 +1,3 @@
-require "./n_array_abstract.cr"
 require "./exceptions.cr"
 require "./n_array_formatter.cr"
 require "./region_helpers.cr"
@@ -13,9 +12,9 @@ module Lattice
   # that methodology led to the use of the `method_missing` macro for element-wise
   # operations. Please read its documentation, as it provides a large amount
   # of functionality that may otherwise appear missing.
-  class NArray(T) < AbstractNArray(T)
+  class NArray(T)
     include Enumerable(T)
-    include MultiIndexable(T)
+    #include MultiIndexable(T)
 
     # Stores the elements of an `{{@type}}` in lexicographic (row-major) order.
     getter buffer : Slice(T)
@@ -400,7 +399,7 @@ module Lattice
     end
 
     # replaces all values in a boolean mask with a given value
-    def []=(bool_mask : AbstractNArray(Bool), value : T)
+    def []=(bool_mask : NArray(Bool), value : T)
       if bool_mask.shape != @shape
         raise DimensionError.new("Cannot perform masking: mask shape does not match array shape.")
       end
