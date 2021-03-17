@@ -18,12 +18,11 @@ module Lattice
 
         # Copies the elements in `region` to a new `{{type}}`, assuming that `region` is in canonical form and in-bounds for this `{{type}}`.
         # For full specification of canonical form see `RegionHelpers` documentation. TODO: make this actually happen
-        abstract def unsafe_fetch_region(region) : self
+        abstract def unsafe_fetch_region(region) 
 
         # Retrieves the element specified by `coord`, assuming that `coord` is in canonical form and in-bounds for this `{{type}}`.
         # For full specification of canonical form see `RegionHelpers` documentation. TODO: make this actually happen
         abstract def unsafe_fetch_element(coord) : T
-
 
 
         # Stuff that we can implement without knowledge of internals
@@ -88,28 +87,32 @@ module Lattice
         end
 
         # Copies the elements in `region` to a new `{{type}}`, and throws an error if `region` is out-of-bounds for this `{{type}}`.
-        def get_region(region : Enumerable) : self
-            unsafe_fetch_region RegionHelper.canonicalize_region(region, shape)
+        def get_region(region : Enumerable) 
+            unsafe_fetch_region RegionHelpers.canonicalize_region(region, shape)
         end
 
         # Retrieves the element specified by `coord`, and throws an error if `coord` is out-of-bounds for this `{{type}}`.
-        def get_element(coord : Enumerable) : self
-            unsafe_fetch_element RegionHelper.canonicalize_coord(coord, shape)
+        def get_element(coord : Enumerable) : T
+            unsafe_fetch_element RegionHelpers.canonicalize_coord(coord, shape)
+        end
+
+        def get(coord) : T
+            get_element(coord)
         end
 
         # Copies the elements in `region` to a new `{{type}}`, and throws an error if `region` is out-of-bounds for this `{{type}}`.
-        def [](region : Enumerable) : self
+        def [](region : Enumerable) 
             get_region(region)
         end
 
         # Tuple-accepting overload of `#{{name}}`.
         # NOTE: cannot be (easily) generated in the macro since it requires syntax `[tuple]` rather than `[](tuple)`
-        def [](*region) : self
+        def [](*region) 
             get_region(region)
         end
         
         {% begin %}
-            {% enumerable_functions = %w(get_element get_region has_coord? has_region?) %}
+            {% enumerable_functions = %w(get get_element get_region has_coord? has_region?) %}
 
             {% for name in enumerable_functions %}
                 # Tuple-accepting overload of `#{{name}}`.
@@ -128,6 +131,8 @@ module Lattice
         
         
         # To implement:
+
+        # to_a maybe?
 
         abstract class MultiIterator
             def initialize(multiindexable, &block)

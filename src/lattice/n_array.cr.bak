@@ -14,8 +14,7 @@ module Lattice
   # of functionality that may otherwise appear missing.
   class NArray(T)
     include Enumerable(T)
-    include MultiIndexable(T)
-    include MultiWritable(T)
+    #include MultiIndexable(T)
 
     # Stores the elements of an `{{@type}}` in lexicographic (row-major) order.
     getter buffer : Slice(T)
@@ -195,11 +194,22 @@ module Lattice
       @shape.clone
     end
 
-    def size : Int32
-      return @shape.product
+    # Returns the number of dimensions of this `{{@type}}`.
+    # This is equivalent to, but slightly faster than, `shape.size`.
+    def dimensions : Int32
+      @shape.size
     end
 
-    # Creates a deep copy of this {{@type}};
+    def to_s : String
+      NArrayFormatter.format(self)
+    end
+
+    # Override for printing a string output to stream (e.g., puts)
+    def to_s(io : IO) : Nil
+      NArrayFormatter.print(self, io)
+    end
+
+        # Creates a deep copy of this {{@type}};
     # Allocates a new buffer of the same shape, and calls #clone on every item in the buffer.
     def clone : self
       {{@type}}.new(@shape, @buffer.clone)
@@ -256,7 +266,26 @@ module Lattice
       @shape.size == 1 && @shape[0] == 1
     end
 
-    # Convert from n-dimensional indexing to a buffer location.
+    # Maps a zero-dimensional {{@type}} to the element it contains.
+    def to_scalar : T
+      if scalar?
+        return @buffer[0]
+      else
+        raise DimensionError.new("Cannot cast to scalar: self has more than one dimension or more than one element.")
+      end
+    end
+
+    # Checks if a given list of integers represent an index that is in range for this `{{@type}}`.
+    # TODO: Rename and document
+    def has_coord?(coord) : Bool
+      RegionHelpers.has_coord?(coord, @shape)
+    end
+
+    def has_region?(region) : Bool
+      RegionHelpers.has_region?(region, @shape)
+    end
+
+     # Convert from n-dimensional indexing to a buffer location.
     def coord_to_index(coord) : Int32
       {{@type}}.coord_to_index_fast(coord, @shape, @buffer_step_sizes)
     end
@@ -298,26 +327,14 @@ module Lattice
       coord.reverse
     end
 
-    # Copies the elements in `region` to a new `{{type}}`, assuming that `region` is in canonical form and in-bounds for this `{{type}}`.
-    # For full specification of canonical form see `RegionHelpers` documentation. TODO: make this actually happen
-    def unsafe_fetch_region(region)
-      shape = RegionHelpers.measure_canonical_region(region, @shape)
-
-      # TODO optimize this! Any way to avoid double iteration?
-      buffer_arr = [] of T
-      each_in_canonical_region(region) do |elem, idx, src_idx|
-        buffer_arr << elem
-      end
-      
-      {{@type}}.new(shape) { |i| buffer_arr[i] }
+    def get(coord : Enumerable) : T
+      @buffer[coord_to_index(coord)]
     end
 
-    # Retrieves the element specified by `coord`, assuming that `coord` is in canonical form and in-bounds for this `{{type}}`.
-    # For full specification of canonical form see `RegionHelpers` documentation. TODO: make this actually happen
-    def unsafe_fetch_element(coord) : T
-      @buffer.unsafe_fetch(coord_to_index(coord))
+    # Given a fully-qualified coordinate, returns the scalar at that position.
+    def get(*coord) : T
+      get(coord)
     end
-
 
     # Takes a single index into the {{@type}}, returning a slice of the largest dimension possible.
     # For example, if `a` is a matrix, `a[0]` will be a vector. There is a special case when
@@ -341,20 +358,46 @@ module Lattice
       {{@type}}.new(new_shape, new_buffer.clone)
     end
 
-    # Copies the elements from a MultiIndexable `src` into `region`, assuming that `region` is in canonical form and in-bounds for this `{{type}}`
-    # and the shape of `region` matches the shape of `src`.
-    def unsafe_set_region(region : Enumerable, src : MultiIndexable(T))
+    def [](region : Enumerable) : self
+      region = RegionHelpers.canonicalize_region(region, @shape)
+      shape = RegionHelpers.measure_canonical_region(region, @shape)
+
+      # TODO optimize this! Any way to avoid double iteration?
+      buffer_arr = [] of T
+      each_in_canonical_region(region) do |elem, idx, src_idx|
+        buffer_arr << elem
+      end
+      
+      {{@type}}.new(shape) { |i| buffer_arr[i] }
+    end
+
+    # Higher-order slicing operations (like slicing in numpy)
+    def [](*region) : self
+      get_region(region)
+    end
+
+    # replaces an indexed chunk with a given chunk of the same shape.
+    def set(region, value : self)
+      region = RegionHelpers.canonicalize_region(region, @shape)
+      # check that the replacement slice matches the destination shape
+      if value.shape != RegionHelpers.measure_canonical_region(region)
+        raise DimensionError.new("Cannot substitute array: given array does not match shape of specified slice.")
+      end
+
       each_in_canonical_region(region) do |elem, other_idx, this_idx|
-        #@buffer[this_idx] = src.buffer[other_idx]
-        # TODO: see if this is the best way! (Want it to be generalizable to MultiIndexable...)
-        @buffer[this_idx] = src.unsafe_fetch_element(index_to_coord(other_idx))
+        @buffer[this_idx] = value.buffer[other_idx]
       end
     end
 
-    # Sets each element in `region` to `value`, assuming that `region` is in canonical form and in-bounds for this `{{type}}`
-    def unsafe_set_region(region : Enumerable, value : T)
+    # replaces all values in an indexed chunk with the given value.
+    def set(region, value) # prev: set(region, value : T)
+
+      # Try to cast the value to T; throws an error if it fails
+      # TODO: decide if this is how we want to handle it
+      fill_value = value.as(T)
+
       each_in_region(region) do |elem, idx, buffer_idx|
-        @buffer[buffer_idx] = value
+        @buffer[buffer_idx] = fill_value
       end
     end
 
@@ -371,6 +414,11 @@ module Lattice
       end
     end
 
+    def []=(*args : *U) forall U
+      {% begin %}
+        set([{% for i in 0...(U.size - 1) %}args[{{i}}] {% if i < U.size - 2 %}, {% end %}{% end %}], args.last)
+      {% end %}
+    end
 
     def each(&block : T ->)
       each_with_index do |elem|
