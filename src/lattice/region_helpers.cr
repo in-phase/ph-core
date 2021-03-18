@@ -162,6 +162,12 @@ module Lattice
         @size = ((@range.end - @range.begin) // @step).abs.to_i32 + 1
       end
 
+      def initialize(index)
+        @size = 1
+        @step = 1
+        @range = index..index
+      end
+
       # Given __subspace__, a canonical `Range`, and a  __step_size__, invokes the block with an index
       # for every nth integer in __subspace__. This is more or less the same as range.each, but supports
       # going forwards or backwards.
@@ -183,6 +189,14 @@ module Lattice
         #   @range.step(@step) do |i|
         #     yield i
         #   end
+      end
+
+      def inspect(io)
+        if @size == 1
+          io << @range.begin.to_s
+        else
+          io << "(#{@range}).step(#{@step})"
+        end
       end
 
       def begin

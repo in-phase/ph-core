@@ -129,7 +129,29 @@ module Lattice
         # - Implement map based off the each function
         # - region iterator? each_in_canonical_region?
         
-        
+        def each_coord
+            LexicographicCoordIterator(self).new(self)
+        end
+
+        def each
+            ItemIterator(self, T).new(self)
+        end
+
+        # Version that accepts a block
+        def each
+            each {|elem| yield elem}
+        end
+        {% begin %}
+            {% for name in %w(each) %}
+                def {{name.id}}
+                    {{name.id}} do |args| 
+                        yield args
+                    end # This may not work at all...
+                end
+            {% end %}
+        {% end %}
+       
+
         # To implement:
 
         # to_a maybe?
@@ -141,9 +163,95 @@ module Lattice
             end
         end
 
-        # analog to IndexIterator?
-        private class CoordIterator
+        
+        # may be used to iterate over all coordinates in a MultiIndexable
+        abstract class CoordIterator(A)
+            include Iterator(Array(Int32))
         end
+
+        abstract class RegionIterator(A)
+            include RegionHelpers
+            include Iterator(Array(SteppedRange))
+        end
+
+        private class ItemIterator(A,T)
+            include Iterator(T)
+
+            def initialize(@narray : A, @coord_iter : CoordIterator = LexicographicCoordIterator.new(@narray))
+            end
+
+
+            def next
+                coord = @coord_iter.next # will throw stop if coord_iter does?
+                @narray.unsafe_fetch_element(coord)
+            end
+        end
+
+        private class SubarrayIterator(A,T)
+            include Iterator(MultiIndexable(T))
+
+            def initialize(@narray : A, @region_iter : RegionIterator = SliceIterator.new(@narray, 0))
+            end
+
+            def next
+                region = @region_iter.next # will throw stop if coord_iter does?
+                @narray.unsafe_fetch_region(region)
+            end
+        end
+
+        # Iterates through all possible coordinates for `@narray` in lexicographic order.
+        private class LexicographicCoordIterator(A) < CoordIterator(A)
+
+            def initialize(@narray : A)
+                @coord = [0] * @narray.dimensions
+            end
+
+            def next
+                value = @coord
+                @coord[-1] += 1
+                
+                (@coord.size - 1).downto(1) do |i|
+                    if @coord[i] == @narray.shape[i]
+                        @coord[i] = 0
+                        @coord[i - 1] += 1
+                    else 
+                        break
+                    end
+                end
+
+                if @coord[0] == @narray.shape[0]
+                    stop
+                else
+                    value
+                end
+            end
+        end
+
+
+        private class SliceIterator(A) < RegionIterator(A)
+
+            def initialize(@narray : A, @axis = 0)
+                @region = @narray.shape.map do |dim|
+                    SteppedRange.new(0..(dim - 1), 1)
+                end
+
+                @index = 0
+                @region[@axis] = SteppedRange.new(@index)
+            end
+
+            def next
+                @region
+                if @region[@axis] < @narray.shape[@axis] - 1
+                    @index += 1
+                    @region[@axis] = SteppedRange.new(@index)
+                    value
+                else
+                    stop 
+                end               
+            end
+        end
+
+        
     
         # def each_with_coord(type : MultiIterator.class = LexicographicIterator, &block : )
 

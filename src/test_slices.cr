@@ -13,8 +13,8 @@ coord_arr = Lattice::NArray.build([2, 3, 2, 3]) { |coord, index| coord }
 # puts arr.slices(3)
 
 
-my_shape = arr.shape
+# my_shape = arr.shape
 
-my_shape[2] = 7
+# my_shape[2] = 7
 
-pp arr
+# pp arr
