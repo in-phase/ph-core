@@ -107,8 +107,7 @@ module Lattice
       canonical_region = region.to_a + [..] * (shape.size - region.size)
       canonical_region = canonical_region.map_with_index do |rule, axis|
         case rule
-        # TODO: Handle StepIterator or whatever
-        when Range
+        when Range, SteppedRange
           # Ranges are the only implementation we support
           range, step = canonicalize_range(rule, shape, axis)
           next SteppedRange.new(range, step)
@@ -205,6 +204,10 @@ module Lattice
 
       def end
         @range.end
+      end
+
+      def excludes_end?
+        false
       end
     end
   end

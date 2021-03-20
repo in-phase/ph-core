@@ -13,7 +13,7 @@ module Lattice
   # operations. Please read its documentation, as it provides a large amount
   # of functionality that may otherwise appear missing.
   class NArray(T)
-    include Enumerable(T)
+    #include Enumerable(T)
     include MultiIndexable(T)
     include MultiWritable(T)
 
@@ -301,7 +301,7 @@ module Lattice
     # Copies the elements in `region` to a new `{{type}}`, assuming that `region` is in canonical form and in-bounds for this `{{type}}`.
     # For full specification of canonical form see `RegionHelpers` documentation. TODO: make this actually happen
     def unsafe_fetch_region(region)
-      shape = RegionHelpers.measure_canonical_region(region, @shape)
+      shape = RegionHelpers.measure_canonical_region(region)
 
       # TODO optimize this! Any way to avoid double iteration?
       buffer_arr = [] of T
@@ -326,7 +326,7 @@ module Lattice
     # invoke `#to_scalar`.
     # TODO: Either make the type restriction here go away (it was getting called when indexing
     # with a single range), or remove this method entirely in favor of read only views
-    def [](index) : self
+    def [](index : Int32) : self
       index = RegionHelpers.canonicalize_index(index, @shape, axis = 0)
 
       if dimensions == 1
@@ -353,7 +353,7 @@ module Lattice
 
     # Sets each element in `region` to `value`, assuming that `region` is in canonical form and in-bounds for this `{{type}}`
     def unsafe_set_region(region : Enumerable, value : T)
-      each_in_region(region) do |elem, idx, buffer_idx|
+      each_in_canonical_region(region) do |elem, idx, buffer_idx|
         @buffer[buffer_idx] = value
       end
     end
@@ -401,9 +401,7 @@ module Lattice
         yield @buffer[idx], idx
       end
 
-      {% begin %}
-        {{@type.id}}(U).new(@shape, buffer)
-      {% end %}
+      NArray(U).new(@shape, buffer)
     end
 
     def map_with_coord(&block : T, Array(Int32), Int32 -> U) forall U
@@ -544,5 +542,42 @@ module Lattice
 
       shape
     end
+
+    # Checks for elementwise equality between `self` and *other*.
+    def ==(other : MultiIndexable)
+      each_with_coord do |elem, coord|
+        return false if elem != other[coord].to_scalar
+      end
+    end
+
+    {% begin %}
+      # Implements most binary operations
+      {% for name in %w(+ - * / // > < >= <= &+ &- &- ** &** % & | ^) %}
+                # Invokes `#{{name.id}}` element-wise between `self` and *other*, returning
+                # an `NArray` that contains the results.
+                def {{name.id}}(other : MultiIndexable(U)) forall U
+                    map_with_coord do |elem, coord|
+                      elem.{{name.id}} other[coord].to_scalar
+                    end
+                end
+
+                # Invokes `#{{name.id}}(other)` on each element in `self`, returning an
+                # `NArray` that contains the results.
+                def {{name.id}}(other)
+                  map &.{{name.id}} other
+                end
+      {% end %} 
+
+      {% for name in %w( - + ~) %}
+            def {{name.id}}
+              map &.{{name.id}}
+            end
+      {% end %}
+
+    {% end %}
+
+
+
+
   end
 end

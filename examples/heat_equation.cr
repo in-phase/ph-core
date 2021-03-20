@@ -35,7 +35,19 @@ def simulate(state, duration)
   state
 end
 
-def update_temp(state)
+abstract struct Number
+  {% begin %}
+    {% for name in %w(+ - * / // > < >= <= &+ &- &- ** &** % & | ^) %}
+      # Invokes `#{{name.id}}` element-wise between `self` and *other*, returning
+      # an `NArray` that contains the results.
+      def {{name.id}}(other : MultiIndexable(U)) forall U
+          other.{{name.id}}(self)
+      end
+    {% end %} 
+  {% end %}
+end
+
+def update_temp(state) : NArray(Float64)
   temp_diff = NArray.fill(state.shape, 0f64)
 
   # Boundary conditions have to be dealt with seperately, as they don't have a
@@ -46,12 +58,14 @@ def update_temp(state)
   (state[1...-1]).each_with_index do |center_temp, idx|
     temp_diff[idx + 1] = (state[idx] - 2 * center_temp + state[idx + 2]) * COEFF
   end
-
-  return state + temp_diff
+  
+  return state.map_with_coord { |el, idx| temp_diff[idx] + el }
 end
+
+
 
 # state = update_temp(state)
 
 # steps = (0.1 / TIMESTEP).to_i32
 
-puts simulate(state, 10000)
+puts simulate(state, 100)

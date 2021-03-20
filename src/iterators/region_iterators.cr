@@ -1,5 +1,5 @@
 module Lattice
-    module MultiIndexable
+    module MultiIndexable(T)
         abstract class RegionIterator(A, T) 
             include Iterator(Tuple(T, Array(Int32)))
             @coord : Array(Int32)

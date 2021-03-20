@@ -1,18 +1,18 @@
 require "./region_helpers.cr"
-require "./iterators/region_iterators.cr"
+require "../iterators/region_iterators.cr"
 require "./order.cr"
 
 module Lattice
 
     module MultiIndexable(T)
-
+        include MultiEnumerable(T)
 
         # For performance gains, we recommend the user to consider overriding the following methods when including MultiIndexable(T):
         # - #each_fastest
         # - more list
 
         # Returns the number of elements in the `{{type}}`; equal to `shape.product`.
-        abstract def size : Int32
+        # abstract def size : Int32
 
         # Returns the length of the `{{type}}` in each dimension. 
         # For a `coord` to specify an element of the `{{type}}` it must satisfy `coord[i] < shape[i]` for each `i`.
@@ -102,6 +102,10 @@ module Lattice
             get_element(coord)
         end
 
+        def [](region : Range)
+            get_region([region])
+        end
+
         # Copies the elements in `region` to a new `{{type}}`, and throws an error if `region` is out-of-bounds for this `{{type}}`.
         def [](region : Enumerable) 
             get_region(region)
@@ -126,6 +130,7 @@ module Lattice
 
             
         def each(order : Order = Order::LEX)
+            puts "MultiIndexable each got called"
             case order
             when Order::LEX
                 LexRegionIterator(self,T).new(self)
@@ -143,7 +148,7 @@ module Lattice
         end
 
         def each(order : Order = Order::LEX, &block)
-            each.each(order) do |elem|
+            each(order).each do |elem|
                 yield elem
             end
         end
@@ -154,32 +159,32 @@ module Lattice
             end
         end
 
-        # A method to get all elements in this `{{@type}}` when order is irrelevant.each
+        # A method to get all elements in this `{{@type}}` when order is irrelevant.
         # Recommended that implementers override this method to take advantage of 
         # the storage scheme the implementation uses
         def each_fastest()
-            each(Order::Lex)
+            each(Order::LEX)
         end
 
 
-        # TODO: Each methods should exist that allow:
-        # - Some way to handle slice iteration? (how do we pass in the axis? etc)
-        # - Implement map based off the each function        
+        # # TODO: Each methods should exist that allow:
+        # # - Some way to handle slice iteration? (how do we pass in the axis? etc)
+        # # - Implement map based off the each function        
 
-        # Version that accepts a block
-        def each
-            each.each {|elem| yield elem}
-        end
+        # # Version that accepts a block
+        # def each
+        #     each.each {|elem| yield elem}
+        # end
 
-        {% begin %}
-            {% for name in %w(each) %}
-                def {{name.id}}
-                    {{name.id}} do |*args| 
-                        yield *args
-                    end # This may not work at all...
-                end
-            {% end %}
-        {% end %}
+        # {% begin %}
+        #     {% for name in %w(each) %}
+        #         def {{name.id}}
+        #             {{name.id}} do |*args| 
+        #                 yield *args
+        #             end # This may not work at all...
+        #         end
+        #     {% end %}
+        # {% end %}
        
 
         # To implement:
