@@ -1,25 +1,23 @@
 module Lattice
-    module MultiEnumerable(T)
+  module MultiEnumerable(T)
 
-        # map -> order
-        # reduce
-        # to_a
+    # map -> order
+    # reduce
+    # to_a
 
+    # product, sum
+    # min max min_by min_of
 
+    # all?
+    # any?
+    # none?
+    # one?
+    # count
 
-        # product, sum
-        # min max min_by min_of 
+    # empty?
+    # first
+    # sample
 
-        # all?
-        # any?
-        # none?
-        # one?
-        # count
- 
-        # empty?
-        # first
-        # sample
-
-        # find
-    end
+    # find
+  end
 end

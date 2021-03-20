@@ -1,5 +1,4 @@
 module Lattice
-
   # A set of methods to manage region specifiers.
   module RegionHelpers
     extend self
@@ -14,7 +13,7 @@ module Lattice
     # Checks if `coord` is a valid coordinate for an array-like object with dimensions specified by `shape`.
     # A coord is a list (Enumerable) of integers specifying an index along each axis in `shape`.
     def has_coord?(coord, shape)
-      coord.to_a.map_with_index {|index, axis| has_index?(coord, shape, axis)}.all?
+      coord.to_a.map_with_index { |index, axis| has_index?(coord, shape, axis) }.all?
     end
 
     # Checks if `region` is a valid region specifier for an array-like object with dimensions specified by `shape`.
@@ -50,12 +49,11 @@ module Lattice
     end
 
     # Converts a `coord` into canonical form, such that each index in `coord` is positive.
-    # Throws an `IndexError` if at least one index specified in `coord` is out of range for the 
+    # Throws an `IndexError` if at least one index specified in `coord` is out of range for the
     # corresponding axis of `shape`.
     def canonicalize_coord(coord, shape) : Array(Int32)
       coord.to_a.map_with_index { |index, axis| canonicalize_index(index, shape, axis).to_i32 }
     end
-
 
     # Given a range in some dimension (typically the domain to slice in), returns a canonical
     # form where both indexes are positive and the range is strictly inclusive of its bounds.
@@ -90,8 +88,6 @@ module Lattice
       {Range.new(positive_begin, positive_end), direction}
     end
 
-
-
     # TODO: specify parameters, implement step sizes other than 1
     # Converts a region specifier to a legal, canonical region specifier.
     # If the input region is not a valid subregion of the given shape, an error will be thrown.
@@ -119,8 +115,6 @@ module Lattice
         end
       end
     end
-
-
 
     # Returns the `shape` of a region when sampled from this `{{@type}}`.
     # For example, on a 5x5x5 {{@type}}, `measure_shape(1..3, ..., 5)` => `[3, 5]`.

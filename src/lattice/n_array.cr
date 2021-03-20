@@ -13,7 +13,6 @@ module Lattice
   # operations. Please read its documentation, as it provides a large amount
   # of functionality that may otherwise appear missing.
   class NArray(T)
-    #include Enumerable(T)
     include MultiIndexable(T)
     include MultiWritable(T)
 
@@ -182,7 +181,7 @@ module Lattice
       # TODO: Figure out how this will work with inheritance & Tensor
       NArray(T).new(container) { |i| combined_buffer[i] }
     end
-  
+
     # creates an {{@type}}-type vector from a tuple of scalars.
     def self.wrap(*objects)
       # TODO: Figure out how this will work with inheritance & Tensor
@@ -237,8 +236,6 @@ module Lattice
       end
     end
 
-
-
     def flatten : self
       reshape(@buffer.size)
     end
@@ -256,6 +253,11 @@ module Lattice
       @shape.size == 1 && @shape[0] == 1
     end
 
+    # Checks for elementwise equality between `self` and *other*.
+    def ==(other : MultiIndexable) : Bool
+      equals?(other) { |x, y| x == y }
+    end
+
     # Convert from n-dimensional indexing to a buffer location.
     def coord_to_index(coord) : Int32
       {{@type}}.coord_to_index_fast(coord, @shape, @buffer_step_sizes)
@@ -264,12 +266,12 @@ module Lattice
     # TODO: Talk about what this should be named
     def self.coord_to_index(coord, shape) : Int32
       steps = buffer_step_sizes(shape)
-      {{@type}}.coord_to_index_fast(coord, shape, steps)     
+      {{@type}}.coord_to_index_fast(coord, shape, steps)
     end
 
     protected def self.coord_to_index_fast(coord, shape, buffer_step_sizes) : Int32
       begin
-        coord = RegionHelpers.canonicalize_coord(coord,shape)
+        coord = RegionHelpers.canonicalize_coord(coord, shape)
         index = 0
         coord.each_with_index do |elem, idx|
           index += elem * buffer_step_sizes[idx]
@@ -308,7 +310,7 @@ module Lattice
       each_in_canonical_region(region) do |elem, idx, src_idx|
         buffer_arr << elem
       end
-      
+
       {{@type}}.new(shape) { |i| buffer_arr[i] }
     end
 
@@ -317,7 +319,6 @@ module Lattice
     def unsafe_fetch_element(coord) : T
       @buffer.unsafe_fetch(coord_to_index(coord))
     end
-
 
     # Takes a single index into the {{@type}}, returning a slice of the largest dimension possible.
     # For example, if `a` is a matrix, `a[0]` will be a vector. There is a special case when
@@ -345,7 +346,7 @@ module Lattice
     # and the shape of `region` matches the shape of `src`.
     def unsafe_set_region(region : Enumerable, src : MultiIndexable(T))
       each_in_canonical_region(region) do |elem, other_idx, this_idx|
-        #@buffer[this_idx] = src.buffer[other_idx]
+        # @buffer[this_idx] = src.buffer[other_idx]
         # TODO: see if this is the best way! (Want it to be generalizable to MultiIndexable...)
         @buffer[this_idx] = src.unsafe_fetch_element(index_to_coord(other_idx))
       end
@@ -370,7 +371,6 @@ module Lattice
         end
       end
     end
-
 
     def each(&block : T ->)
       each_with_index do |elem|
@@ -469,14 +469,14 @@ module Lattice
     def self.buffer_step_sizes(shape)
       ret = shape.clone
       ret[-1] = 1
-      
+
       ((ret.size - 2)..0).step(-1) do |idx|
         ret[idx] = ret[idx + 1] * shape[idx + 1]
       end
 
       ret
     end
-    
+
     # Given a list of `{{@type}}`s, returns the smallest shape array in which any one of those `{{@type}}s` can be contained.
     # TODO: Example
     def self.common_container(*objects)
@@ -542,42 +542,6 @@ module Lattice
 
       shape
     end
-
-    # Checks for elementwise equality between `self` and *other*.
-    def ==(other : MultiIndexable)
-      each_with_coord do |elem, coord|
-        return false if elem != other[coord].to_scalar
-      end
-    end
-
-    {% begin %}
-      # Implements most binary operations
-      {% for name in %w(+ - * / // > < >= <= &+ &- &- ** &** % & | ^) %}
-                # Invokes `#{{name.id}}` element-wise between `self` and *other*, returning
-                # an `NArray` that contains the results.
-                def {{name.id}}(other : MultiIndexable(U)) forall U
-                    map_with_coord do |elem, coord|
-                      elem.{{name.id}} other[coord].to_scalar
-                    end
-                end
-
-                # Invokes `#{{name.id}}(other)` on each element in `self`, returning an
-                # `NArray` that contains the results.
-                def {{name.id}}(other)
-                  map &.{{name.id}} other
-                end
-      {% end %} 
-
-      {% for name in %w( - + ~) %}
-            def {{name.id}}
-              map &.{{name.id}}
-            end
-      {% end %}
-
-    {% end %}
-
-
-
 
   end
 end

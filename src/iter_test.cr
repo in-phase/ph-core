@@ -2,7 +2,6 @@ require "./lattice"
 
 include Lattice
 
-
 # def initialize(@narray : A, coord_iter : (CoordIterator | Nil) = nil)
 #     @coord_iter = coord_iter ? coord_iter : LexCoordIterator.new(@narray)
 # end
@@ -10,12 +9,10 @@ include Lattice
 # def each_in_region(*args, reverse = false)
 # each_in_region(1..0, 5, 2..0, reverse: true)
 
-
 # abstract class RegionIterator(A)
 #     include RegionHelpers
 #     include Iterator(Array(SteppedRange))
 # end
-
 
 # private class SubarrayIterator(A,T)
 #     include Iterator(MultiIndexable(T))
@@ -37,106 +34,101 @@ include Lattice
 #     end
 # end
 
-
-
-
 # https://en.wikiversity.org/wiki/Lexicographic_and_colexicographic_order
 
-abstract class RegionIterator(A, T) 
-    include Iterator(Tuple(T, Array(Int32)))
-    @coord : Array(Int32)
+abstract class RegionIterator(A, T)
+  include Iterator(Tuple(T, Array(Int32)))
+  @coord : Array(Int32)
 
-    @first : Array(Int32)
-    @last : Array(Int32)
-    @step : Array(Int32)
+  @first : Array(Int32)
+  @last : Array(Int32)
+  @step : Array(Int32)
 
-    def initialize(@narr : A, region = nil, reverse = false)
-        if region
-            @first = Array(Int32).new(initial_capacity: region.size)
-            @last = Array(Int32).new(initial_capacity: region.size)
-            @step = Array(Int32).new(initial_capacity: region.size)
+  def initialize(@narr : A, region = nil, reverse = false)
+    if region
+      @first = Array(Int32).new(initial_capacity: region.size)
+      @last = Array(Int32).new(initial_capacity: region.size)
+      @step = Array(Int32).new(initial_capacity: region.size)
 
-            region.each_with_index do |region, idx|
-                @first[idx] = region[idx].begin
-                @last[idx] = region[idx].end
-                @step[idx] = region[idx].step
-            end
-        else
-            @first = [0] * @narr.dimensions
-            @last = @narr.shape.map &.pred
-            @step = [1] * @narr.dimensions
-        end
-
-        if reverse
-            @last, @first = @first, @last
-            @step.map! &.-
-        end
-        
-        @coord = @first.dup
-        setup_coord(@coord, @step)
+      region.each_with_index do |region, idx|
+        @first[idx] = region[idx].begin
+        @last[idx] = region[idx].end
+        @step[idx] = region[idx].step
+      end
+    else
+      @first = [0] * @narr.dimensions
+      @last = @narr.shape.map &.pred
+      @step = [1] * @narr.dimensions
     end
 
-    protected def initialize(@narr, @first, @last, @step)
-        @coord = @first.dup
-        setup_coord(@coord, @step)
-    end
-    
-    def reverse!
-        @last, @first = @first, @last
-        @step.map! &.-
-
-        @coord = @first.dup
-        setup_coord(@coord, @step)
-        self
+    if reverse
+      @last, @first = @first, @last
+      @step.map! &.-
     end
 
-    def reverse
-        typeof(self).new(@narr, @last, @first, @step.map &.-)
-    end
+    @coord = @first.dup
+    setup_coord(@coord, @step)
+  end
 
-    abstract def setup_coord(coord, step)
-    abstract def next
+  protected def initialize(@narr, @first, @last, @step)
+    @coord = @first.dup
+    setup_coord(@coord, @step)
+  end
+
+  def reverse!
+    @last, @first = @first, @last
+    @step.map! &.-
+
+    @coord = @first.dup
+    setup_coord(@coord, @step)
+    self
+  end
+
+  def reverse
+    typeof(self).new(@narr, @last, @first, @step.map &.-)
+  end
+
+  abstract def setup_coord(coord, step)
+  abstract def next
 end
 
 private class LexRegionIterator(A, T) < RegionIterator(A, T)
-    def setup_coord(coord, step)
-        coord[-1] -= step[-1]
-    end
+  def setup_coord(coord, step)
+    coord[-1] -= step[-1]
+  end
 
-    def next
-        (@coord.size - 1).downto(0) do |i| ### least sig .. most sig
-            if @step[i] > 0 ? (@coord[i] >= @last[i]) : (@coord[i] <= @last[i]) 
-                @coord[i] = @first[i]
-                return stop if i == 0 # most sig 
-            else 
-                @coord[i] += @step[i] 
-                break
-            end
-        end
-        {@narr.unsafe_fetch_element(@coord), @coord}
+  def next
+    (@coord.size - 1).downto(0) do |i| # ## least sig .. most sig
+      if @step[i] > 0 ? (@coord[i] >= @last[i]) : (@coord[i] <= @last[i])
+        @coord[i] = @first[i]
+        return stop if i == 0 # most sig
+      else
+        @coord[i] += @step[i]
+        break
+      end
     end
+    {@narr.unsafe_fetch_element(@coord), @coord}
+  end
 end
-
 
 private class ColexRegionIterator(A, T) < RegionIterator(A, T)
-    def setup_coord(coord, step)
-        coord[0] -= step[0]
-    end
+  def setup_coord(coord, step)
+    coord[0] -= step[0]
+  end
 
-    def next
-        @coord.each_index do |i| ### least sig .. most sig
-            if @step[i] > 0 ? (@coord[i] >= @last[i]) : (@coord[i] <= @last[i]) 
-                @coord[i] = @first[i] 
-                return stop if i == @coord.size - 1 # most sig 
-            else 
-                @coord[i] += @step[i] 
-                break
-            end
-        end
-        {@narr.unsafe_fetch_element(@coord), @coord}
+  def next
+    @coord.each_index do |i| # ## least sig .. most sig
+      if @step[i] > 0 ? (@coord[i] >= @last[i]) : (@coord[i] <= @last[i])
+        @coord[i] = @first[i]
+        return stop if i == @coord.size - 1 # most sig
+      else
+        @coord[i] += @step[i]
+        break
+      end
     end
+    {@narr.unsafe_fetch_element(@coord), @coord}
+  end
 end
-
 
 # private class LexChunkIterator(A)
 #     include RegionHelpers
@@ -146,7 +138,6 @@ end
 # private class ColexChunkIterator(A)
 #     include Iterator(A)
 # end
-
 
 # private class SliceIterator(A) < RegionIterator(A)
 
@@ -167,32 +158,29 @@ end
 #             @region[@axis] = SteppedRange.new(@index)
 #             @region
 #         else
-#             stop 
-#         end               
+#             stop
+#         end
 #     end
 # end
 
-
-
-
 arr = NArray.build([2, 3, 2, 3]) { |coord, index| index }
 
-small_arr = NArray.build([3,3]) {|coord, index| index}
+small_arr = NArray.build([3, 3]) { |coord, index| index }
 
 puts "Lexicographic:"
-LexRegionIterator(typeof(small_arr), Int32).new(small_arr).each {|elem, coord| puts elem, coord}
+LexRegionIterator(typeof(small_arr), Int32).new(small_arr).each { |elem, coord| puts elem, coord }
 
 puts "Colexicographic:"
-ColexRegionIterator(typeof(small_arr), Int32).new(small_arr).each {|elem, coord| puts elem, coord}
+ColexRegionIterator(typeof(small_arr), Int32).new(small_arr).each { |elem, coord| puts elem, coord }
 
 puts "Reverse Lexicographic:"
-LexRegionIterator(typeof(small_arr), Int32).new(small_arr, reverse: true).each {|elem, coord| puts elem, coord}
+LexRegionIterator(typeof(small_arr), Int32).new(small_arr, reverse: true).each { |elem, coord| puts elem, coord }
 
 puts "Reverse Colexicographic:"
-ColexRegionIterator(typeof(small_arr), Int32).new(small_arr, reverse: true).each {|elem, coord| puts elem, coord}
+ColexRegionIterator(typeof(small_arr), Int32).new(small_arr, reverse: true).each { |elem, coord| puts elem, coord }
 
 puts "Reversed Lexicographic:"
-ColexRegionIterator(typeof(small_arr), Int32).new(small_arr).reverse.each {|elem, coord| puts elem, coord}
+ColexRegionIterator(typeof(small_arr), Int32).new(small_arr).reverse.each { |elem, coord| puts elem, coord }
 
 # puts "Slices, axis 0:"
 # SliceIterator.new(small_arr).each {|elem| puts elem}
@@ -204,4 +192,3 @@ ColexRegionIterator(typeof(small_arr), Int32).new(small_arr).reverse.each {|elem
 
 # item_iter = ItemIterator(NArray(Int32), Int32).new(arr)
 # item_iter.each {|elem| puts elem}
-    

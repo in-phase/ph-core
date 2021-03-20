@@ -33,7 +33,6 @@ describe Lattice do
 
       narr[1..2, 1..2, 1..2] = 5
       # puts narr
-
       # matrix[2, ..]
       # mapping = [1]
       # mapping[sliced_array_axis] == where in matrix you must put that index
@@ -82,7 +81,6 @@ describe Lattice do
 
       narr[mask] = 1
       # puts narr
-
     end
 
     it "properly packs an n-dimensional index" do
@@ -114,7 +112,6 @@ describe Lattice do
       end
       narr[2, 2, 2] = 437
       # puts narr
-
       # pp narr
     end
 
@@ -199,7 +196,6 @@ describe Lattice do
 
       narr = NArray(Int32).new([2, 3]) { |i| i + 2 }
       # puts narr
-
       # puts narr.reshape([3, 2])
     end
     # TODO formalize or remove
@@ -216,7 +212,6 @@ describe Lattice do
       end
 
       # puts NArray.wrap(1, 7, "foo")
-
       # puts NArray.new([[1, 2, 3], ["hello", 1f64, 10], [12, 13, 14]])
 
     end
@@ -233,12 +228,11 @@ describe Lattice do
 
       # puts strarr.byte_slice(0, a)
       # puts strarr.byte_slice(a, 2)
-      #puts strarr.byte_slice(a, ones)
+      # puts strarr.byte_slice(a, ones)
 
-      words = ["This","is", "an", "array", "of", "words", "which", "we", "will", "pretend", "is", "dictionary"]
+      words = ["This", "is", "an", "array", "of", "words", "which", "we", "will", "pretend", "is", "dictionary"]
       wordarr = NArray.new(words)
-      #puts wordarr.char_at(0)
-      
+      # puts wordarr.char_at(0)
       # puts b > 17
 
       # This should cause compile error!
