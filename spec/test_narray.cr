@@ -5,6 +5,7 @@ include Lattice
 # Provides barebones versions of NArray used to test MultiEnumerable, MultiIndexable, and MultiWritable methods,
 # and provide a minimum standard for implementing a usable multidimensional array type.
 
+# Defines instance variables, constructors, and general utils for a buffer-backed multi-array.
 abstract class TestNArray(T)
 
     getter buffer : Slice(T)
@@ -54,7 +55,7 @@ abstract class TestNArray(T)
     end
 end
 
-
+# implementation of required MultiIndexable methods
 module ReadUtils(T)
     include MultiIndexable(T)
 
@@ -75,6 +76,7 @@ module ReadUtils(T)
     end
 end
 
+# implementation of required MultiWritable methods
 module WriteUtils(T)
     include MultiWritable(T)
 
@@ -107,6 +109,7 @@ class WONArray(T) < TestNArray(T)
     include WriteUtils(T)
 end
 
+# Read-Write NArray
 class RWNArray(T) < TestNArray(T)
     include ReadUtils(T)
     include WriteUtils(T)

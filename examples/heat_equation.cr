@@ -47,7 +47,7 @@ def update_temp(state) : NArray(Float64)
     temp_diff[idx + 1] = (state[idx] - 2 * center_temp + state[idx + 2]) * COEFF
   end
 
-  return state.map_with_coord { |el, idx| el + temp_diff[idx].to_scalar }
+  return state.map_with_coord { |el, idx| el + temp_diff.get(idx)}
 end
 
 # state = update_temp(state)

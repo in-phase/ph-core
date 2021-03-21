@@ -10,7 +10,6 @@ slice1transpose = Slice(Int32).new(9) {|idx| [0,3,6,1,4,7,2,5,8][idx] }
 small_arr = RONArray.new([3,3], slice1)
 transpose = RONArray.new([3,3], slice1transpose)
 
-
 # TODO: revise unit tests seriously. These serve more as demos than exhaustive tests.
 
 describe Lattice::MultiEnumerable do

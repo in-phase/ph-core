@@ -27,15 +27,16 @@ module Lattice
 
 
     # I'm the map ~
-    def map(order : Order = Order::LEX, &block : T -> U) forall U
+    def map(order : Order = Order::LEX, &block : T -> U) : MultiIndexable(U) forall U
       map_with_coord(order) do |elem, coord|
         yield elem
       end
     end
 
     # I'm the map ~
-    def map_with_coord(order : Order = Order::LEX, &block : T -> U) forall U
+    def map_with_coord(order : Order = Order::LEX, &block : T, Array(Int32) -> U) : MultiIndexable(U) forall U
       iter = each(order)
+
       buffer = Slice(U).new(size) do |idx|
         yield *(iter.next.as(Tuple(T, Array(Int32))))
       end

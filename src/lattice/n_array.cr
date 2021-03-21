@@ -372,11 +372,11 @@ module Lattice
     #   end
     # end
 
-    # def each_with_index(&block : T, Int32 ->)
-    #   @buffer.each_with_index do |elem, idx|
-    #     yield elem, idx
-    #   end
-    # end
+    def each_with_index(&block : T, Int32 ->)
+      @buffer.each_with_index do |elem, idx|
+        yield elem, idx
+      end
+    end
 
     # def each_with_coord(&block : T, Array(Int32), Int32 ->)
     #   each_with_index do |elem, idx|

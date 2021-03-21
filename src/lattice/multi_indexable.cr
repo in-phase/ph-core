@@ -4,6 +4,8 @@ require "./order.cr"
 
 module Lattice
   module MultiIndexable(T)
+
+    # add search, traversal methods
     include MultiEnumerable(T)
 
     # For performance gains, we recommend the user to consider overriding the following methods when including MultiIndexable(T):
@@ -201,14 +203,29 @@ module Lattice
       return true
     end
 
+    # TODO: rename!
+    # Produces an NArray(Bool) (by default) describing which elements of self and other are equal.
+    def eq_elem(other : MultiIndexable(U)) : MultiIndexable(Bool) forall U
+      if shape != other.shape
+        raise DimensionError.new("Cannot perform elementwise operation {{name.id}}: shapes #{other.shape} of other and #{shape} of self do not match") 
+      end
+      map_with_coord do |elem, coord|
+        elem == other.unsafe_fetch_element(coord)
+      end
+    end
+
     {% begin %}
       # Implements most binary operations
       {% for name in %w(+ - * / // > < >= <= &+ &- &- ** &** % & | ^ <=>) %}
+
         # Invokes `#{{name.id}}` element-wise between `self` and *other*, returning
         # an `NArray` that contains the results.
         def {{name.id}}(other : MultiIndexable(U)) forall U
+          if shape != other.shape
+            raise DimensionError.new("Cannot perform elementwise operation {{name.id}}: shapes #{other.shape} of other and #{shape} of self do not match") 
+          end
           map_with_coord do |elem, coord|
-            elem.{{name.id}} other[coord].to_scalar
+            elem.{{name.id}} other.unsafe_fetch_element(coord).as(U)
           end
         end
 
