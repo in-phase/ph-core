@@ -8,10 +8,6 @@ module Lattice
   # only implements primitive data operations (construction, data reading,
   # data writing, and region sampling / slicing).
   #
-  # `{{@type}}` is designed to provide the best user experience possible, and
-  # that methodology led to the use of the `method_missing` macro for element-wise
-  # operations. Please read its documentation, as it provides a large amount
-  # of functionality that may otherwise appear missing.
   class NArray(T)
     include MultiIndexable(T)
     include MultiWritable(T)
@@ -210,10 +206,6 @@ module Lattice
       {{@type}}.new(@shape, @buffer.dup)
     end
 
-    def to_a : Array(T)
-      @buffer.to_a
-    end
-
     # TODO any way to avoid copying these out yet, too? Iterator magic?
     def slices(axis = 0) : Array(self)
       region = [] of (Int32 | Range(Int32, Int32))
@@ -260,18 +252,20 @@ module Lattice
 
     # Convert from n-dimensional indexing to a buffer location.
     def coord_to_index(coord) : Int32
+      coord = RegionHelpers.canonicalize_coord(coord, @shape)
       {{@type}}.coord_to_index_fast(coord, @shape, @buffer_step_sizes)
     end
 
     # TODO: Talk about what this should be named
     def self.coord_to_index(coord, shape) : Int32
+      coord = RegionHelpers.canonicalize_coord(coord, shape)
       steps = buffer_step_sizes(shape)
       {{@type}}.coord_to_index_fast(coord, shape, steps)
     end
 
+    # Assumes coord is canonical
     protected def self.coord_to_index_fast(coord, shape, buffer_step_sizes) : Int32
       begin
-        coord = RegionHelpers.canonicalize_coord(coord, shape)
         index = 0
         coord.each_with_index do |elem, idx|
           index += elem * buffer_step_sizes[idx]
@@ -307,7 +301,7 @@ module Lattice
 
       # TODO optimize this! Any way to avoid double iteration?
       buffer_arr = [] of T
-      each_in_canonical_region(region) do |elem, idx, src_idx|
+      narray_each_in_canonical_region(region) do |elem, idx, src_idx|
         buffer_arr << elem
       end
 
@@ -345,7 +339,7 @@ module Lattice
     # Copies the elements from a MultiIndexable `src` into `region`, assuming that `region` is in canonical form and in-bounds for this `{{type}}`
     # and the shape of `region` matches the shape of `src`.
     def unsafe_set_region(region : Enumerable, src : MultiIndexable(T))
-      each_in_canonical_region(region) do |elem, other_idx, this_idx|
+      narray_each_in_canonical_region(region) do |elem, other_idx, this_idx|
         # @buffer[this_idx] = src.buffer[other_idx]
         # TODO: see if this is the best way! (Want it to be generalizable to MultiIndexable...)
         @buffer[this_idx] = src.unsafe_fetch_element(index_to_coord(other_idx))
@@ -354,7 +348,7 @@ module Lattice
 
     # Sets each element in `region` to `value`, assuming that `region` is in canonical form and in-bounds for this `{{type}}`
     def unsafe_set_region(region : Enumerable, value : T)
-      each_in_canonical_region(region) do |elem, idx, buffer_idx|
+      narray_each_in_canonical_region(region) do |elem, idx, buffer_idx|
         @buffer[buffer_idx] = value
       end
     end
@@ -372,71 +366,71 @@ module Lattice
       end
     end
 
-    def each(&block : T ->)
-      each_with_index do |elem|
-        yield elem
-      end
-    end
+    # def each(&block : T ->)
+    #   each_with_index do |elem|
+    #     yield elem
+    #   end
+    # end
 
-    def each_with_index(&block : T, Int32 ->)
-      @buffer.each_with_index do |elem, idx|
-        yield elem, idx
-      end
-    end
+    # def each_with_index(&block : T, Int32 ->)
+    #   @buffer.each_with_index do |elem, idx|
+    #     yield elem, idx
+    #   end
+    # end
 
-    def each_with_coord(&block : T, Array(Int32), Int32 ->)
-      each_with_index do |elem, idx|
-        yield elem, index_to_coord(idx), idx
-      end
-    end
+    # def each_with_coord(&block : T, Array(Int32), Int32 ->)
+    #   each_with_index do |elem, idx|
+    #     yield elem, index_to_coord(idx), idx
+    #   end
+    # end
 
-    def map(&block : T -> U) forall U
-      map_with_index do |elem|
-        yield elem
-      end
-    end
+    # def map(&block : T -> U) forall U
+    #   map_with_index do |elem|
+    #     yield elem
+    #   end
+    # end
 
-    def map_with_index(&block : T, Int32 -> U) forall U
-      buffer = Slice(U).new(@shape.product) do |idx|
-        yield @buffer[idx], idx
-      end
+    # def map_with_index(&block : T, Int32 -> U) forall U
+    #   buffer = Slice(U).new(@shape.product) do |idx|
+    #     yield @buffer[idx], idx
+    #   end
 
-      NArray(U).new(@shape, buffer)
-    end
+    #   NArray(U).new(@shape, buffer)
+    # end
 
-    def map_with_coord(&block : T, Array(Int32), Int32 -> U) forall U
-      map_with_index do |elem, idx|
-        yield elem, index_to_coord(idx), idx
-      end
-    end
+    # def map_with_coord(&block : T, Array(Int32), Int32 -> U) forall U
+    #   map_with_index do |elem, idx|
+    #     yield elem, index_to_coord(idx), idx
+    #   end
+    # end
 
-    def map!(&block : T -> U) forall U
-      map_with_index! do |elem|
-        yield elem
-      end
-    end
+    # def map!(&block : T -> U) forall U
+    #   map_with_index! do |elem|
+    #     yield elem
+    #   end
+    # end
 
-    def map_with_index!(&block : T, Int32 -> T) forall T
-      @buffer.map_with_index! do |elem, idx|
-        yield elem, idx
-      end
-      self
-    end
+    # def map_with_index!(&block : T, Int32 -> T) forall T
+    #   @buffer.map_with_index! do |elem, idx|
+    #     yield elem, idx
+    #   end
+    #   self
+    # end
 
-    def map_with_coord!(&block : T, Array(Int32), Int32 -> U) forall U
-      map_with_index! do |elem, idx|
-        yield elem, index_to_coord(idx), idx
-      end
-    end
+    # def map_with_coord!(&block : T, Array(Int32), Int32 -> U) forall U
+    #   map_with_index! do |elem, idx|
+    #     yield elem, index_to_coord(idx), idx
+    #   end
+    # end
 
     def each_in_region(region, &block : T, Int32, Int32 ->)
       region = RegionHelpers.canonicalize_region(region, @shape)
 
-      each_in_canonical_region(region, &block)
+      narray_each_in_canonical_region(region, &block)
     end
 
     # TODO: Document
-    def each_in_canonical_region(region, axis = 0, read_index = 0, write_index = [0], &block : T, Int32, Int32 ->)
+    def narray_each_in_canonical_region(region, axis = 0, read_index = 0, write_index = [0], &block : T, Int32, Int32 ->)
       current_range = region[axis]
 
       # Base case - yield the scalars in a subspace
@@ -457,7 +451,7 @@ module Lattice
       current_range.each do |idx|
         # navigate to the correct start index
         read_index = initial_read_index + idx * buffer_step_size
-        each_in_canonical_region(region, axis + 1, read_index, write_index) do |a, b, c|
+        narray_each_in_canonical_region(region, axis + 1, read_index, write_index) do |a, b, c|
           block.call(a, b, c)
         end
       end

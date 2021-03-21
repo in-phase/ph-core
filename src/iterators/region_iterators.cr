@@ -14,10 +14,10 @@ module Lattice
           @last = Array(Int32).new(initial_capacity: region.size)
           @step = Array(Int32).new(initial_capacity: region.size)
 
-          region.each_with_index do |region, idx|
-            @first[idx] = region[idx].begin
-            @last[idx] = region[idx].end
-            @step[idx] = region[idx].step
+          region.each do |range|
+            @first << range.begin
+            @last << range.end
+            @step << range.step
           end
         else
           @first = [0] * @narr.dimensions

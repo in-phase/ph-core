@@ -8,7 +8,7 @@ module Lattice
 
     # For performance gains, we recommend the user to consider overriding the following methods when including MultiIndexable(T):
     # - #each_fastest
-    # - more list
+    # - #each_in_canonical_region
 
     # Returns the number of elements in the `{{type}}`; equal to `shape.product`.
     # abstract def size : Int32
@@ -106,6 +106,7 @@ module Lattice
 
     # Copies the elements in `region` to a new `{{type}}`, and throws an error if `region` is out-of-bounds for this `{{type}}`.
     def [](region : Enumerable)
+
       get_region(region)
     end
 
@@ -116,42 +117,27 @@ module Lattice
     end
 
     {% begin %}
-            {% enumerable_functions = %w(get get_element get_region has_coord? has_region?) %}
-
-            {% for name in enumerable_functions %}
-                # Tuple-accepting overload of `#{{name}}`.
-                def {{name.id}}(*tuple)
-                    {{name.id}}(tuple)
-                end
-            {% end %}
+      {% enumerable_functions = %w(get get_element get_region has_coord? has_region?) %}
+        {% for name in enumerable_functions %}
+          # Tuple-accepting overload of `#{{name}}`.
+          def {{name.id}}(*tuple)
+            {{name.id}}(tuple)
+          end
         {% end %}
+    {% end %}
 
     def each(order : Order = Order::LEX)
-      puts "MultiIndexable each got called"
-      case order
-      when Order::LEX
-        LexRegionIterator(self, T).new(self)
-      when Order::COLEX
-        ColexRegionIterator(self, T).new(self)
-      when Order::REV_LEX
-        LexRegionIterator(self, T).new(self, reverse: true)
-      when Order::REV_COLEX
-        ColexRegionIterator(self, T).new(self, reverse: true)
-      when Order::FASTEST
-        each_fastest
-      else
-        raise ArgumentError.new("Could not iterate over MultiIndexable: Unrecognized order #{order}.")
-      end
+      each_in_canonical_region(nil, order)
     end
 
     def each(order : Order = Order::LEX, &block)
-      each(order).each do |elem|
+      each(order).each do |elem, coord|
         yield elem
       end
     end
 
     def each_with_coord(order : Order = Order::LEX, &block)
-      each.each(order) do |elem, coord|
+      each(order).each do |elem, coord|
         yield elem, coord
       end
     end
@@ -160,61 +146,59 @@ module Lattice
     # Recommended that implementers override this method to take advantage of
     # the storage scheme the implementation uses
     def each_fastest
-      each(Order::LEX)
+      each_in_canonical_region_fastest(nil)
     end
+
+    def each_in_canonical_region(region, order : Order = Order::LEX)
+      case order
+      when Order::LEX
+        LexRegionIterator(self, T).new(self, region: region)
+      when Order::COLEX
+        ColexRegionIterator(self, T).new(self, region: region)
+      when Order::REV_LEX
+        LexRegionIterator(self, T).new(self, region: region, reverse: true)
+      when Order::REV_COLEX
+        ColexRegionIterator(self, T).new(self, region: region, reverse: true)
+      when Order::FASTEST
+        each_in_canonical_region_fastest(region)
+      else
+        raise ArgumentError.new("Could not iterate over MultiIndexable: Unrecognized order #{order}.")
+      end
+    end
+
+    def each_in_canonical_region_fastest(region)
+      each_in_canonical_region(region, Order::LEX)
+    end
+
+    def each_in_region(region, order : Order = Order::LEX)
+      region = RegionHelpers.canonicalize_region(region, shape)
+      each_in_canonical_region(region, order)
+    end
+
+    def each_in_region_fastest(region)
+      region = RegionHelpers.canonicalize_region(region, shape)
+      each_in_canonical_region_fastest(region, order)
+    end
+
 
     # # TODO: Each methods should exist that allow:
     # # - Some way to handle slice iteration? (how do we pass in the axis? etc)
-    # # - Implement map based off the each function
-
-    # # Version that accepts a block
-    # def each
-    #     each.each {|elem| yield elem}
-    # end
-
-    # {% begin %}
-    #     {% for name in %w(each) %}
-    #         def {{name.id}}
-    #             {{name.id}} do |*args|
-    #                 yield *args
-    #             end # This may not work at all...
-    #         end
-    #     {% end %}
-    # {% end %}
-
-    # To implement:
-
-    # to_a maybe?
-    # ^ TOOD make to_a
-
-    # def each_with_coord(type : MultiIterator.class = LexicographicIterator, &block : )
-
-    # def each(type : MultiIterator.class = NArrayIterator, &block)
-
-    # def each(type)
-    #     type.new(self)
-    # end
-
-    # stolen from Enumerable:
-    # def map(&block : T -> U) forall U
-    #     ary = [] of U
-    #     each { |e| ary << yield e }
-    #     ary
-    # end
 
     # def slices(axis = 0) : Array(self)
 
+
     def equals?(other : MultiIndexable) : Bool
-      each_with_coord do |elem, coord|
-        return false if elem != other[coord].to_scalar
+      equals?(other) do |this_elem, other_elem|
+        this_elem == other_elem
       end
     end
 
     def equals?(other : MultiIndexable, &block) : Bool
       return false if shape != other.shape
       each_with_coord do |elem, coord|
-        return false unless yield(elem, other[coord].to_scalar)
+        return false unless yield(elem, other.unsafe_fetch_element(coord))
       end
+      return true
     end
 
     {% begin %}
