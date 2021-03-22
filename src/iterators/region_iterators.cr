@@ -5,6 +5,14 @@ module Lattice
       @coord : Array(Int32)
 
       @first : Array(Int32)
+      # NOTE: @last is written so as a convenience, but is actually constructed such
+      # that the last allowable index is the first instance such that @coord[i] > @last[i]
+      # (resp. < last[i] for negative step); so in many cases it will actually be the second-to-last index.
+      # This is necessary to accommodate SteppedRanges with steps that do not evenly divide their range.
+      # e.g.: (1..4).step(2) will have last = 2, so that coord > last at coord = 3
+      #       (1..4).step(1) will have last = 3, so that coord > last at coord = 4
+      #       for the full array: last = shape[axis] - 2, so that coord > last at shape[axis] - 1
+      # Cleaner alternatives may exist, but may also require additional checks.
       @last : Array(Int32)
       @step : Array(Int32)
 
@@ -16,12 +24,12 @@ module Lattice
 
           region.each do |range|
             @first << range.begin
-            @last << range.end
             @step << range.step
+            @last << range.end - range.step
           end
         else
           @first = [0] * @narr.dimensions
-          @last = @narr.shape.map &.pred
+          @last = @narr.shape.map {|e| e - 2}
           @step = [1] * @narr.dimensions
         end
 
@@ -63,7 +71,7 @@ module Lattice
 
       def next
         (@coord.size - 1).downto(0) do |i| # ## least sig .. most sig
-          if @step[i] > 0 ? (@coord[i] >= @last[i]) : (@coord[i] <= @last[i])
+          if @step[i] > 0 ? (@coord[i] > @last[i]) : (@coord[i] < @last[i])
             @coord[i] = @first[i]
             return stop if i == 0 # most sig
           else
@@ -82,7 +90,7 @@ module Lattice
 
       def next
         @coord.each_index do |i| # ## least sig .. most sig
-          if @step[i] > 0 ? (@coord[i] >= @last[i]) : (@coord[i] <= @last[i])
+          if @step[i] > 0 ? (@coord[i] > @last[i]) : (@coord[i] < @last[i])
             @coord[i] = @first[i]
             return stop if i == @coord.size - 1 # most sig
           else

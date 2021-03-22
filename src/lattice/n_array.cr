@@ -20,7 +20,7 @@ module Lattice
     @shape : Array(Int32)
 
     # Cached version of `.buffer_step_sizes`.
-    @buffer_step_sizes : Array(Int32)
+    protected getter buffer_step_sizes : Array(Int32)
 
     # Creates an `{{@type}}` using only a shape (see `shape`) and a packed index.
     # This is used internally to make code faster - converting from a packed
@@ -431,6 +431,7 @@ module Lattice
 
     # TODO: Document
     def narray_each_in_canonical_region(region, axis = 0, read_index = 0, write_index = [0], &block : T, Int32, Int32 ->)
+
       current_range = region[axis]
 
       # Base case - yield the scalars in a subspace
@@ -536,6 +537,77 @@ module Lattice
 
       shape
     end
+
+
+    # TODO: compare this iterator, generic MultiIndexable iterator, and old direct each
+    class BufferedLexRegionIterator(A,T) < RegionIterator(A,T)
+
+      @buffer_index : Int32
+      @buffer_step : Array(Int32)
+
+      def initialize(@narr : A, region = nil, reverse = false)
+        super
+        @buffer_step = @narr.buffer_step_sizes
+        @buffer_index = @buffer_step.map_with_index {|e, i| e * @first[i]}.sum
+        @buffer_index = setup_buffer_index(@buffer_index, @buffer_step, @step)
+      end
+
+      def setup_coord(coord, step)
+        coord[-1] -= step[-1]
+      end
+
+      def setup_buffer_index(buffer_index, buffer_step, step)
+        buffer_index -= buffer_step[-1] * step[-1]
+        buffer_index
+      end
+
+      def next
+        (@coord.size - 1).downto(0) do |i| # ## least sig .. most sig
+          if @step[i] > 0 ? (@coord[i] > @last[i]) : (@coord[i] < @last[i])
+            @buffer_index -= (@coord[i] - @first[i]) * @buffer_step[i]
+            @coord[i] = @first[i]
+            return stop if i == 0 # most sig
+          else
+            @coord[i] += @step[i]
+            @buffer_index += @buffer_step[i] * @step[i]
+            break
+          end
+        end
+        {@narr.buffer.unsafe_fetch(@buffer_index), @coord}
+      end
+    end
+
+
+    class BufferedColexRegionIterator(A,T) < BufferedLexRegionIterator(A,T)
+
+      def setup_coord(coord, step)
+        coord[0] -= step[0]
+      end
+
+      def setup_buffer_index(buffer_index, buffer_step, step)
+        buffer_index -= buffer_step[0] * step[0]
+        buffer_index
+      end
+
+      def next
+        @coord.each_index do |i| # ## least sig .. most sig
+          if @step[i] > 0 ? (@coord[i] > @last[i]) : (@coord[i] < @last[i])
+            @buffer_index -= (@coord[i] - @first[i]) * @buffer_step[i]
+            @coord[i] = @first[i]
+            return stop if i == @coord.size - 1 # most sig
+          else
+            @coord[i] += @step[i]
+            @buffer_index += @buffer_step[i] * @step[i]
+            break
+          end
+        end
+        {@narr.buffer.unsafe_fetch(@buffer_index), @coord}
+      end
+
+    end
+
+
+
 
   end
 end

@@ -86,9 +86,6 @@ module Lattice
     end
 
 
-
-
-
     def product(initial : Number, order : Order = Order::FASTEST)
       product(initial, Order::FASTEST, &.itself)
     end
@@ -106,8 +103,6 @@ module Lattice
     def product(initial : Number, order : Order = Order::FASTEST, &block)
       reduce(initial, order) { |memo, e| memo * (yield e) }
     end
-
-
     
     def sum(order : Order = Order::FASTEST)
       {% if T == String %}
