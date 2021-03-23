@@ -36,7 +36,6 @@ control1 = Time.measure do
 
 end
 
-puts "Control 1 (fastest each): #{control1}"
 
 control2 = Time.measure do
     count = 0
@@ -47,7 +46,6 @@ control2 = Time.measure do
 
 end
 
-puts "Control 1 (each with coord): #{control2}"
 
 
 # Version 1: MultiIndexable::LexRegionIterator
@@ -58,8 +56,8 @@ class LexRegionIterator(A, T) < MultiIndexable::RegionIterator(A, T)
 
     def next
       (@coord.size - 1).downto(0) do |i| # ## least sig .. most sig
-        if @step[i] > 0 ? (@coord[i] > @last[i]) : (@coord[i] < @last[i])
-          @coord[i] = @first[i]
+        if @step[i] > 0 ? (@coord[i] > @last[i] - @step[i]) : (@coord[i] < @last[i] - @step[i])
+            @coord[i] = @first[i]
           return stop if i == 0 # most sig
         else
           @coord[i] += @step[i]
@@ -78,7 +76,6 @@ multi = Time.measure do
     puts "result: #{count}"
 end
 
-puts "MultiIndexable version: #{multi}"
 
 
 
@@ -92,43 +89,114 @@ buffered = Time.measure do
     puts "result: #{count}"
 end
 
-puts "Buffered version: #{buffered}"
+
+buffered_colex = Time.measure do
+    count = 0
+    NArray::BufferedColexRegionIterator(typeof(large_arr), Int32).new(large_arr).each do |e, coord|
+        count += 1 if e % 3 == 0
+    end
+    puts "result: #{count}"
+end
+
+buffered_revlex =  Time.measure do
+    count = 0
+    NArray::BufferedLexRegionIterator(typeof(large_arr), Int32).new(large_arr, reverse: true).each do |e, coord|
+        count += 1 if e % 3 == 0
+    end
+    puts "result: #{count}"
+end
+
+buffered_revcolex =  Time.measure do
+    count = 0
+    NArray::BufferedColexRegionIterator(typeof(large_arr), Int32).new(large_arr, reverse: true).each do |e, coord|
+        count += 1 if e % 3 == 0
+    end
+    puts "result: #{count}"
+end
 
 
-puts "\nIterating a region:"
+puts   "\nControl 1 (fastest each):       #{control1}"
+puts   "Control 2 (each with coord):    #{control2}"
+puts   "MultiIndexable version:         #{multi}"
+puts   "Buffered version:               #{buffered}"
+puts   "New orders in buffered:         #{buffered_colex}, 
+                                #{buffered_revlex}, 
+                                #{buffered_revcolex}"
+
+puts "\nIterating a region:\n\n"
 
 region = RegionHelpers.canonicalize_region([3..15, 15..3, 5..10, 5..10], shape)
 #region = RegionHelpers.canonicalize_region([..,..,..,..], shape)
 region[2] = RegionHelpers::SteppedRange.new(15..3, -3)
-region[3] = RegionHelpers::SteppedRange.new(5..10, 2)
+region[3] = RegionHelpers::SteppedRange.new(4..10, 2)
 
+puts "Each in canonical region"
+
+samples = [] of Int32
+sampling_rate = 100000
+
+idx = 0
+large_arr.narray_each_in_canonical_region(region) do |e|
+    if idx % sampling_rate == 0 
+        samples << e
+    end
+    idx += 1
+end
 
 control = Time.measure do
     idx = 0
     large_arr.narray_each_in_canonical_region(region) do |e|
-        puts "#{idx}, #{e}, #{large_arr.index_to_coord(e)}" if idx % 10000 == 0
+        puts "#{idx}, #{e}, #{large_arr.index_to_coord(e)}" if samples.any?(e)
         idx += 1
     end
 end
-
-puts "Control (NArray's each in canonical region): #{control}"
+puts "MultiIndexable Lex"
 
 multi = Time.measure do
     idx = 0
     LexRegionIterator(typeof(large_arr), Int32).new(large_arr, region: region).each do |e, coord|
-        puts "#{idx}, #{e}, #{coord}" if idx % 10000 == 0
+        puts "#{idx}, #{e}, #{coord}" if samples.any?(e)
         idx += 1
     end
 end
 
-puts "MultiIndexable version: #{multi}"
+puts "Buffered Lex"
+
 
 buffered = Time.measure do
     idx = 0
     NArray::BufferedLexRegionIterator(typeof(large_arr), Int32).new(large_arr, region: region).each do |e, coord|
-        puts "#{idx}, #{e}, #{coord}" if idx % 10000 == 0
+        puts "#{idx}, #{e}, #{coord}" if samples.any?(e)
         idx += 1
     end
 end
 
-puts "Buffered version: #{buffered}"
+puts "Buffered Colex"
+
+
+
+buffered_colex = Time.measure do
+    idx = 0
+    NArray::BufferedColexRegionIterator(typeof(large_arr), Int32).new(large_arr, region: region).each do |e, coord|
+        puts "#{idx}, #{e}, #{coord}" if samples.any?(e)
+        idx += 1
+    end
+end
+puts "Buffered RevLex"
+
+# TODO: interesting! If we have a range (5..10).step(2) => 5, 7, 9
+# and call reverse: then it becomes     (10..5).step(2) => 10, 8, 6 (an entirely different set of values!)
+buffered_revlex = Time.measure do
+    idx = 0
+    NArray::BufferedLexRegionIterator(typeof(large_arr), Int32).new(large_arr, region: region, reverse: true).each do |e, coord|
+        puts "#{idx}, #{e}, #{coord}" if samples.any?(e)
+        idx += 1
+    end
+end
+puts "\n"
+
+puts   "Control (NArray's each in canonical region):    #{control}"
+puts   "MultiIndexable version:                         #{multi}"
+puts   "Buffered version:                               #{buffered}"
+puts   "New orders in buffered:                         #{buffered_colex}, 
+                                                #{buffered_revlex}"

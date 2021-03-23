@@ -484,6 +484,63 @@ module Lattice
       container
     end
 
+    # Checks that the shape of this and other match in every dimension
+    # (except `axis`, if it is specified)
+    def compatible?(other : MultiIndexable, axis = -1) : Bool
+      shape.each_with_index do |dim, idx|
+        return false if dim != other.shape[idx] && idx != axis
+      end
+      return true
+    end
+
+
+    def concatenate(other, axis = 0)
+       
+    end
+
+    def concatenate!(other, axis = 0)
+    end
+
+    def <<(other : self) : self
+      push(other)
+    end
+
+    # optimization for pushing other NArrays on axis 0, in-place
+    def push(*others : self) : self
+      raise DimensionError.new() if others.any?(!compatible?(self, 0))
+
+      concat_size = size + others.sum {|narr| narr.size}
+      
+      full_ptr = Pointer(T).malloc(concat_size)
+      full_ptr.move_from(@buffer.to_unsafe, size)
+      ptr = full_ptr + size
+
+      # more in-place - but feels much less thread-safe?
+      # full_ptr = @buffer.to_unsafe.realloc(concat_size)
+      # @buffer = Slice.new(full_ptr, concat_size)
+      # ptr = full_ptr + size
+
+      others.each do |narr|
+        ptr.move_from(narr.buffer.to_unsafe, narr.size)
+        ptr += narr.size
+      end
+
+      @shape[0] += others.sum{|narr| narr.shape[0]}
+      @buffer = Slice.new(full_ptr, concat_size)
+      self
+    end
+
+    def self.concatenate(*narrs : MultiIndexable(T), axis = 0) 
+    end
+
+    # Cycle between the iterators of each narr?
+    protected def self.concatenate_to_slice(*narrs, axis)
+
+      concat_size = size + others.sum {|narr| narr.size}
+
+      slice_size = @buffer_step_sizes[axis]
+    end
+
     # TODO: Update documentation. I (seth) rewrote this function to make it validate the shape fully.
     # documentation doesn't currently reflect that
     # Returns the estimated dimension of a multidimensional array that is provided as a nested array literal.
@@ -563,7 +620,7 @@ module Lattice
 
       def next
         (@coord.size - 1).downto(0) do |i| # ## least sig .. most sig
-          if @step[i] > 0 ? (@coord[i] > @last[i]) : (@coord[i] < @last[i])
+          if @step[i] > 0 ? (@coord[i] > @last[i] - @step[i]) : (@coord[i] < @last[i] - @step[i])
             @buffer_index -= (@coord[i] - @first[i]) * @buffer_step[i]
             @coord[i] = @first[i]
             return stop if i == 0 # most sig
@@ -591,7 +648,7 @@ module Lattice
 
       def next
         @coord.each_index do |i| # ## least sig .. most sig
-          if @step[i] > 0 ? (@coord[i] > @last[i]) : (@coord[i] < @last[i])
+          if @step[i] > 0 ? (@coord[i] > @last[i] - @step[i]) : (@coord[i] < @last[i] - @step[i])
             @buffer_index -= (@coord[i] - @first[i]) * @buffer_step[i]
             @coord[i] = @first[i]
             return stop if i == @coord.size - 1 # most sig

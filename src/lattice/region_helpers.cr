@@ -147,6 +147,7 @@ module Lattice
     # Stores similar information to a StepIterator, which (as of Crystal 0.36) have issues of uncertain types and may change behaviour in the future.
     # To avoid compatibility issues we define our own struct here.
     struct SteppedRange
+
       getter size : Int32
       getter range : Range(Int32, Int32)
       getter step : Int32
@@ -159,6 +160,7 @@ module Lattice
         @size = 1
         @step = 1
         @range = index..index
+        @current = @range.begin
       end
 
       # Given __subspace__, a canonical `Range`, and a  __step_size__, invokes the block with an index
@@ -187,10 +189,12 @@ module Lattice
       def inspect(io)
         if @size == 1
           io << @range.begin.to_s
-        else
+        else if @step == 1
           io << "(#{@range}).step(#{@step})"
         end
       end
+
+      def reset
 
       def begin
         @range.begin
