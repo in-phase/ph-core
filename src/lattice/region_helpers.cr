@@ -116,7 +116,7 @@ module Lattice
 
     # This method is supposed to capture numeric objects. We avoid specifying type
     # explicitly so we can have the most interoperability.
-    def canonicalize_range(index, shape, axis)
+    def canonicalize_range(index : Int, shape, axis)
       SteppedRange.new(canonicalize_index(index, shape, axis))
     end
     
@@ -160,6 +160,12 @@ module Lattice
       SteppedRange.new(start, temp_finish, step)
     end
 
+    def full_region(shape) : Array(SteppedRange)
+      shape.map do |dim|
+        SteppedRange.new(0,dim,1)
+      end
+    end
+
     # Stores similar information to a StepIterator, which (as of Crystal 0.36) have issues of uncertain types and may change behaviour in the future.
     # To avoid compatibility issues we define our own struct here.
     struct SteppedRange
@@ -182,6 +188,29 @@ module Lattice
         @step = 1
         @begin = index  
         @end = index
+      end
+
+      def reverse : SteppedRange
+         SteppedRange.new(@end, @begin, -@step)
+      end
+
+      # TODO: rename
+      # Given an index in the frame of this range, get the absolute index.
+      # e.g.: `SteppedRange.new( 1..10, 3 ).translate(1) #=> 4`
+      # since counting by 3 from 1, the 2nd entry (index 1) is 4.
+      # NOTE: this method assumes `index < @size`.
+      def local_to_absolute(index) : Int32
+        @begin + index * @step
+      end
+
+      # Like translate, but given a range of indices in the frame of this range,
+      # return the range of absolute indices.
+      # e.g.: `SteppedRange.new( 1..10, 3 ).subrange( SteppedRange.new( 1..3, 2) )`
+      # will give `4..6..10`, i.e. a range of the first and third elements of the former range.
+      # NOTE: this method assumes subrange may be contained in range, i.e.
+      # `subrange.begin < @size` and `subrange.end < @size`
+      def compose(subrange : SteppedRange) : SteppedRange
+        SteppedRange.new(local_to_absolute(subrange.begin), local_to_absolute(subrange.end), @step * subrange.step)
       end
 
       # Given __subspace__, a canonical `Range`, and a  __step_size__, invokes the block with an index

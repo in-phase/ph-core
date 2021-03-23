@@ -11,7 +11,7 @@ abstract class TestNArray(T)
     getter buffer : Slice(T)
     getter size : Int32
     @shape : Array(Int32)
-    @buffer_step_sizes : Array(Int32)
+    @axis_strides : Array(Int32)
 
     def initialize(shape, @buffer : Slice(T))
         @size = shape.product.to_i32
@@ -20,18 +20,18 @@ abstract class TestNArray(T)
         end
   
         @shape = shape.dup
-        @buffer_step_sizes = {{@type}}.buffer_step_sizes(@shape)
+        @axis_strides = {{@type}}.axis_strides(@shape)
     end
 
     def shape : Array(Int32)
         @shape.dup
     end
 
-    protected def self.unsafe_coord_to_index_fast(coord, buffer_step_sizes) : Int32
+    protected def self.unsafe_coord_to_index_fast(coord, axis_strides) : Int32
         begin
           index = 0
           coord.each_with_index do |elem, idx|
-            index += elem * buffer_step_sizes[idx]
+            index += elem * axis_strides[idx]
           end
           index
         rescue exception
@@ -40,10 +40,10 @@ abstract class TestNArray(T)
     end
 
     protected def unsafe_coord_to_index(coord) : Int32
-        TestNArray.unsafe_coord_to_index_fast(coord, @buffer_step_sizes)
+        TestNArray.unsafe_coord_to_index_fast(coord, @axis_strides)
     end
 
-    def self.buffer_step_sizes(shape)
+    def self.axis_strides(shape)
       ret = shape.clone
       ret[-1] = 1
 

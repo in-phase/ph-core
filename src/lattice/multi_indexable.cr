@@ -13,7 +13,7 @@ module Lattice
     # - #each_in_canonical_region
 
     # Returns the number of elements in the `{{type}}`; equal to `shape.product`.
-    # abstract def size : Int32
+    abstract def size : Int32
 
     # Returns the length of the `{{type}}` in each dimension.
     # For a `coord` to specify an element of the `{{type}}` it must satisfy `coord[i] < shape[i]` for each `i`.
@@ -187,6 +187,12 @@ module Lattice
     # # - Some way to handle slice iteration? (how do we pass in the axis? etc)
 
     # def slices(axis = 0) : Array(self)
+
+    def to_narr : NArray(T)
+    end
+
+    def to_nested_a : Array
+    end
 
 
     def equals?(other : MultiIndexable) : Bool

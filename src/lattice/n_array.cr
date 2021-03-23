@@ -547,7 +547,6 @@ module Lattice
     end
 
     # Cycle between the iterators of each narr maybe?
-    # OPTIMIZE: this is really dumb right now; double-iterates
     # NOTE: narrs should include self.
     protected def concatenate_to_slice(*narrs, axis = 0) : Tuple(Array(Int32), Slice(T))
       raise DimensionError.new("Cannot concatenate these arrays along axis #{axis}: shapes do not match") if !self.compatible?(*narrs, axis: axis)

@@ -57,7 +57,7 @@ module Lattice
                     range.compose(region[dim]).reverse
                 end
             else
-                new_region = region.map_with_index { |range, dim| range.compose(region[dim])}
+                new_region = @region.map_with_index { |range, dim| range.compose(region[dim])}
             end
             new_region
         end

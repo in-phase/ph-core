@@ -19,7 +19,7 @@ arr2 = [[4,5,6]]
 
 # puts narr
 
-# puts narr.buffer_step_sizes
+# puts narr.axis_strides
 
 
 
@@ -59,9 +59,6 @@ arr2 = [[4,5,6]]
 # puts canonicalize_region(region2, shape)
 
 
-my = NArray.build([2,2,2]) {|coord, i| i + 1}
-my0 = NArray.build([3,2,2]) {|coord, i| -i - 1}
-
 # puts NArray.concatenate(my, my0, axis: 0), "\n"
 # my0 = my0.reshape([2,3,2])
 # puts NArray.concatenate(my, my0, axis: 1), "\n"
@@ -69,4 +66,37 @@ my0 = NArray.build([3,2,2]) {|coord, i| -i - 1}
 # puts NArray.concatenate(my, my0, axis: 2), "\n"
 
 
-my[..,..,1] = my0[..,..,1]
+large = NArray.build([5,5,10]) {|coord, i| coord}
+
+
+v =  View.of(large)
+
+puts v.region
+
+puts v.get(3,4,7)
+
+vv = v.view(2..4,1..3,1..2..9)
+
+puts vv.region
+
+# puts vv.region
+
+
+# procA = Proc(Int32, Float64).new {|x| x.to_f64}
+# procB = Proc(Float64, String).new {|x| x.to_s}
+
+# tempA = procA.clone
+# tempB = procB.clone
+# composition = Proc(Int32, String).new {|x| tempB.call(tempA.call(x))}
+
+# puts composition.call(1)
+
+# procB = Proc(Float64, String).new {"Broken!"}
+
+# puts composition.call(1)
+
+
+# my = NArray.build([2,2,2]) {|coord, i| i + 1}
+# my0 = NArray.build([3,2,2]) {|coord, i| -i - 1}
+
+# my[..,..,1] = my0[..,..,1]
