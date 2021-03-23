@@ -2,6 +2,7 @@ module Lattice
   module MultiIndexable(T)
     abstract class RegionIterator(A, T)
       include Iterator(Tuple(T, Array(Int32)))
+      
       @coord : Array(Int32)
 
       @first : Array(Int32)
@@ -63,7 +64,7 @@ module Lattice
 
       def next
         (@coord.size - 1).downto(0) do |i| # ## least sig .. most sig
-          if @step[i] > 0 ? (@coord[i] > @last[i] - @step[i]) : (@coord[i] < @last[i] - @step[i])
+          if @coord[i] == @last[i]
             @coord[i] = @first[i]
             return stop if i == 0 # most sig
           else
@@ -82,7 +83,7 @@ module Lattice
 
       def next
         @coord.each_index do |i| # ## least sig .. most sig
-          if @step[i] > 0 ? (@coord[i] > @last[i] - @step[i]) : (@coord[i] < @last[i] - @step[i])
+          if @coord[i] == @last[i]
             @coord[i] = @first[i]
             return stop if i == @coord.size - 1 # most sig
           else

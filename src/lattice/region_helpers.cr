@@ -34,15 +34,15 @@ module Lattice
       if !has_index?(index, shape, axis)
         raise IndexError.new("Could not canonicalize index: #{index} is not a valid index in axis #{axis} of shape #{shape}.")
       end
-      canonicalize_index_unsafe(index, shape, axis)
+      canonicalize_index_unsafe(index, shape[axis])
     end
 
     # Performs a conversion as in `#canonicalize_index`, but does not guarantee the result is actually a canonical index.
     # This may be useful if additional manipulations must be performed on the result before use, but it is strongly advised
     # that the index be validated before or after this method is called.
-    protected def canonicalize_index_unsafe(index, shape, axis)
+    protected def canonicalize_index_unsafe(index, limit : Int32)
       if index < 0
-        return shape[axis] + index
+        return limit + index
       else
         return index
       end
@@ -53,39 +53,6 @@ module Lattice
     # corresponding axis of `shape`.
     def canonicalize_coord(coord, shape) : Array(Int32)
       coord.to_a.map_with_index { |index, axis| canonicalize_index(index, shape, axis).to_i32 }
-    end
-
-    # Given a range in some dimension (typically the domain to slice in), returns a canonical
-    # form where both indexes are positive and the range is strictly inclusive of its bounds.
-    # This method also returns a direction parameter, which is 1 iff `begin` < `end` and
-    # -1 iff `end` < `begin`
-    def canonicalize_range(range, shape, axis) : Tuple(Range(Int32, Int32), Int32)
-      positive_begin = canonicalize_index(range.begin || 0, shape, axis)
-      # definitely not negative, but we're not accounting for exclusivity yet
-      positive_end = canonicalize_index_unsafe(range.end || (shape[axis] - 1), shape, axis)
-
-      # The case (positive_end - positive_begin) == 0 will raise an exception below, if the range excludes its end.
-      # Otherwise, we may treat it as an "ascending" array of a single element.
-      direction = positive_end - positive_begin >= 0 ? 1 : -1
-
-      if range.excludes_end? && range.end
-        if positive_begin == positive_end
-          raise IndexError.new("Could not canonicalize range: #{range} does not span any integers.")
-        end
-        # Convert range to inclusive, by adding or subtracting one to the end depending
-        # on whether it is ascending or descending
-        positive_end -= direction
-      end
-
-      # Since the validity of the end value has not been verified yet, do so here:
-      # (Note: a `#has_index?` check will not suffice here, since it may return true for negative indices.
-      if positive_end < 0 || positive_end >= shape[axis]
-        raise IndexError.new("Could not canonicalize range: #{range} is not a sensible index range in axis #{axis}.")
-      end
-
-      # TODO: This function is supposed to support both Range and StepIterator - in the latter case, direction != step_size
-      # Need to measure step size and properly return it
-      {Range.new(positive_begin, positive_end), direction}
     end
 
     # TODO: specify parameters, implement step sizes other than 1
@@ -102,17 +69,7 @@ module Lattice
     def canonicalize_region(region, shape) : Array(SteppedRange)
       canonical_region = region.to_a + [..] * (shape.size - region.size)
       canonical_region = canonical_region.map_with_index do |rule, axis|
-        case rule
-        when Range, SteppedRange
-          # Ranges are the only implementation we support
-          range, step = canonicalize_range(rule, shape, axis)
-          next SteppedRange.new(range, step)
-        else
-          # This branch is supposed to capture numeric objects. We avoid specifying type
-          # explicitly so we can have the most interoperability.
-          index = canonicalize_index(rule, shape, axis)
-          next SteppedRange.new((index..index), 1)
-        end
+        next canonicalize_range(rule, shape, axis)
       end
     end
 
@@ -127,10 +84,6 @@ module Lattice
     # TODO: account for step sizes
     def measure_canonical_region(region) : Array(Int32)
       shape = [] of Int32
-      # TODO discuss: this check should not be necessary since we are assuming the region is canonical?
-      # if region.size != @shape.size
-      #   raise DimensionError.new("Could not measure canonical range - A region with #{region.size} dimensions cannot be canonical over a #{@shape.size} dimensional {{@type}}.")
-      # end
 
       # Measure the effect of applied restrictions (if a rule is a number, a dimension
       # gets dropped. If a rule is a range, a dimension gets resized)
@@ -144,21 +97,91 @@ module Lattice
       return shape
     end
 
+
+
+    def canonicalize_range(range : SteppedRange, shape, axis)
+      canonicalize_range(range.begin, range.end, false, shape, axis)
+    end
+
+    def canonicalize_range(range : Range, shape, axis)
+      first = range.begin
+      case first
+      when Range
+        # For an input of the form `a..b..c`, representing a range `a..c` with step `b`
+        return canonicalize_range(first.begin, range.end, range.excludes_end?, shape, axis, first.end)
+      else
+        return canonicalize_range(first, range.end, range.excludes_end?, shape, axis)
+      end
+    end
+
+    # This method is supposed to capture numeric objects. We avoid specifying type
+    # explicitly so we can have the most interoperability.
+    def canonicalize_range(index : Int32, shape, axis)
+      SteppedRange.new(canonicalize_index(index, shape, axis))
+    end
+    
+    # Given a range in some dimension (typically the domain to slice in), returns a canonical
+    # form where both indexes are positive and the range is strictly inclusive of its bounds.
+    # This method also returns a direction parameter, which is 1 iff `begin` < `end` and
+    # -1 iff `end` < `begin`
+    protected def canonicalize_range(start, finish, exclusive, shape, axis, step = nil) : SteppedRange
+      limit = shape[axis]
+      start = start ? canonicalize_index(start, shape, axis) : 0
+
+      if finish
+        temp_finish = canonicalize_index_unsafe(finish, limit)
+        direction = temp_finish - start >= 0 ? 1 : -1
+
+        # If the original range excludes the end, modify the end to be inclusive, based on iteration direction
+        if exclusive
+          if temp_finish == start
+            raise IndexError.new("Could not canonicalize range: #{Range.new(start, finish, exclusive)} does not span any integers.")
+          end
+          temp_finish -= direction
+          if temp_finish < 0 || temp_finish >= limit
+            raise IndexError.new("Could not canonicalize range: #{Range.new(start, finish, exclusive)} is not a sensible index range in axis #{axis} of shape #{shape}.")
+          end
+        end
+      else
+        # Implict end
+        temp_finish = limit - 1
+        direction = 1
+      end
+
+      if step
+        if step.sign != direction
+          raise IndexError.new("Could not canonicalize range: Conflict between implicit direction of #{Range.new(start, finish, exclusive)} and provided step #{step}")
+        end
+        # Account for ranges that do not evenly divide the step (e.g: 1..4 with step 2 will become 1..3 with step 2)
+        temp_finish -= (temp_finish - start) % step
+      else
+        step = direction
+      end
+      SteppedRange.new(start, temp_finish, step)
+    end
+
     # Stores similar information to a StepIterator, which (as of Crystal 0.36) have issues of uncertain types and may change behaviour in the future.
     # To avoid compatibility issues we define our own struct here.
     struct SteppedRange
-      getter size : Int32
-      getter range : Range(Int32, Int32)
-      getter step : Int32
 
-      def initialize(@range : Range(Int32, Int32), @step : Int32)
-        @size = ((@range.end - @range.begin) // @step).abs.to_i32 + 1
+      getter size : Int32
+      getter step : Int32
+      getter begin : Int32
+      getter end : Int32
+
+      def initialize(@begin, @end, @step)
+        @size = ((@end - @begin) // @step).abs.to_i32 + 1
+      end
+
+      def self.new(range : Range(Int32, Int32), step : Int32)
+        self.new(range.begin, range.end, step)
       end
 
       def initialize(index)
         @size = 1
         @step = 1
-        @range = index..index
+        @begin = index  
+        @end = index
       end
 
       # Given __subspace__, a canonical `Range`, and a  __step_size__, invokes the block with an index
@@ -167,14 +190,14 @@ module Lattice
       # TODO: Better docs
       # TODO find out why these 2 implementations are so drastically different in performance! Maybe because the functionality has been recently modified? (Crystal 0.36)
       def each(&block)
-        idx = @range.begin
+        idx = @begin
         if @step > 0
-          while idx <= @range.end
+          while idx <= @end
             yield idx
             idx += @step
           end
         else
-          while idx >= @range.end
+          while idx >= @end
             yield idx
             idx += @step
           end
@@ -186,24 +209,15 @@ module Lattice
 
       def inspect(io)
         if @size == 1
-          io << @range.begin.to_s
+          io << @begin.to_s
+        else if @step == 1
+          io << "#{@begin..@end}"
         else
-          io << "(#{@range}).step(#{@step})"
+          io << "#{@begin}..#{@step}..#{@end}"
         end
       end
 
-
-      def begin
-        @range.begin
-      end
-
-      def end
-        @range.end
-      end
-
-      def excludes_end?
-        false
-      end
+    end
     end
   end
 end

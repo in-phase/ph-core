@@ -620,7 +620,7 @@ module Lattice
 
       def next
         (@coord.size - 1).downto(0) do |i| # ## least sig .. most sig
-          if @step[i] > 0 ? (@coord[i] > @last[i] - @step[i]) : (@coord[i] < @last[i] - @step[i])
+          if @coord[i] == @last[i]
             @buffer_index -= (@coord[i] - @first[i]) * @buffer_step[i]
             @coord[i] = @first[i]
             return stop if i == 0 # most sig
@@ -648,7 +648,7 @@ module Lattice
 
       def next
         @coord.each_index do |i| # ## least sig .. most sig
-          if @step[i] > 0 ? (@coord[i] > @last[i] - @step[i]) : (@coord[i] < @last[i] - @step[i])
+          if @coord[i] == @last[i]
             @buffer_index -= (@coord[i] - @first[i]) * @buffer_step[i]
             @coord[i] = @first[i]
             return stop if i == @coord.size - 1 # most sig
@@ -662,9 +662,5 @@ module Lattice
       end
 
     end
-
-
-
-
   end
 end
