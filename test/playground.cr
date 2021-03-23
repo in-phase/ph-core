@@ -62,11 +62,11 @@ arr2 = [[4,5,6]]
 my = NArray.build([2,2,2]) {|coord, i| i + 1}
 my0 = NArray.build([3,2,2]) {|coord, i| -i - 1}
 
-puts NArray.concatenate(my, my0, axis: 0), "\n"
-my0 = my0.reshape([2,3,2])
-puts NArray.concatenate(my, my0, axis: 1), "\n"
-my0 = my0.reshape([2,2,3])
-puts NArray.concatenate(my, my0, axis: 2), "\n"
+# puts NArray.concatenate(my, my0, axis: 0), "\n"
+# my0 = my0.reshape([2,3,2])
+# puts NArray.concatenate(my, my0, axis: 1), "\n"
+# my0 = my0.reshape([2,2,3])
+# puts NArray.concatenate(my, my0, axis: 2), "\n"
 
 
-
+my[..,..,1] = my0[..,..,1]

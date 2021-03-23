@@ -19,8 +19,8 @@ module Lattice
     # More explicitly, axis *k* contains *@shape[k]* elements.
     @shape : Array(Int32)
 
-    # Cached version of `.buffer_step_sizes`.
-    protected getter buffer_step_sizes : Array(Int32)
+    # Cached version of `.axis_strides`.
+    protected getter axis_strides : Array(Int32)
 
     # Creates an `{{@type}}` using only a shape (see `shape`) and a packed index.
     # This is used internally to make code faster - converting from a packed
@@ -39,7 +39,7 @@ module Lattice
         dim
       end
 
-      @buffer_step_sizes = NArray.buffer_step_sizes(@shape)
+      @axis_strides = NArray.axis_strides(@shape)
 
       num_elements = shape.product.to_i32
       @buffer = Slice(T).new(num_elements) { |i| yield i }
@@ -55,7 +55,7 @@ module Lattice
       end
 
       @shape = shape.dup
-      @buffer_step_sizes = NArray.buffer_step_sizes(@shape)
+      @axis_strides = NArray.axis_strides(@shape)
     end
 
     # Constructs an `{{@type}}` using a user-provided *shape* (see `shape`) and a callback.
@@ -220,7 +220,7 @@ module Lattice
         mapping << buffer_idx
       end
       shape = RegionHelpers.measure_region(region, @shape)
-      step = @buffer_step_sizes[axis]
+      step = @axis_strides[axis]
 
       slices = (0...@shape[axis]).map do |slice_number|
         offset = step * slice_number
@@ -253,22 +253,22 @@ module Lattice
     # Convert from n-dimensional indexing to a buffer location.
     def coord_to_index(coord) : Int32
       coord = RegionHelpers.canonicalize_coord(coord, @shape)
-      {{@type}}.coord_to_index_fast(coord, @shape, @buffer_step_sizes)
+      {{@type}}.coord_to_index_fast(coord, @shape, @axis_strides)
     end
 
     # TODO: Talk about what this should be named
     def self.coord_to_index(coord, shape) : Int32
       coord = RegionHelpers.canonicalize_coord(coord, shape)
-      steps = buffer_step_sizes(shape)
+      steps = axis_strides(shape)
       {{@type}}.coord_to_index_fast(coord, shape, steps)
     end
 
     # Assumes coord is canonical
-    protected def self.coord_to_index_fast(coord, shape, buffer_step_sizes) : Int32
+    protected def self.coord_to_index_fast(coord, shape, axis_strides) : Int32
       begin
         index = 0
         coord.each_with_index do |elem, idx|
-          index += elem * buffer_step_sizes[idx]
+          index += elem * axis_strides[idx]
         end
         index
       rescue exception
@@ -281,7 +281,7 @@ module Lattice
       {{@type}}.index_to_coord(index, @shape)
     end
 
-    # OPTIMIZE: This could (maybe) be improved with use of `buffer_step_sizes`
+    # OPTIMIZE: This could (maybe) be improved with use of `axis_strides`
     def self.index_to_coord(index, shape) : Array(Int32)
       if index > shape.product
         raise IndexError.new("Cannot convert index to coordinate: the given index is out of bounds for this {{@type}} along at least one dimension.")
@@ -446,7 +446,7 @@ module Lattice
       end
 
       # Otherwise, recurse
-      buffer_step_size = @buffer_step_sizes[axis]
+      buffer_step_size = @axis_strides[axis]
       initial_read_index = read_index
 
       current_range.each do |idx|
@@ -460,8 +460,8 @@ module Lattice
 
     # Given an array of step sizes in each coordinate axis, returns the offset in the buffer
     # that a step of that size represents.
-    # The buffer index of a multidimensional coordinate, x, is equal to x dotted with buffer_step_sizes
-    def self.buffer_step_sizes(shape)
+    # The buffer index of a multidimensional coordinate, x, is equal to x dotted with axis_strides
+    def self.axis_strides(shape)
       ret = shape.clone
       ret[-1] = 1
 
@@ -556,7 +556,7 @@ module Lattice
       concat_shape = @shape.dup
       concat_shape[axis] = narrs.sum { |narr| narr.shape[axis]}
 
-      partial_chunk_size = @buffer_step_sizes[axis]
+      partial_chunk_size = @axis_strides[axis]
       chunk_sizes = narrs.map {|narr| narr.shape[axis] * partial_chunk_size }
       num_chunks = concat_shape[...axis].product
 
@@ -636,7 +636,7 @@ module Lattice
 
       def initialize(@narr : A, region = nil, reverse = false)
         super
-        @buffer_step = @narr.buffer_step_sizes
+        @buffer_step = @narr.axis_strides
         @buffer_index = @buffer_step.map_with_index {|e, i| e * @first[i]}.sum
         @buffer_index = setup_buffer_index(@buffer_index, @buffer_step, @step)
       end
