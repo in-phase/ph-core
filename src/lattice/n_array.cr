@@ -486,20 +486,22 @@ module Lattice
 
     # Checks that the shape of this and other match in every dimension
     # (except `axis`, if it is specified)
-    def compatible?(other : MultiIndexable, axis = -1) : Bool
+    def compatible?(*others : MultiIndexable, axis = -1) : Bool
       shape.each_with_index do |dim, idx|
-        return false if dim != other.shape[idx] && idx != axis
+        others.each do |narr|
+          return false if dim != narr.shape[idx] && idx != axis
+        end
       end
       return true
     end
 
-
-    def concatenate(other, axis = 0)
-       
+    # Checks that the shape of this and other match in every dimension
+    # (except `axis`, if it is specified)
+    def self.compatible?(*narrs : MultiIndexable, axis = -1) : Bool
+      first = narrs.to_a.pop
+      first.compatible?(narrs, axis: axis)
     end
-
-    def concatenate!(other, axis = 0)
-    end
+    
 
     def <<(other : self) : self
       push(other)
@@ -507,7 +509,7 @@ module Lattice
 
     # optimization for pushing other NArrays on axis 0, in-place
     def push(*others : self) : self
-      raise DimensionError.new() if others.any?(!compatible?(self, 0))
+      raise DimensionError.new("Cannot concatenate these arrays along axis #{axis}: shapes do not match") if !compatible?(*others, axis: axis)
 
       concat_size = size + others.sum {|narr| narr.size}
       
@@ -530,15 +532,45 @@ module Lattice
       self
     end
 
-    def self.concatenate(*narrs : MultiIndexable(T), axis = 0) 
+
+    def concatenate(*others, axis = 0) : self
+      self.new *(narrs[0].concatenate_to_slice(*narrs, axis: axis))
     end
 
-    # Cycle between the iterators of each narr?
-    protected def self.concatenate_to_slice(*narrs, axis)
+    def concatenate!(*others, axis = 0) : self
+      @shape, @buffer = concatenate_to_slice(self, *others, axis: axis)
+      self
+    end
 
-      concat_size = size + others.sum {|narr| narr.size}
+    def self.concatenate(*narrs : MultiIndexable(T), axis = 0) : NArray(T)
+      self.new *(narrs[0].concatenate_to_slice(*narrs, axis: axis))
+    end
 
-      slice_size = @buffer_step_sizes[axis]
+    # Cycle between the iterators of each narr maybe?
+    # OPTIMIZE: this is really dumb right now; double-iterates
+    # NOTE: narrs should include self.
+    protected def concatenate_to_slice(*narrs, axis = 0) : Tuple(Array(Int32), Slice(T))
+      raise DimensionError.new("Cannot concatenate these arrays along axis #{axis}: shapes do not match") if !self.compatible?(*narrs, axis: axis)
+
+      concat_size = narrs.sum {|narr| narr.size}
+      concat_shape = @shape.dup
+      concat_shape[axis] = narrs.sum { |narr| narr.shape[axis]}
+
+      partial_chunk_size = @buffer_step_sizes[axis]
+      chunk_sizes = narrs.map {|narr| narr.shape[axis] * partial_chunk_size }
+      num_chunks = concat_shape[...axis].product
+
+      values = Array(T).new(initial_capacity: concat_size)
+      iters = narrs.map {|narr| narr.each }
+
+      num_chunks.times do
+        iters.each_with_index do |narr_iter, i|
+          chunk_sizes[i].times do
+            values << narr_iter.next.as(Tuple(T, Array(Int32)))[0]
+          end
+        end
+      end
+      {concat_shape, Slice.new(values.to_unsafe, values.size)}
     end
 
     # TODO: Update documentation. I (seth) rewrote this function to make it validate the shape fully.
@@ -647,7 +679,7 @@ module Lattice
       end
 
       def next
-        @coord.each_index do |i| # ## least sig .. most sig
+        0.upto(@coord.size - 1) do |i| # ## least sig .. most sig
           if @coord[i] == @last[i]
             @buffer_index -= (@coord[i] - @first[i]) * @buffer_step[i]
             @coord[i] = @first[i]

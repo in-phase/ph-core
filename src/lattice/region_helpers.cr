@@ -116,7 +116,7 @@ module Lattice
 
     # This method is supposed to capture numeric objects. We avoid specifying type
     # explicitly so we can have the most interoperability.
-    def canonicalize_range(index : Int32, shape, axis)
+    def canonicalize_range(index, shape, axis)
       SteppedRange.new(canonicalize_index(index, shape, axis))
     end
     
