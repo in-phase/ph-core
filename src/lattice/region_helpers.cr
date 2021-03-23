@@ -162,7 +162,7 @@ module Lattice
 
     def full_region(shape) : Array(SteppedRange)
       shape.map do |dim|
-        SteppedRange.new(0,dim,1)
+        SteppedRange.new(0,dim - 1,1)
       end
     end
 

@@ -1,12 +1,15 @@
 require "./region_helpers.cr"
 require "../iterators/region_iterators.cr"
 require "./order.cr"
+require "./multi_indexable_formatter.cr"
 
 module Lattice
   module MultiIndexable(T)
 
     # add search, traversal methods
     include MultiEnumerable(T)
+
+    include MultiIndexableFormatter(T)
 
     # For performance gains, we recommend the user to consider overriding the following methods when including MultiIndexable(T):
     # - #each_fastest
@@ -70,12 +73,12 @@ module Lattice
 
     # FIXME: NArrayFormatter depends on buffer indices.
     def to_s : String
-      NArrayFormatter.format(self)
+      MultiIndexableFormatter.format(self)
     end
 
     # FIXME: NArrayFormatter depends on buffer indices.
     def to_s(io : IO) : Nil
-      NArrayFormatter.print(self, io)
+      MultiIndexableFormatter.print(self, io)
     end
 
     # Checks that `coord` is in-bounds for this `{{type}}`.
