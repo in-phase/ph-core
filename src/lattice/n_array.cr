@@ -49,7 +49,7 @@ module Lattice
     # Frequently used internally (for example, this is used in
     # `reshape` as of Feb 5th 2021).
     # TODO: Should be protected, had to remove for testing
-    protected def initialize(shape, @buffer : Slice(T))
+    def initialize(shape, @buffer : Slice(T))
       if shape.product != @buffer.size
         raise ArgumentError.new("Cannot create {{@type}}: Given shape does not match number of elements in buffer.")
       end
@@ -342,7 +342,7 @@ module Lattice
       narray_each_in_canonical_region(region) do |elem, other_idx, this_idx|
         # @buffer[this_idx] = src.buffer[other_idx]
         # TODO: see if this is the best way! (Want it to be generalizable to MultiIndexable...)
-        @buffer[this_idx] = src.unsafe_fetch_element(index_to_coord(other_idx))
+        @buffer[this_idx] = src.unsafe_fetch_element(src.index_to_coord(other_idx))
       end
     end
 
