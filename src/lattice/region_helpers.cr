@@ -100,7 +100,7 @@ module Lattice
 
 
     def canonicalize_range(range : SteppedRange, shape, axis)
-      canonicalize_range(range.begin, range.end, false, shape, axis)
+      canonicalize_range(range.begin, range.end, false, shape, axis, range.step)
     end
 
     def canonicalize_range(range : Range, shape, axis)

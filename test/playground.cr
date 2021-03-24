@@ -56,16 +56,21 @@ arr2 = [[4,5,6]]
 large = NArray.build([5,5,10]) {|coord, i| coord}
 
 
-v =  View.of(large)
+pv = ProcessedView.of(large) {|x| x.to_s }
 
-puts v.region
+pvv = pv.process {|x| x + "%"}
+
+pvvv = pvv.view(1..2, 1..2, 1..2..9)
+
+puts pvvv, typeof(pvvv), pvvv.region
+
+v =  View.of(large)
 
 puts v.get(3,4,7)
 
-vv = v.view(2..4,1..3,1..2..9)
+vv = v.process {|x| x.to_s}
 
-puts vv.region
-puts vv
+# puts vv
 
 # puts vv.region
 
@@ -88,3 +93,5 @@ puts vv
 # my0 = NArray.build([2,2,2]) {|coord, i| -i - 1}
 
 # my[..,..,1] = my[..,..,1]
+
+
