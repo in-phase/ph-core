@@ -239,7 +239,7 @@ module Lattice
       def inspect(io)
         if @size == 1
           io << @begin.to_s
-        else if @step == 1
+        else if @step.abs == 1
           io << "#{@begin..@end}"
         else
           io << "#{@begin}..#{@step}..#{@end}"

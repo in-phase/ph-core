@@ -3,6 +3,7 @@ module Lattice
     extend self
 
     protected def print_internal(narr, io, start_dim, iter, shape)
+
       io << "["
 
       # If we are above a vector still, recurse.

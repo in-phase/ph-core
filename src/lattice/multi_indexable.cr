@@ -4,6 +4,11 @@ require "./order.cr"
 require "./multi_indexable_formatter.cr"
 
 module Lattice
+
+
+  # Assumptions:
+  # - length along every axis is finite and positive, and each element is positively indexed
+  # - size is stored as an Int32, i.e. there are no more than Int32::MAX elements.
   module MultiIndexable(T)
 
     # add search, traversal methods
@@ -154,7 +159,11 @@ module Lattice
       each_in_canonical_region_fastest(nil)
     end
 
-    def each_in_canonical_region(region, order : Order = Order::LEX)
+    def each( iter_type : RegionIterator.class, **args)
+      iter_type.new(self, **args)
+    end
+
+    protected def each_in_canonical_region(region, order : Order = Order::LEX)
       case order
       when Order::LEX
         LexRegionIterator(self, T).new(self, region: region)
@@ -175,16 +184,6 @@ module Lattice
       each_in_canonical_region(region, Order::LEX)
     end
 
-    def each_in_region(region, order : Order = Order::LEX)
-      region = RegionHelpers.canonicalize_region(region, shape)
-      each_in_canonical_region(region, order)
-    end
-
-    def each_in_region_fastest(region)
-      region = RegionHelpers.canonicalize_region(region, shape)
-      each_in_canonical_region_fastest(region, order)
-    end
-
 
     # # TODO: Each methods should exist that allow:
     # # - Some way to handle slice iteration? (how do we pass in the axis? etc)
@@ -192,9 +191,11 @@ module Lattice
     # def slices(axis = 0) : Array(self)
 
     def to_narr : NArray(T)
+      # TODO
     end
 
     def to_nested_a : Array
+      # TODO
     end
 
 

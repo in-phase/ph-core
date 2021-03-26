@@ -2,6 +2,10 @@ require "../lattice"
 
 module Lattice
 
+    # Views, like any MultiIndexable, may be iterated over in an arbitrarily defined order; however, 
+    # they can only be stored internally as one of the 4 primary orders (Lex, Colex, RevLex, RevColex)
+    # as (barring contrived edge cases) these seem to be the only orderings that make sense for 
+    # a MultiIndexable structure.
 
     module ViewObject(T,R)
         include MultiIndexable(R)
@@ -15,7 +19,9 @@ module Lattice
         
         abstract def view(region, order : Order)
         abstract def process(&block : R -> U) forall U
-
+        abstract def clone
+        
+        # For use externally
         def shape : Array(Int32)
             @shape.dup
         end
@@ -24,11 +30,23 @@ module Lattice
             view(region, order: Order::LEX)
         end
 
-        def to_narr(type : MultiIndexable.class = NArray)
-            begin
-            rescue exception
-                raise NotImplementedError.new()
-            end
+        def transpose!
+            @is_colex = !@is_colex
+            @shape = @shape.reverse
+            self
+        end
+
+        def reverse!
+            @region.map! &.reverse
+            self
+        end
+
+        def reverse
+            clone.reverse!
+        end
+
+        def transpose
+            clone.transpose!
         end
 
         protected def self.parse_region(region, src, reverse : Bool) : Array(RegionHelpers::SteppedRange)
@@ -37,18 +55,20 @@ module Lattice
             new_region
         end
 
-        protected def parse_region(region, reverse : Bool) : Array(RegionHelpers::SteppedRange)
-            new_region = local_region_to_srcframe(RegionHelpers.canonicalize_region(region, @shape))
+        protected def parse_and_convert_region(region, reverse : Bool) : Array(RegionHelpers::SteppedRange)
+            new_region = local_region_to_srcframe(RegionHelpers.canonicalize_region(region, shape))
             new_region.map! &.reverse if reverse
             new_region
         end
 
         protected def local_coord_to_srcframe(coord) : Array(Int32)
-            @region.map_with_index { |range, dim| range.local_to_absolute(coord[dim]) }
+            coord = coord.reverse if @is_colex
+            new_coord = @region.map_with_index { |range, dim| range.local_to_absolute(coord[dim]) }
         end
 
         protected def local_region_to_srcframe(region) : Array(RegionHelpers::SteppedRange)
-            @region.map_with_index { |range, dim| range.compose(region[dim])}
+            region = region.reverse if @is_colex
+            new_region = @region.map_with_index { |range, dim| range.compose(region[dim])}
         end
 
     end
@@ -70,11 +90,23 @@ module Lattice
 
         protected def initialize(@src : MultiIndexable(T), @region, @is_colex : Bool)
             @shape = RegionHelpers.measure_canonical_region(@region)
+            @shape = @shape.reverse if @is_colex
             @size = @shape.product
+        end
+
+        def clone
+            View(T).new(@src, @region.dup, @is_colex)
         end
 
         def process(&block : T -> R) : ProcessedView(T,R) forall R
             ProcessedView.new(@src, @region, @is_colex, block)
+        end
+
+        # Calls `each_in_region` on `@src`, as a faster alternative to the default of
+        # calling `each` on `self` which must convert every index
+        def each
+            order = @is_colex ? Order::COLEX : Order::LEX
+            @src.each_in_canonical_region(@region, order: order)
         end
 
         def unsafe_fetch_element(coord) : T
@@ -90,18 +122,16 @@ module Lattice
         end
 
         def unsafe_set_region(region : Enumerable, src : MultiIndexable(T))
-            # TODO: implement
-            raise NotImplementedError.new()
+            @src.unsafe_set_region(local_region_to_srcframe(region), src)
         end
 
         def unsafe_set_region(region : Enumerable, value : T)
-            # TODO: implement
-            raise NotImplementedError.new()
+            @src.unsafe_set_region(local_region_to_srcframe(region), value)
         end
 
         def view(region, order : Order = Order::LEX) : View(T)
-            new_region = parse_region(region, Order.reverse?(order))
-            View(T).new(@src, new_region, @is_colex ^ Order.colex?(order), @proc)
+            new_region = parse_and_convert_region(region, Order.reverse?(order))
+            View(T).new(@src, new_region, @is_colex ^ Order.colex?(order))
         end
     end
 
@@ -133,7 +163,21 @@ module Lattice
 
         protected def initialize(@src : MultiIndexable(T), @region, @is_colex, @proc : Proc(T,R))
             @shape = RegionHelpers.measure_canonical_region(@region)
+            @shape = @shape.reverse if @is_colex
             @size = @shape.product
+        end
+
+        # Calls `each_in_region` on `@src` is not an option here, since then the conversions do not happen;
+        # we can, however, override the block-accepting version to be faster.
+        def each(&block)
+            order = @is_colex ? Order::COLEX : Order::LEX
+            @src.each_in_canonical_region(@region, order: order) do |elem, coord|
+                yield @proc.call(elem)
+            end
+        end
+
+        def clone
+            ProcessedView(T,R).new(@src, @region.dup, @is_colex, @proc.dup)
         end
 
         # TODO: document
@@ -152,12 +196,12 @@ module Lattice
         end
 
         def view(region, order : Order = Order::LEX) : ProcessedView(T,R)
-            new_region = parse_region(region, Order.reverse?(order))
+            new_region = parse_and_convert_region(region, Order.reverse?(order))
             ProcessedView(T,R).new(@src, new_region, @is_colex ^ Order.colex?(order), @proc)
         end
 
         def view(region, order : Order = Order::LEX , &block : (R -> U)) : ProcessedView(T, U) forall U
-            new_region = parse_region(region, Order.reverse?(order))
+            new_region = parse_and_convert_region(region, Order.reverse?(order))
             composition = Proc(T,U).new {|x| block.call(@proc.clone.call(x))}
             ProcessedView(T, U).new(@src, new_region, @is_colex ^ Order.colex?(order), composition)
         end

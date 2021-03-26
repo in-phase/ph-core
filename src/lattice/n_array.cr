@@ -264,7 +264,7 @@ module Lattice
     end
 
     # Assumes coord is canonical
-    protected def self.coord_to_index_fast(coord, shape, axis_strides) : Int32
+    def self.coord_to_index_fast(coord, shape, axis_strides) : Int32
       begin
         index = 0
         coord.each_with_index do |elem, idx|
@@ -311,7 +311,9 @@ module Lattice
     # Retrieves the element specified by `coord`, assuming that `coord` is in canonical form and in-bounds for this `{{type}}`.
     # For full specification of canonical form see `RegionHelpers` documentation. TODO: make this actually happen
     def unsafe_fetch_element(coord) : T
-      @buffer.unsafe_fetch(coord_to_index(coord))
+      # puts coord
+      # puts NArray.coord_to_index_fast(coord, @shape, @axis_strides)
+      @buffer.unsafe_fetch(NArray.coord_to_index_fast(coord, @shape, @axis_strides))
     end
 
     # Takes a single index into the {{@type}}, returning a slice of the largest dimension possible.

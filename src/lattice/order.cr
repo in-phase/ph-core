@@ -1,4 +1,23 @@
 module Lattice
+
+  # struct MyOrder
+
+  #   getter iter_type : MultiIndexable::RegionIterator.class
+
+  #   # Converts a coord in this order to a coord in Lex.
+  #   @converter = Proc(Array(Int32), Array(Int32))
+
+  #   def initialize()
+  #   end
+
+  #   def compose(other : MyOrder)
+  #   end
+
+  #   def convert(other : MyOrder)
+  #   end
+  # end
+  
+  
   # According to the link below, these shorthands are used in lieu of
   # lexicographic, colexicographic, and their reverse forms.
   # https://en.wikiversity.org/wiki/Lexicographic_and_colexicographic_order

@@ -53,45 +53,52 @@ arr2 = [[4,5,6]]
 # puts NArray.concatenate(my, my0, axis: 2), "\n"
 
 
-large = NArray.build([5,5,10]) {|coord, i| coord}
+# large = NArray.build([5,5,10]) {|coord, i| coord}
 
 
-pv = ProcessedView.of(large) {|x| x.to_s }
-
-pvv = pv.process {|x| x + "%"}
-
-pvvv = pvv.view(1..2, 1..2, 1..2..9)
-
-puts pvvv, typeof(pvvv), pvvv.region
-
-v =  View.of(large)
-
-puts v.get(3,4,7)
-
-vv = v.process {|x| x.to_s}
-
-# puts vv
-
-# puts vv.region
+# pv = ProcessedView.of(large) {|x| x.to_s }
+# pvv = pv.process {|x| x + "%"}
+# pvvv = pvv.view(1..2, 1..2, 1..2..9)
+# puts pvvv, typeof(pvvv), pvvv.region
+# v = View.of(large)
+# puts v.get(3,4,7)
+# puts pvvv.get(0,1,2)
+# puts pvvv.transpose
+# vv = v.process {|x| x.to_s}
 
 
-# procA = Proc(Int32, Float64).new {|x| x.to_f64}
-# procB = Proc(Float64, String).new {|x| x.to_s}
+small = NArray.build([2,3,4]) {|coord, i| coord}
 
-# tempA = procA.clone
-# tempB = procB.clone
-# composition = Proc(Int32, String).new {|x| tempB.call(tempA.call(x))}
+view = View.of(small)
+view2 = view.view(.., 0..1, 1..3)
 
-# puts composition.call(1)
+puts view2
+puts view2.get(0,1,1), "\n\n"
 
-# procB = Proc(Float64, String).new {"Broken!"}
+view2.transpose!
 
-# puts composition.call(1)
+view2[1,1,0] = [123456789]
+puts view2, "\n"
+puts small, "\n"
+view2[2,1] = [567]
+puts view2, "\n"
+puts small, "\n"
+
+sub = NArray.fill([2,2], [10101])
+view2[0] = sub
+puts view2, "\n"
+puts small, "\n"
+
+puts view2.region, view2.get(0,0,0), view2.get(-1,-1,-1)
+view2.reverse!
+puts view2.region, view2.get(0,0,0), view2.get(-1,-1,-1)
 
 
-# my = NArray.build([2,2,2]) {|coord, i| i + 1}
-# my0 = NArray.build([2,2,2]) {|coord, i| -i - 1}
+puts view2
+pv = view2.process {|e| -e[0]}
+puts pv
+puts pv.get(0,1,0)
 
-# my[..,..,1] = my[..,..,1]
-
-
+# This gives the following error: (trying to call a setter on a ProcessedView)
+# Error: undefined method '[]=' for Lattice::ProcessedView(Array(Int32), Int32)
+# pv[0,0,0] = [5]
