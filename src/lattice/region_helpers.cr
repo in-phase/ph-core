@@ -88,13 +88,15 @@ module Lattice
       # Measure the effect of applied restrictions (if a rule is a number, a dimension
       # gets dropped. If a rule is a range, a dimension gets resized)
       region.each do |range|
-        if range.size > 1
           shape << range.size
-        end
       end
 
       return [1] if shape.empty?
       return shape
+    end
+
+
+    def compatible_shapes(shape1, shape2)
     end
 
 

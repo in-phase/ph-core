@@ -72,10 +72,14 @@ small = NArray.build([2,3,4]) {|coord, i| coord}
 view = View.of(small)
 view2 = view.view(.., 0..1, 1..3)
 
+puts small
 puts view2
 puts view2.get(0,1,1), "\n\n"
 
 view2.transpose!
+
+puts view2
+puts small
 
 view2[1,1,0] = [123456789]
 puts view2, "\n"
@@ -84,21 +88,41 @@ view2[2,1] = [567]
 puts view2, "\n"
 puts small, "\n"
 
-sub = NArray.fill([2,2], [10101])
-view2[0] = sub
-puts view2, "\n"
-puts small, "\n"
+michael = View.of(small)
+michael = michael.view(..., ..., 0..2...)
+puts michael
+puts michael.shape
+# michael = michael.view(..., ..., 0..2...) <= this may drop dimension
+# michael = michael.view(..., 1..3, ...) <= put this back and deal with it!! has out-of-bounds, but runtime and unclear. Catch sooner
+michael = michael.view(..., 1..2, ...)
+puts michael
+puts michael.shape
 
-puts view2.region, view2.get(0,0,0), view2.get(-1,-1,-1)
-view2.reverse!
-puts view2.region, view2.get(0,0,0), view2.get(-1,-1,-1)
+puts michael.get(1,1,1) # => [1, 2, 2]]
+
+# sub = NArray.fill([2,2], [10101])
+# view2[0] = sub
+# puts view2, "\n"
+# puts small, "\n"
+
+# puts view2.region, view2.get(0,0,0), view2.get(-1,-1,-1)
+# view2.reverse!
+# puts view2.region, view2.get(0,0,0), view2.get(-1,-1,-1)
 
 
-puts view2
-pv = view2.process {|e| -e[0]}
-puts pv
-puts pv.get(0,1,0)
+# puts view2
+# pv = view2.process {|e| -e[0]}
+# puts pv
+# puts pv.get(0,1,0)
 
-# This gives the following error: (trying to call a setter on a ProcessedView)
-# Error: undefined method '[]=' for Lattice::ProcessedView(Array(Int32), Int32)
-# pv[0,0,0] = [5]
+# # This gives the following error: (trying to call a setter on a ProcessedView)
+# # Error: undefined method '[]=' for Lattice::ProcessedView(Array(Int32), Int32)
+# # pv[0,0,0] = [5]
+
+# narr = NArray.new([["test", "happy"], ["party", "friend"]])
+# # result = NArray.apply(narr, center, 20, '*')
+
+# narr2 = NArray.new([[1, 3], [2, 4]])
+# #result2 = NArray.apply(narr, :[], 0, narr2)
+# NArray.apply(narr, :[], 0)
+# #puts result2

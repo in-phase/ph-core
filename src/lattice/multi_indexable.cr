@@ -37,6 +37,10 @@ module Lattice
 
     # Stuff that we can implement without knowledge of internals
 
+    protected def shape_internal : Array(Int32)
+      shape
+    end
+
     # Checks that the `{{type}}` contains no elements.
     def empty? : Bool
       size == 0
@@ -44,7 +48,7 @@ module Lattice
 
     # Checks that this `{{type}}` is one-dimensional, and contains a single element.
     def scalar? : Bool
-      shape.size == 1 && size == 1
+      shape_internal.size == 1 && size == 1
     end
 
     # Maps a single-element 1D `{{type}}` to the element it contains.
@@ -52,7 +56,7 @@ module Lattice
       if scalar?
         return first
       else
-        if shape.size != 1
+        if shape_internal.size != 1
           raise DimensionError.new("Cannot cast to scalar: {{type}} must have 1 dimension, but has #{dimensions}.")
         else
           raise DimensionError.new("Cannot cast to scalar: {{type}} must have 1 element, but has #{size}.")
@@ -62,18 +66,18 @@ module Lattice
 
     # Returns the element at position `0` along every axis.
     def first : T
-      return get_element([0] * shape.size)
+      return get_element([0] * shape_internal.size)
     end
 
     # Returns a random element from the `{{type}}`.
     def sample(random : Random::Default)
       raise IndexError.new("Can't sample empty collection") if empty?
-      unsafe_fetch_element(shape.map { |dim| random.rand(dim) })
+      unsafe_fetch_element(shape_internal.map { |dim| random.rand(dim) })
     end
 
     # Returns the number of indices required to specify an element in `{{type}}`.
     def dimensions : Int32
-      @shape.size
+      shape_internal.size
     end
 
     # FIXME: NArrayFormatter depends on buffer indices.
@@ -88,22 +92,22 @@ module Lattice
 
     # Checks that `coord` is in-bounds for this `{{type}}`.
     def has_coord?(coord : Enumerable) : Bool
-      RegionHelpers.has_coord?(coord, shape)
+      RegionHelpers.has_coord?(coord, shape_internal)
     end
 
     # Checks that `region` is in-bounds for this `{{type}}`.
     def has_region?(region : Enumerable) : Bool
-      RegionHelpers.has_region?(region, shape)
+      RegionHelpers.has_region?(region, shape_internal)
     end
 
     # Copies the elements in `region` to a new `{{type}}`, and throws an error if `region` is out-of-bounds for this `{{type}}`.
     def get_region(region : Enumerable)
-      unsafe_fetch_region RegionHelpers.canonicalize_region(region, shape)
+      unsafe_fetch_region RegionHelpers.canonicalize_region(region, shape_internal)
     end
 
     # Retrieves the element specified by `coord`, and throws an error if `coord` is out-of-bounds for this `{{type}}`.
     def get_element(coord : Enumerable) : T
-      unsafe_fetch_element RegionHelpers.canonicalize_coord(coord, shape)
+      unsafe_fetch_element RegionHelpers.canonicalize_coord(coord, shape_internal)
     end
 
     def get(coord) : T
@@ -206,7 +210,7 @@ module Lattice
     end
 
     def equals?(other : MultiIndexable, &block) : Bool
-      return false if shape != other.shape
+      return false if shape_internal != other.shape_internal
       each_with_coord do |elem, coord|
         return false unless yield(elem, other.unsafe_fetch_element(coord))
       end
@@ -216,8 +220,8 @@ module Lattice
     # TODO: rename!
     # Produces an NArray(Bool) (by default) describing which elements of self and other are equal.
     def eq_elem(other : MultiIndexable(U)) : MultiIndexable(Bool) forall U
-      if shape != other.shape
-        raise DimensionError.new("Cannot perform elementwise operation {{name.id}}: shapes #{other.shape} of other and #{shape} of self do not match") 
+      if shape_internal != other.shape_internal
+        raise DimensionError.new("Cannot perform elementwise operation {{name.id}}: shapes #{other.shape_internal} of other and #{shape_internal} of self do not match") 
       end
       map_with_coord do |elem, coord|
         elem == other.unsafe_fetch_element(coord)
@@ -231,8 +235,8 @@ module Lattice
         # Invokes `#{{name.id}}` element-wise between `self` and *other*, returning
         # an `NArray` that contains the results.
         def {{name.id}}(other : MultiIndexable(U)) forall U
-          if shape != other.shape
-            raise DimensionError.new("Cannot perform elementwise operation {{name.id}}: shapes #{other.shape} of other and #{shape} of self do not match") 
+          if shape_internal != other.shape_internal
+            raise DimensionError.new("Cannot perform elementwise operation {{name.id}}: shapes #{other.shape_internal} of other and #{shape_internal} of self do not match") 
           end
           map_with_coord do |elem, coord|
             elem.{{name.id}} other.unsafe_fetch_element(coord).as(U)

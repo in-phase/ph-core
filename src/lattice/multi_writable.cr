@@ -21,6 +21,12 @@ module Lattice
     # For full specification of canonical form see `RegionHelpers` documentation. TODO: make this actually happen
     abstract def unsafe_set_region(region : Enumerable, value : T)
 
+    
+    protected def shape_internal : Array(Int32)
+      shape
+    end
+    
+    
     # Sets the element specified by `coord` to `value`, assuming that `coord` is in canonical form and in-bounds for this `{{type}}`
     def unsafe_set_element(coord : Enumerable, value : T)
       unsafe_set_region(coord, value)
@@ -29,24 +35,39 @@ module Lattice
     # Sets the element specified by `coord` to `value`.
     # Raises an error if `coord` is out-of-bounds for this `{{type}}`.
     def set_element(coord : Enumerable, value)
-      unsafe_set_element(RegionHelpers.canonicalize_coord(coord, shape), value.as(T))
+      unsafe_set_element(RegionHelpers.canonicalize_coord(coord, shape_internal), value.as(T))
+    end
+
+    def compatible_shapes(shape1, shape2)
+      # are same besides trailing ones?
+
+      # Discuss:
+      # [1, 5, 1] and [5]
+      # [3, 2] and flat array? <= no
+      # 
+
     end
 
     # NOTE: changed name from 'value' to 'src' - approve?
     # Copies the elements from a MultiIndexable `src` into `region`.
     # Raises an error if `region` is out-of-bounds for this `{{type}}` or if the shape of `region` does not match `src.shape`
     def set_region(region : Enumerable, src : MultiIndexable)
-      canonical_region = RegionHelpers.canonicalize_region(region, shape)
-      if src.shape != RegionHelpers.measure_canonical_region(canonical_region)
+      canonical_region = RegionHelpers.canonicalize_region(region, shape_internal)
+      if src.shape_internal != RegionHelpers.measure_canonical_region(canonical_region)
         raise DimensionError.new("Cannot substitute #{typeof(src)}: the given #{typeof(src)} does not match shape of #{region}.")
       end
-      unsafe_set_region(canonical_region, src)
+      # [1, 5]    [1, 5, 1, 1]
+      # [1, 5]    [1, 5]
+
+      # region [1, 5, 1, 1]
+      # src [1, 5]
+      unsafe_set_region(canonical_region, ReshapeView.of(src, shape: RegionHelpers.measure_canonical_region(canonical_region)))
     end
 
     # Sets each element in `region` to `value`.
     # Raises an error if `region` is out-of-bounds for this `{{type}}`.
     def set_region(region : Enumerable, value)
-      unsafe_set_region(RegionHelpers.canonicalize_region(region, shape), value.as(T))
+      unsafe_set_region(RegionHelpers.canonicalize_region(region, shape_internal), value.as(T))
     end
 
     # See `#set_region(region : Enumerable, value)`
@@ -64,8 +85,9 @@ module Lattice
     # In implementation phase:
 
     def []=(bool_mask : MultiIndexable(Bool), value)
-      if bool_mask.shape != shape
-        raise DimensionError.new("Cannot perform masking: mask shape #{bool_mask.shape} does not match array shape #{shape}.")
+      # We can't use `bool_mask.shape_internal` here, because it is protected
+      if bool_mask.shape != shape_internal
+        raise DimensionError.new("Cannot perform masking: mask shape #{bool_mask.shape} does not match array shape #{shape_internal}.")
       end
 
       # TODO implement this based on how each works
