@@ -53,15 +53,15 @@ module Lattice
     # Raises an error if `region` is out-of-bounds for this `{{type}}` or if the shape of `region` does not match `src.shape`
     def set_region(region : Enumerable, src : MultiIndexable)
       canonical_region = RegionHelpers.canonicalize_region(region, shape_internal)
-      if src.shape_internal != RegionHelpers.measure_canonical_region(canonical_region)
-        raise DimensionError.new("Cannot substitute #{typeof(src)}: the given #{typeof(src)} does not match shape of #{region}.")
+      if !RegionHelpers.compatible_shapes(src.shape_internal, RegionHelpers.measure_canonical_region(canonical_region))
+        raise DimensionError.new("Cannot substitute #{typeof(src)}: the given #{typeof(src)} has shape #{src.shape_internal}, but region #{region} has shape #{RegionHelpers.measure_canonical_region(canonical_region)}.")
       end
       # [1, 5]    [1, 5, 1, 1]
       # [1, 5]    [1, 5]
 
       # region [1, 5, 1, 1]
       # src [1, 5]
-      unsafe_set_region(canonical_region, ReshapeView.of(src, shape: RegionHelpers.measure_canonical_region(canonical_region)))
+      unsafe_set_region(canonical_region, src) #ReshapeView.of(src, shape: RegionHelpers.measure_canonical_region(canonical_region)))
     end
 
     # Sets each element in `region` to `value`.

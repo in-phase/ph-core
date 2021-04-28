@@ -1,5 +1,4 @@
 require "./spec_helper"
-require "./test_objects"
 
 include Lattice
 
@@ -240,6 +239,12 @@ describe Lattice do
 
       # This should cause a different compile error :)
       # puts strarr.byte_slice("party", 16, :cool)
+
+
+    end
+    it "slices arrays" do
+      narr = NArray.build([3,3,3]) {|coord| coord}
+      puts "HI"
     end
     # it "can iterate slices" do
     #   b = NArray(Int32).new([2, 2, 2]) { |i| 20 - i }
