@@ -68,8 +68,8 @@ module Lattice
     # These two should go last
     def []=(*args : *U) forall U
       {% begin %}
-                set_region([{% for i in 0...(U.size - 1) %}args[{{i}}] {% if i < U.size - 2 %}, {% end %}{% end %}], args.last)
-            {% end %}
+          set_region([{% for i in 0...(U.size - 1) %}args[{{i}}] {% if i < U.size - 2 %}, {% end %}{% end %}], args.last)
+      {% end %}
     end
 
     # In implementation phase:
