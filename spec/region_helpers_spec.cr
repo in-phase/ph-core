@@ -44,14 +44,11 @@ describe Lattice::RegionHelpers do
             has_coord?([0, 2, -6], shape).should be_false
             has_coord?([-Int32::MAX, Int32::MAX, 0], shape).should be_false
         end
-        pending "rejects coordinates of the wrong dimensionality" do 
+        it "rejects coordinates of the wrong dimensionality" do 
             has_coord?([0,0], shape).should be_false
             has_coord?([0,0,0,0], shape).should be_false
-
-            # TODO : discuss these cases. 
-            # What if shape extends only with ones? what if coord extends only 0's?
             has_coord?([2,2], [4,3,1,1]).should be_false
-            # has_coord?([2,2,0,0], [4,3]).should   ???
+            has_coord?([2,2,0,0], [4,3]).should be_false
         end
         it "handles empty axes" do
             has_coord?([4,2,5], [10,10,0]).should be_false
@@ -112,106 +109,10 @@ describe Lattice::RegionHelpers do
             end
         end
     end
-    describe ".canonicalize_range" do
-        shape = [1, 10, 1000]
-        it "preserves a canonical SteppedRange" do 
-            data = [{1..7, 2}, {200..0, -50}, {0..0, 1}]
-            data.each do |el|
-                range = SteppedRange.new(*el)
-                canonicalize_range(range, shape, 2).should eq range
-            end
+    pending ".canonicalize_range" do
+        it "creates a SteppedRange" do 
         end
-        it "converts a non-canonical SteppedRange to canonical" do 
-            data = [{1..8, 2}, {-10..-5, 1}, {-1..1, -3}]
-            exp_data = [{1..7, 2}, {0..5, 1}, {9..3, -3}]
-            data.each_with_index do |el, i|
-                range = SteppedRange.new(*el)
-                expected = SteppedRange.new(*exp_data[i])
-                canonicalize_range(range, shape, 1).should eq expected
-            end
-        end
-        it "correctly parses endpoints of a regular Range" do
-            data = [1..7, -4..3, -1..0]
-            data.each_with_index do |range, i|
-                output = canonicalize_range(range, shape, 1)
-                output.begin.should eq canonicalize_index(range.begin, shape, 1)
-                output.end.should eq canonicalize_index(range.end, shape, 1)
-            end
-        end
-        it "infers the correct step direction for a regular Range" do 
-            data = [1..6, -6..-1, 6..1, -1..-6]
-            expected = [1,1,-1,-1]
-            data.each_with_index do |range, i|
-                canonicalize_range(range, shape, 1).step.should eq expected[i]
-            end
-        end
-        it "correctly parses input of the form start..step_size..end" do 
-            data = [{1,2,5}, {-3,-1,2}, {0, 5, -5}]
-            data.each_with_index do |el, i|
-                start, step, finish = el
-                output = canonicalize_range(start..step..finish, shape, 1)
-                output.begin.should eq canonicalize_index(start, shape, 1)
-                output.end.should eq canonicalize_index(finish, shape, 1)
-                output.step.should eq step
-            end
-        end
-        it "adjusts end of stepped ranges such that step evenly divides the range" do 
-            data = [3..3..9, 4..4..7, 3..-2..0]
-            expected = [9, 4, 1]
-            data.each_with_index do |range, i|
-                canonicalize_range(range, shape, 1).end.should eq expected[i]
-            end
-        end
-        it "adjusts for end-exclusive inputs" do 
-            data = [0...10, 9...-11, 1..3...8, 1..3...7, -5...-2]
-            expected = [9, 0, 7, 4, 7]
-            data.each_with_index do |range, i|
-                canonicalize_range(range, shape, 1).end.should eq expected[i]
-            end
-        end
-        pending "infers range start" do 
-            # currently: always sets start to 0. But what if using fancy ranges?
-            data = [.., ..5, ...-3, ..1..5, ..-1..5, ..2..7, ..-3..2]
-            # 2..3.. [2, 5, ...] ..-3..2 [.., 5, 2]
-            #                    ..-3...2 [.., something, something != 2]
-            # 2...3..
-            # 1..2..6
-            # 1..2...6
-            # ..-3..2
-            # size = 10: 9, 6, 3
-            expected = [0, 0, 0,    0,      9,       0,      9]
-            data.each_with_index do |range, i|
-                canonicalize_range(range, shape, 1).begin.should eq 0
-            end
-        end
-        pending "infers range end" do 
-            data =     [.., 5.., -3..., -1.., 5..1..., 5..-1..., 2..2..., 5..-3...]
-            expected = [9,  9,   9,     9,    9,       0,        8,       2]
-            data.each_with_index do |range, i|
-                canonicalize_range(range, shape, 1).end.should eq expected[i]
-            end
-        end
-        pending "accepts a StepIterator" do
-        end
-        pending "raises an IndexError if the input step direction and inferred step direction do not match" do 
-
-        end
-        it "raises an IndexError if the range start or end are out of bounds" do 
-            data = [-11..-3, 10..-3, 2..-11, 2...-12]
-            data.each do |range|
-                expect_raises(IndexError) do 
-                    canonicalize_range(range, shape, 1).end
-                end
-            end
-        end
-        it "raises an IndexError if the range spans no integers" do
-            data = [4...4, -5...5, ...0]
-            data.each do |range|
-                expect_raises(IndexError) do
-                    canonicalize_range(range, shape, 1)
-                end
-            end
-        end
+        # see SteppedRange.new
     end
     pending ".canonicalize_region" do
       
@@ -222,23 +123,112 @@ describe Lattice::RegionHelpers do
         end
     end
     pending ".measure_region" do
-      
+        # see canonicalize region, measure_canonical_region
     end
-    pending "SteppedRange" do
-        # TODO: discuss: should part of canonicalization happen on SteppedRange creation rather than separately?
-    
+    describe "SteppedRange" do
+
         describe ".new" do
-            it "accepts a single index" do
+            pending "computes size" do 
             end
-            it "accepts a positive range and compatible step" do 
+            
+            describe "(range : SteppedRange, size)" do
+                it "preserves SteppedRanges that are in-bounds" do 
+                    data = [{1..7, 2}, {200..0, -50}, {0..0, 1}]
+                    data.each do |el|
+                        range = SteppedRange.new(*el, 1000)
+                        SteppedRange.new(range, 1000).should eq range
+                        SteppedRange.new(range, 300).should eq range
+                    end
+                end
+                pending "throws error for SteppedRanges that are out of bounds" do 
+                end
             end
-            it "measures the size of (number of elements traversed by) the SteppedRange" do 
-                
+            describe "(range : Range, size)" do
+                it "correctly parses endpoints of a regular Range" do
+                    data = [1..7, -4..3, -1..0]
+                    data.each_with_index do |range, i|
+                        output = SteppedRange.new(range, 10)
+                        output.begin.should eq canonicalize_index(range.begin, 10)
+                        output.end.should eq canonicalize_index(range.end, 10)
+                    end
+                end
+                it "infers the correct step direction for a regular Range" do 
+                    data = [1..6, -6..-1, 6..1, -1..-6]
+                    expected = [1,1,-1,-1]
+                    data.each_with_index do |range, i|
+                        output = SteppedRange.new(range, 10)
+                        output.step.should eq expected[i]
+                    end
+                end
+                it "correctly parses input of the form start..step_size..end" do 
+                    data = [{1,2,5}, {-3,-1,2}, {0, 5, -5}]
+                    data.each_with_index do |el, i|
+                        start, step, finish = el
+                        output = SteppedRange.new(start..step..finish, 10)
+                        output.begin.should eq canonicalize_index(start, 10)
+                        output.end.should eq canonicalize_index(finish, 10)
+                        output.step.should eq step
+                    end
+                end
+                it "adjusts end of stepped ranges such that step evenly divides the range" do 
+                    data = [3..3..9, 4..4..7, 3..-2..0]
+                    expected = [9, 4, 1]
+                    data.each_with_index do |range, i|
+                        SteppedRange.new(range, 10).end.should eq expected[i]
+                    end
+                end
+                it "adjusts for end-exclusive inputs" do 
+                    data = [0...10, 9...-11, 1..3...8, 1..3...7, -5...-2]
+                    expected = [9, 0, 7, 4, 7]
+                    data.each_with_index do |range, i|
+                        SteppedRange.new(range, 10).end.should eq expected[i]
+                    end
+                end
+                it "infers range start" do 
+                    data = [.., ..5, ...-3, ..1..5, ..-1..5, ..2..7, ..-3..2]
+                    expected = [0, 0, 0,    0,      9,       0,      9]
+                    data.each_with_index do |range, i|
+                        SteppedRange.new(range, 10).begin.should eq expected[i]
+                    end
+                end
+                it "infers range end" do 
+                    data =     [.., 5.., -3..., -1.., 5..1..., 5..-1..., 2..2..., 5..-3...]
+                    expected = [9,  9,   9,     9,    9,       0,        8,       2]
+                    data.each_with_index do |range, i|
+                        SteppedRange.new(range, 10).end.should eq expected[i]
+                    end
+                end
+                it "raises an IndexError if the input step direction and inferred step direction do not match" do 
+                    data = [0..-2..5, 8..1..4]
+                    data.each do |range|
+                        expect_raises(IndexError) do 
+                            SteppedRange.new(range, 10)
+                        end
+                    end
+                end
+                it "raises an IndexError if the range start or end are out of bounds" do 
+                    data = [-11..-3, 10..-3, 2..-11, 2...-12]
+                    data.each do |range|
+                        expect_raises(IndexError) do 
+                            SteppedRange.new(range, 10)
+                        end
+                    end
+                end
+                it "raises an IndexError if the range spans no integers" do
+                    data = [4...4, -5...5, ...0]
+                    data.each do |range|
+                        expect_raises(IndexError) do
+                            SteppedRange.new(range, 10)
+                        end
+                    end
+                end
             end
-            pending "warns against invalid inputs" do 
+
+            pending "(index, size)" do 
             end
         end
-        describe ".reverse" do
+        
+        pending ".reverse" do
             # These would not necessarily be valid if a SteppedRange is not restricted to canonical
             it "swaps the start and end of a range" do 
             end
@@ -247,15 +237,15 @@ describe Lattice::RegionHelpers do
             it "preserves size" do 
             end
         end
-        describe ".local_to_absolute" do
+        pending ".local_to_absolute" do
             # for inputs n between begin and end,
 
       
         end
-        describe ".compose" do
+        pending ".compose" do
       
         end
-        describe ".each" do
+        pending ".each" do
       
         end
     end

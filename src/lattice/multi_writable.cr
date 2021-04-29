@@ -6,7 +6,7 @@ module Lattice
     # - `#unsafe_set_element` - while behaviour is identical to setting a one-element region, there may be optimizations for setting a single element.
 
     # Returns the number of elements in the `{{type}}`; equal to `shape.product`.
-    abstract def size : Int32
+    abstract def size
 
     # Returns the length of the `{{type}}` in each dimension.
     # For a `coord` to specify an element of the `{{type}}` it must satisfy `coord[i] < shape[i]` for each `i`.

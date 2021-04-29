@@ -21,7 +21,7 @@ module Lattice
     # - #each_in_canonical_region
 
     # Returns the number of elements in the `{{type}}`; equal to `shape.product`.
-    abstract def size : Int32
+    abstract def size
 
     # Returns the length of the `{{type}}` in each dimension.
     # For a `coord` to specify an element of the `{{type}}` it must satisfy `coord[i] < shape[i]` for each `i`.
