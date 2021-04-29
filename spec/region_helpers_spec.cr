@@ -50,7 +50,7 @@ describe Lattice::RegionHelpers do
 
             # TODO : discuss these cases. 
             # What if shape extends only with ones? what if coord extends only 0's?
-            # has_coord?([2,2], [4,3,1,1]).should   ???
+            has_coord?([2,2], [4,3,1,1]).should be_false
             # has_coord?([2,2,0,0], [4,3]).should   ???
         end
         it "handles empty axes" do
@@ -172,7 +172,14 @@ describe Lattice::RegionHelpers do
         pending "infers range start" do 
             # currently: always sets start to 0. But what if using fancy ranges?
             data = [.., ..5, ...-3, ..1..5, ..-1..5, ..2..7, ..-3..2]
-            expected = [0, 0, 0,    0,      9,       1,      8]
+            # 2..3.. [2, 5, ...] ..-3..2 [.., 5, 2]
+            #                    ..-3...2 [.., something, something != 2]
+            # 2...3..
+            # 1..2..6
+            # 1..2...6
+            # ..-3..2
+            # size = 10: 9, 6, 3
+            expected = [0, 0, 0,    0,      9,       0,      9]
             data.each_with_index do |range, i|
                 canonicalize_range(range, shape, 1).begin.should eq 0
             end
@@ -187,17 +194,18 @@ describe Lattice::RegionHelpers do
         pending "accepts a StepIterator" do
         end
         pending "raises an IndexError if the input step direction and inferred step direction do not match" do 
+
         end
-        pending "raises an IndexError if the range start or end are out of bounds" do 
-            data = [-11..-3, 10..-3] #, 2..-11, 2...-12] # currently no error on these
+        it "raises an IndexError if the range start or end are out of bounds" do 
+            data = [-11..-3, 10..-3, 2..-11, 2...-12]
             data.each do |range|
                 expect_raises(IndexError) do 
                     canonicalize_range(range, shape, 1).end
                 end
             end
         end
-        pending "raises an IndexError if the range spans no integers" do
-            data = [4...4, -5...5]#, ...0, ...-11] # currently no error on these
+        it "raises an IndexError if the range spans no integers" do
+            data = [4...4, -5...5, ...0]
             data.each do |range|
                 expect_raises(IndexError) do
                     canonicalize_range(range, shape, 1)
@@ -212,21 +220,20 @@ describe Lattice::RegionHelpers do
         it "measures correctly" do
             # region = canonicalize_region([])
         end
-      
     end
     pending ".measure_region" do
       
     end
     pending "SteppedRange" do
         # TODO: discuss: should part of canonicalization happen on SteppedRange creation rather than separately?
-
+    
         describe ".new" do
             it "accepts a single index" do
             end
             it "accepts a positive range and compatible step" do 
             end
             it "measures the size of (number of elements traversed by) the SteppedRange" do 
-                 # If step is in the wrong direction, then size may be negative
+                
             end
             pending "warns against invalid inputs" do 
             end

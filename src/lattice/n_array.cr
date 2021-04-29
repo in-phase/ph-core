@@ -552,50 +552,6 @@ module Lattice
       self.new *(narrs[0].concatenate_to_slice(*narrs, axis: axis))
     end
 
-    
-
-
-    macro apply(narr, method_name, *args)
-      puts typeof({{narr}})
-    end
-
-    macro apply_old(narr, method_name, *args)
-
-      # {{narr}}.map do |elem|
-      #  elem.{{method_name.id}}({{args.splat}})
-      # end
-
-
-      {% begin %}
-        {{narr}}.map_with_coord do |elem, coord|
-
-          arg_arr = [] of Int32
-          {{args}}.map do |arg|
-            if arg.is_a?(MultiIndexable)
-              arg_arr << arg.get(coord)
-            else
-              arg_arr << arg
-            end
-          end
-
-          tuple = {arg_arr[0], arg_arr[1]}
-          puts tuple
-
-          elem.{{method_name.id}}(*tuple)
-
-
-
-          elem.{{method_name.id}}(
-            {% for i in 0...(args.size) %}
-              
-              {% puts args[1].is_a?(Var) %}
-              {% if args[i].is_a?(MultiIndexable) %} {{args[i]}}.get(coord) {% else %} 3 {% end %} {% if i < args.size - 1 %}, {% end %}
-            {% end %}
-          )
-        end
-      {% end %}
-    end
-
     # Cycle between the iterators of each narr maybe?
     # NOTE: narrs should include self.
     protected def concatenate_to_slice(*narrs, axis = 0) : Tuple(Array(Int32), Slice(T))

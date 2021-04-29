@@ -38,16 +38,6 @@ module Lattice
       unsafe_set_element(RegionHelpers.canonicalize_coord(coord, shape_internal), value.as(T))
     end
 
-    def compatible_shapes(shape1, shape2)
-      # are same besides trailing ones?
-
-      # Discuss:
-      # [1, 5, 1] and [5]
-      # [3, 2] and flat array? <= no
-      # 
-
-    end
-
     # NOTE: changed name from 'value' to 'src' - approve?
     # Copies the elements from a MultiIndexable `src` into `region`.
     # Raises an error if `region` is out-of-bounds for this `{{type}}` or if the shape of `region` does not match `src.shape`

@@ -156,9 +156,7 @@ module Lattice
             raise IndexError.new("Could not canonicalize range: #{Range.new(start, finish, exclusive)} does not span any integers.")
           end
           temp_finish -= direction
-          if temp_finish < 0 || temp_finish >= limit
-            raise IndexError.new("Could not canonicalize range: #{Range.new(start, finish, exclusive)} is not a sensible index range in axis #{axis} of shape #{shape}.")
-          end
+         
         end
       else
         # Implict end
@@ -175,6 +173,11 @@ module Lattice
       else
         step = direction
       end
+
+      if temp_finish < 0 || temp_finish >= limit
+        raise IndexError.new("Could not canonicalize range: #{Range.new(start, finish, exclusive)} is not a sensible index range in axis #{axis} of shape #{shape}.")
+      end
+
       SteppedRange.new(start, temp_finish, step)
     end
 

@@ -12,8 +12,8 @@ module Lattice
   module MultiIndexable(T)
 
     # add search, traversal methods
+    include Enumerable(T)
     include MultiEnumerable(T)
-
     include MultiIndexableFormatter(T)
 
     # For performance gains, we recommend the user to consider overriding the following methods when including MultiIndexable(T):
@@ -69,8 +69,16 @@ module Lattice
       return get_element([0] * shape_internal.size)
     end
 
+    # Returns a random element from the `{{type}}`. Note that this might not return
+    # distinct elements if the random number generator returns the same coordinate twice.
+    def sample(n, random = Random::DEFAULT)
+      raise ArgumentError.new("Can't sample negative number of elements") if n < 0
+
+      Array(T).new(n) { sample(random) }
+    end
+
     # Returns a random element from the `{{type}}`.
-    def sample(random : Random::Default)
+    def sample(random = Random::DEFAULT)
       raise IndexError.new("Can't sample empty collection") if empty?
       unsafe_fetch_element(shape_internal.map { |dim| random.rand(dim) })
     end
@@ -215,6 +223,11 @@ module Lattice
         return false unless yield(elem, other.unsafe_fetch_element(coord))
       end
       return true
+    end
+
+    def view(*region, order : Order = Order::LEX) : View(self, T)
+      # TODO: Try to infer T from B?
+      View(self, T).of(self, region, order)
     end
 
     # TODO: rename!

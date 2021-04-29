@@ -1,4 +1,5 @@
 require "../src/lattice"
+require "complex"
 
 include Lattice
 
@@ -126,3 +127,17 @@ puts michael.get(1,1,1) # => [1, 2, 2]]
 # #result2 = NArray.apply(narr, :[], 0, narr2)
 # NArray.apply(narr, :[], 0)
 # #puts result2
+
+
+complex_arr = NArray.build([2,2,2]) {|coord, i| i.i}
+
+puts "\n\n", complex_arr
+
+puts 1 + complex_arr
+
+real_arr = NArray.build([2,2,2]) {|coord, i| i}
+
+puts "\n\n", real_arr
+
+real_arr = 1.i + real_arr
+puts real_arr.map { |el| el.polar }

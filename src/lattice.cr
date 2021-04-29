@@ -1,4 +1,5 @@
 require "./lattice/*"
+require "./patches/*"
 
 # TODO: Write documentation for `Lattice::Core`
 module Lattice

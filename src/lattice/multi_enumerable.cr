@@ -3,8 +3,6 @@ require "./exceptions.cr"
 module Lattice
   module MultiEnumerable(T)
 
-
-
     # Like `Enumerable`, `MultiEnumerable` provides collection classes with several traversal, searching, filtering and querying methods,
     # but have been specifically designed for optimized use with `MultiIndexable`s and generalizability for different ordering.
 
