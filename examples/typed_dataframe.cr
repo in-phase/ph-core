@@ -7,12 +7,11 @@ module Lattice::Data
         alias Serializable = YAML::Serializable | JSON::Serializable
         # include MultiIndexable(Serializable)
 
-        @data : NamedTuple(age: Column(Int32))
-
+        
         def initialize
-            @data = {age: Column(Int32).new}
+            # @data = {age: Column(Int32).new}
             {% begin %}
-            data = {
+            @data = {
                 {% for i in (0...T.size) %}
                     {{T.keys[i]}}: Column({{T[T.keys[i]]}}).new {% if i != T.size - 1 %},{% end %}
                 {% end %}
@@ -25,9 +24,9 @@ module Lattice::Data
         def dummy
         end
 
-        def get_column(index) : Column(Serializable)
-            @data[index]
-        end
+        # def get_column(index) : Column(Serializable)
+        #     @data[index]
+        # end
 
         def ages
             {%begin%}
@@ -85,3 +84,28 @@ module Lattice::Data
     df.dummy
     #df.dummy(1)
 end
+
+# DataFrame({name: String, age: Int32}) , DataFrame({birthday : Date})
+
+# DataFrame.extract(df, {:name, :birthday})
+
+# def column_join(other : DataFrame(U)) forall U
+# end
+
+
+
+# data = load_csvnew DataFrame.nwew()()[]{}name: String, age: Int32
+# data = DataFrame({name: String, age: Int32}).new(load_csv) [][]()[]{}EEE = -34e.
+
+# data = DataFrame({name: String, age: Int32}).new(load_csv)
+# data[2..5, ...] #=> DataFrame({name: String, age: Int32})
+# data[..., 0] #=> DataFrame({name: String, age: Int32}, @columns_stored=0..0)
+# data[..., 0].ages # raises error
+# data[2..5]
+# data.age
+
+
+a = [0.12, 0.23, 0.34, 0.45] of (Int32 | Float64)
+b = a.unsafe_as(Array(Float64))
+puts a
+    puts b
