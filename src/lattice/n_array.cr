@@ -1,5 +1,4 @@
 require "./exceptions.cr"
-require "./n_array_formatter.cr"
 require "./region_helpers.cr"
 
 module Lattice

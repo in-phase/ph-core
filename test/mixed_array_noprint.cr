@@ -27,12 +27,6 @@ class MixedArray(T)
 
 
     macro extract(marr, *symbols)
-        # this first approach is runtime, doesn't work for specifying type of new MixedArray
-        my_tuple = {
-        {% for sym in symbols %}
-            {{sym.id}}: {{marr}}.{{sym.id}}_type ,
-        {% end %}
-        }
 
         # This sorta works - but using "sample" still feels iffy
         {% begin %}
@@ -47,14 +41,6 @@ class MixedArray(T)
     # possible to make these on construction time? This may or may not help: https://github.com/crystal-lang/crystal/issues/6028
     macro method_missing(call)
         def {{call.name}}
-            # This chunk can probably go
-            {% if call.name.split('_')[1] == "type" %}
-                \{% for i in (0...T.size) %} 
-                    \{% if T.keys[i] == {{call.name.split('_')[0]}} %}
-                        return \{{T[T.keys[i]] }}
-                    \{% end %}  
-                \{% end %}  
-            {% end %}
 
             \{% for i in (0...T.size) %} 
                 \{% if T.keys[i] == "{{call.name}}" %}
@@ -70,6 +56,18 @@ class MixedArray(T)
     # For syntactic symmetry with extract, which can't be an instance method
     def self.join(a, b)
         a.join(b)
+    end
+
+    macro new(args)
+
+        def initialize
+        end
+
+        def name
+        end
+
+        def birthday
+        end
     end
 
     def join(other : B) forall B
@@ -107,10 +105,10 @@ puts one
 puts two
 joined = one.join(two)
 # puts MixedArray.join(one, two) - a wrapper method for syntactic symmetry with extract
-#puts one.join(not_ma) # => causes compile error like we want
+# puts one.join(not_ma) # => causes compile error like we want
 
 puts joined
 
 #puts one.name
 #puts one.birthday
-puts MixedArray.extract(joined, :birthday, "age") # StringLiterals and SybolLiterals work
+puts MixedArray.extract(joined, "age", :birthday) # StringLiterals and SymbolLiterals work

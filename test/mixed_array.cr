@@ -131,4 +131,4 @@ not_ma = 5
 
 #puts one.name
 #puts one.birthday
-#puts MixedArray.extract(one, :birthday, "name") # StringLiterals and SybolLiterals work
+puts MixedArray.extract(one, :birthday, "name") # StringLiterals and SybolLiterals work

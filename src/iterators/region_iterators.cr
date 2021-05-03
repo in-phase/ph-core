@@ -57,7 +57,7 @@ module Lattice
       abstract def next
     end
 
-    private class LexRegionIterator(A, T) < RegionIterator(A, T)
+    class LexRegionIterator(A, T) < RegionIterator(A, T)
       def setup_coord(coord, step)
         coord[-1] -= step[-1]
       end
@@ -76,7 +76,7 @@ module Lattice
       end
     end
 
-    private class ColexRegionIterator(A, T) < RegionIterator(A, T)
+    class ColexRegionIterator(A, T) < RegionIterator(A, T)
       def setup_coord(coord, step)
         coord[0] -= step[0]
       end
