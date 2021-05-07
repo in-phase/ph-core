@@ -1,5 +1,7 @@
 require "./exceptions.cr"
 require "./region_helpers.cr"
+require "yaml"
+require "json"
 
 module Lattice
   # An `{{@type}}` is a multidimensional array for any arbitrary type.
@@ -314,8 +316,6 @@ module Lattice
     # Retrieves the element specified by `coord`, assuming that `coord` is in canonical form and in-bounds for this `{{type}}`.
     # For full specification of canonical form see `RegionHelpers` documentation. TODO: make this actually happen
     def unsafe_fetch_element(coord) : T
-      # puts coord
-      # puts NArray.coord_to_index_fast(coord, @shape, @axis_strides)
       @buffer.unsafe_fetch(NArray.coord_to_index_fast(coord, @shape, @axis_strides))
     end
 
@@ -631,6 +631,114 @@ module Lattice
       shape
     end
 
+    def to_json(json : JSON::Builder)
+      json.object do
+        json.scalar("shape")
+        @shape.to_json(json)
+
+        json.scalar("elements")
+        json.array do
+          @buffer.each &.to_json(json)
+        end
+      end
+    end
+
+    def self.new(pull : JSON::PullParser)
+        {% begin %}
+        shape = [] of Int32
+        elements = [] of {{ @type.type_vars[0] }}
+
+        found_shape = false
+        found_elements = false
+
+        pull.read_object do |key, key_loc|
+          case key
+          when "shape"
+            found_shape = true
+            pull.read_array do
+              shape << pull.read?(Int32).not_nil!
+            end
+          when "elements"
+            pull.read_array do
+              found_elements = true
+              elements << {{ @type.type_vars[0] }}.new(pull)
+            end
+          end
+        end
+
+        if found_shape && found_elements
+          if shape.product == elements.size
+            buffer = Slice.new(elements.to_unsafe, elements.size)
+            return new(shape, buffer)
+          else
+            raise JSON::Error.new("Could not read NArray from YAML: wrong number of elements for shape #{shape}")
+          end
+        else
+          raise JSON::Error.new("Could not read NArray from YAML: 'shape' and/or 'elements' were missing.")
+        end
+        {% end %}
+    end
+
+    def to_yaml(yaml : YAML::Nodes::Builder)
+      yaml.mapping do
+        yaml.scalar("shape")
+        yaml.sequence(style: YAML::SequenceStyle::FLOW) do
+          @shape.each &.to_yaml(yaml)
+        end
+
+        yaml.scalar("elements")
+        style = T < Number::Primitive ? YAML::SequenceStyle::FLOW : YAML::SequenceStyle::BLOCK
+        yaml.sequence(style: style) do
+          @buffer.each &.to_yaml(yaml)
+        end
+      end
+    end
+
+    def self.new(ctx : YAML::ParseContext, node : YAML::Nodes::Node)
+      if node.is_a?(YAML::Nodes::Mapping)
+        ctx.read_alias(node, self) do |obj|
+          return obj
+        end
+
+        shape = nil
+        elements = nil
+
+        node.nodes.each_with_index.step(2).each do |child, idx|
+          if child.is_a?(YAML::Nodes::Scalar)
+            case child.value
+            when "shape"
+              shape = Array(Int32).new(ctx, node.nodes[idx + 1])
+            when "elements"
+              elements_node = node.nodes[idx + 1]
+              if elements_node.is_a? YAML::Nodes::Sequence
+                {% begin %}
+                elements = Array({{ @type.type_vars[0] }}).new(ctx, elements_node)
+                {% end %}
+              else
+                raise YAML::Error.new("Could not read NArray from YAML: Expected sequence, found #{elements_node.class}")
+              end
+            end
+          else
+            raise YAML::Error.new("Could not read NArray from YAML: Did not expect nested elements")
+          end
+        end
+
+        unless shape.nil? || elements.nil?
+          if elements.size == shape.product
+            elements = Slice.new(elements.to_unsafe, elements.size)
+            ret = new(shape, elements)
+            ctx.record_anchor(node, ret)
+            return ret
+          else
+            raise YAML::Error.new("Could not read NArray from YAML: wrong number of elements for shape #{shape}")
+          end
+        end
+
+        raise YAML::Error.new("Could not read NArray from YAML: 'shape' and/or 'elements' were missing.")
+      else
+        raise YAML::Error.new("Could not read NArray from YAML: Expected mapping, found #{node.class}")
+      end
+    end
 
     # TODO: compare this iterator, generic MultiIndexable iterator, and old direct each
     class BufferedLexRegionIterator(A,T) < RegionIterator(A,T)

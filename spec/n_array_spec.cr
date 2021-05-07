@@ -6,6 +6,7 @@ include Lattice
 LEGAL_SHAPES   = [[5, 5], [2], [10, 1, 3], [1, 1, 1, 1]]
 ILLEGAL_SHAPES = [[0], [] of Int32, [-4], [5, 0, 5]]
 
+
 describe Lattice::NArray do
   describe ".build" do
     it "creates NArrays via buffer indices" do
@@ -92,6 +93,46 @@ describe Lattice::NArray do
         expect_raises(DimensionError) do
           narr = NArray.fill(shape, 0)
         end
+      end
+    end
+  end
+
+  describe "serialization" do
+    it "serializes numeric types as flow sequences" do
+      elem = 0i32
+
+      LEGAL_SHAPES.each do |shape|
+        src = NArray.fill(shape, elem)
+        yaml = src.to_yaml
+
+        # Make sure that deserialization works
+        reconstructed = NArray(typeof(elem)).from_yaml(yaml)
+        reconstructed.should eq src
+
+        # Verify that a flow sequence was used
+        expected_text = "[" + "#{elem}," * (shape.product - 1) + "#{elem}]"
+        oneline_yaml = yaml.gsub(' ', "").lines.sum
+        oneline_yaml.includes?(expected_text).should be_true
+      end
+    end
+
+    it "serializes objects as block sequences" do
+      LEGAL_SHAPES.each do |shape|
+        src = NArray.build(shape) { |_, i| [i] }
+        json = src.to_json
+        yaml = src.to_yaml
+        puts json
+        puts NArray(typeof([0])).from_json(json)
+        abort
+
+        # Make sure that deserialization works
+        reconstructed = NArray(typeof([0])).from_yaml(yaml)
+        reconstructed.should eq src
+
+        # Verify that a block sequence was used
+        expected_text = Array(Int32).new(shape.product) { |i| i }.join("--")
+        oneline_yaml = yaml.gsub(' ', "").lines.sum
+        oneline_yaml.includes?(expected_text).should be_true
       end
     end
   end
