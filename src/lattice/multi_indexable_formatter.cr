@@ -1,34 +1,32 @@
-require "./n_array.cr"
-
 module Lattice
-  module NArrayFormatter
+  module MultiIndexableFormatter(T)
     extend self
 
-    protected def print_internal(narr, io, start_dim, buffer_idx, shape)
+    protected def print_internal(narr, io, start_dim, iter, shape)
+
       io << "["
 
       # If we are above a vector still, recurse.
       if start_dim < narr.dimensions - 1
         shape[start_dim].times do |index|
-          print_internal(narr, io, start_dim + 1, buffer_idx, shape)
+          print_internal(narr, io, start_dim + 1, iter, shape)
           io << ",\n" if index < shape[start_dim] - 1
           io << "\n" if start_dim == narr.dimensions - 3
         end
       else
         # base case: row
         shape[start_dim].times do |col_idx|
-          io << narr.buffer[buffer_idx[0] + col_idx]
+          elem = iter.next
+          io << elem[0] unless elem.is_a?(Iterator::Stop)
           io << ", " if col_idx < shape[start_dim] - 1
         end
-
-        buffer_idx[0] += shape[start_dim]
       end
 
       io << "]"
     end
 
     def print(narr, io = STDOUT)
-      print_internal(narr, io, start_dim: 0, buffer_idx: [0], shape: narr.shape)
+      print_internal(narr, io, start_dim: 0, iter: narr.each, shape: narr.shape)
     end
 
     def format(narr) : String

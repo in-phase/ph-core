@@ -35,7 +35,7 @@ def simulate(state, duration)
   state
 end
 
-def update_temp(state)
+def update_temp(state) : NArray(Float64)
   temp_diff = NArray.fill(state.shape, 0f64)
 
   # Boundary conditions have to be dealt with seperately, as they don't have a
@@ -47,11 +47,11 @@ def update_temp(state)
     temp_diff[idx + 1] = (state[idx] - 2 * center_temp + state[idx + 2]) * COEFF
   end
 
-  return state + temp_diff
+  return state.map_with_coord { |el, idx| el + temp_diff.get(idx)}
 end
 
 # state = update_temp(state)
 
 # steps = (0.1 / TIMESTEP).to_i32
 
-puts simulate(state, 10000)
+puts simulate(state, 100)
