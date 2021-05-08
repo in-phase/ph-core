@@ -14,73 +14,194 @@ include Lattice
 struct FormatterSettings
   include YAML::Serializable
 
-  @settings = [{"[", "]"},{'{', '}'},{'(', ')'}] # cycles
-  @colors = [:red, :orange, :yellow, :green] # cycles
-  @indent = "   "
-  @max_elem_length = 20
-  @display_elements = [10, 2, 4, 6] # last one repeats
-  @newline_between = true
+  property settings = [{"[", "]"},{'{', '}'},{'(', ')'}] # cycles
+  property colors = [:red, :orange, :yellow, :green] # cycles
+  property indent = "   "
+  property max_elem_length = 20
+  property display_elements = [5] # last one repeats
+  property newline_between = true
+
+  property cascade_depth = 4
+
+  def initialize()
+  end
 end
 
 class FormatIterator(A,T) < MultiIndexable::LexRegionIterator(A,T)
-    @just_skipped : Bool = false
     
     def skip(axis, amount) : Nil
         @coord[axis] += amount + 1
-        @just_skipped = true
     end
 
     def next
-        if @just_skipped
-            @just_skipped = false
-        else
-            (@coord.size - 1).downto(0) do |i| # ## least sig .. most sig
-                if @coord[i] == @last[i]
-                    # dimension change
-                    @coord[i] = @first[i]
-                    return stop if i == 0 # most sig
-                else
-                    @coord[i] += @step[i]
-                    break
-                end
+
+        (@coord.size - 1).downto(0) do |i| # ## least sig .. most sig
+            if @coord[i] == @last[i]
+                # dimension change
+                @coord[i] = @first[i]
+                return stop if i == 0 # most sig
+            else
+                @coord[i] += @step[i]
+                break
             end
         end
-
+        
         {@narr.unsafe_fetch_element(@coord), @coord}
     end
 
-    def unsafe_next_value
+    def peek
+        @coord.clone
+    end
 
+    def unsafe_next_value
         self.next.unsafe_as(Tuple(T, Array(Int32)))[0]
     end
 end
 
-my_narr = NArray.build([5,5,7]) {|c, i| i}
-puts my_narr
+class Formatter(T)
 
-iter =  FormatIterator(NArray(Int32), Int32).new(my_narr)
+    @settings : FormatterSettings
+    @io : IO
+
+    @shape : Array(Int32)
+    @col = 0
+    @current_indentation = 0
+    @cutoff_length = 8
+
+    def initialize(narr : MultiIndexable(T), @io, @settings)
+        @depth = 0
+        @iter = FormatIterator(MultiIndexable(T), T).new(narr)
+        @shape = narr.shape
+    end
+
+    def self.print(narr : MultiIndexable(T), settings = nil, io = STDOUT)
+        io << "#{narr.shape.join('x')} #{narr.class}\n"
+        fmt = Formatter.new(narr, io, settings)
+        fmt.walk_n_print
+    end
+
+    # no newlines plz (how to handle if there are special characters in the data?? learn from Array?)
+    # def to_s(io : IO) : Nil
+    #     executed = exec_recursive(:to_s) do
+    #       io << '['
+    #       join io, ", ", &.inspect(io)
+    #       io << ']'
+    #     end
+    #     io << "[...]" unless executed
+    #   end
+    def write(str)
+        @io << str
+        @col += str.size
+    end
+
+    private def capped_iterator(depth, max_count, message, &action)
+        if @shape[depth] > max_count
+            left = max_count // 2
+            right = max_count - left - 1
+
+            left.times do |idx|
+                yield false
+            end
+            
+            @io << message % @shape[depth]
+            newline unless depth == @shape.size - 1
+            @iter.skip(depth, @shape[depth] - max_count)
+
+            right.times do |idx|
+                yield idx == right - 1
+            end
+        else
+            @shape[depth].times do |idx|
+                yield idx == @shape[depth] - 1
+            end
+        end
+    end
+        
+    protected def walk_n_print(depth = 0)
+        height = @shape.size - depth - 1
+        max_columns = @settings.display_elements[{@settings.display_elements.size - 1, height}.min]
+
+        open(height)
+
+        if depth < @shape.size - 1
+            capped_iterator(depth, max_columns, " ⋮ (%d total, #{max_columns -1} shown)") do |last|
+                walk_n_print(depth + 1)
+                unless last
+                    @io << ","
+                    newline
+                    newline if height == 2
+                end
+            end
+        else
+            capped_iterator(depth, max_columns, "..., ") do |last|
+                str = @iter.unsafe_next_value.inspect
+                # str = str.rjust(@cutoff_length, ' ')[0...@cutoff_length]
+                @io << str
+                @io << ", " unless last
+            end
+        end
+        close(height)
+    end
+
+
+    def newline(indent_change = 0)
+        @io << "\n"
+        @current_indentation += indent_change * 4
+        @io << " " * @current_indentation
+    end
+
+    def open(height)
+        @io << "["
+        newline(1) unless height <= 1
+        @current_indentation += 1 if height == 1
+    end
+        
+    def close(height)
+        @current_indentation -= 1 if height == 1
+        newline(-1) unless height <= 1
+        @io << "]"
+    end
+
+end
+
+
+#arr = ["hi", "wo\nrld"]
+#puts arr
+#puts "wo\nrld".inspect
+
+# "2626262
+# "2626"...
+# 2.6e10
+
+my_narr = NArray.build([3, 3, 3]) {|c, i| i.to_s*10}
+Formatter.print(my_narr, FormatterSettings.new)
+
+#puts my_narr
+
+#puts ["Hello", "wo\nrld"]
+# iter =  FormatIterator(NArray(Int32), Int32).new(my_narr)
 
 # puts iter.next
 # iter.skip(1, 2) # => []
 # puts iter.next # =>
 
-max_columns = 4
-if 7 > max_columns
-    to_print = max_columns // 2
+# max_columns = 4
+# if 7 > max_columns
+#     to_print = max_columns // 2
 
-    to_print.times do
-        print "#{iter.unsafe_next_value},"
-    end
+#     to_print.times do
+#         print "#{iter.unsafe_next_value},"
+#     end
 
-    print "...,"
-    iter.skip(2, 7 - 2 * to_print)
+#     print "...,"
+#     iter.skip(2, 7 - 2 * to_print)
 
-    (to_print).times do
-        print "#{iter.unsafe_next_value},"
-    end
-else
+#     (to_print).times do
+#         print "#{iter.unsafe_next_value},"
+#     end
+# else
     
-end
+# end
 
 
 
