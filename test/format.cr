@@ -9,19 +9,21 @@
 require "yaml"
 require "../src/lattice"
 
+require "colorize"
+
 include Lattice
 
 struct FormatterSettings
   include YAML::Serializable
 
-  property settings = [{"[", "]"},{'{', '}'},{'(', ')'}] # cycles
-  property colors = [:red, :orange, :yellow, :green] # cycles
-  property indent = "   "
+  property brackets = [{"[", "]"}] # cycles
+  property colors = [:default, :light_green, :light_yellow, :cyan, :light_magenta, :light_red] # cycles
+  property colors_enabled = false
+  property indent = 4
   property max_elem_length = 20
   property display_elements = [5] # last one repeats
   property newline_between = true
-
-  property cascade_height = 2 # starts having effect from 2
+  property cascade_height = 5 # starts having effect from 2
 
   def initialize()
   end
@@ -34,7 +36,6 @@ class FormatIterator(A,T) < MultiIndexable::LexRegionIterator(A,T)
     end
 
     def next
-
         (@coord.size - 1).downto(0) do |i| # ## least sig .. most sig
             if @coord[i] == @last[i]
                 # dimension change
@@ -47,10 +48,6 @@ class FormatIterator(A,T) < MultiIndexable::LexRegionIterator(A,T)
         end
         
         {@narr.unsafe_fetch_element(@coord), @coord}
-    end
-
-    def peek
-        @coord.clone
     end
 
     def unsafe_next_value
@@ -76,10 +73,24 @@ class Formatter(T)
     @justify_length = 8
 
     def self.print(narr : MultiIndexable(T), settings = nil, io = STDOUT)
-        io << "#{narr.shape.join('x')} #{narr.class}\n"
+        settings ||= FormatterSettings.new
+        if settings.colors_enabled
+            display_shape = narr.shape.map_with_index do |dim, i|
+                color = settings.colors_enabled ? settings.colors[(-i-1) % settings.colors.size] : :default
+                dim.to_s.colorize(color)
+            end
+        else
+            display_shape = narr.shape
+        end
+        
+        io << "#{display_shape.join('x')} #{narr.class}\n"
         fmt = Formatter.new(narr, io, settings)
-
         fmt.print
+    end
+
+    def self.print_literal(narr : MultiIndexable(T), io = STDOUT)
+        fmt = Formatter.new(narr, io, FormatterSettings.new)
+        fmt.print_literal
     end
 
     def initialize(narr : MultiIndexable(T), @io, @settings)
@@ -123,6 +134,17 @@ class Formatter(T)
         @iter.reset
     end
 
+    def print_literal
+        walk_n_print_flat
+        @io << "\n"
+        @iter.reset
+    end
+
+    protected def color_print(text, height)
+        color = @settings.colors_enabled ? @settings.colors[ height % @settings.colors.size ] : :default
+        @io << text.colorize(color)
+    end
+
     protected def walk_n_measure(depth = 0)
         height = @shape.size - depth - 1
         max_columns = @settings.display_elements[{@settings.display_elements.size - 1, height}.min]
@@ -144,6 +166,25 @@ class Formatter(T)
         end
         return max_length
     end
+
+    protected def walk_n_print_flat(depth = 0)
+        height = @shape.size - depth - 1
+        @io << "["
+
+        if @shape.size - 1 > depth
+            @shape[depth].times do |i|
+                walk_n_print_flat(depth + 1)
+                @io << ", " unless i == @shape[depth] - 1
+            end
+        else 
+            @shape[depth].times do |i|
+                @io << @iter.unsafe_next_value
+                @io << ", " unless i == @shape[depth] - 1
+            end
+        end
+
+        @io << "]"
+    end
         
     protected def walk_n_print(depth = 0)
         height = @shape.size - depth - 1
@@ -154,13 +195,14 @@ class Formatter(T)
             # iterating over rows
             capped_iterator(depth, max_columns) do |flag|
                 if flag == Flags::SKIP
-                    @io << " ⋮ (%d total, #{max_columns -1} shown)" % @shape[depth]
+                    color_print(" ⋮ %d total, #{max_columns -1} shown" % @shape[depth], height)
                     newline
                     newline if height == 2 || (@settings.cascade_height < 2 && height != 1)
                 else
                     walk_n_print(depth + 1)
                     unless flag == Flags::LAST
-                        @io << ","; newline
+                        color_print(",", height)
+                        newline
                         newline if height == 2 || (@settings.cascade_height < 2 && height != 1)
                     end
                 end
@@ -188,26 +230,28 @@ class Formatter(T)
 
     def newline(indent_change = 0)
         @io << "\n"
-        @current_indentation += indent_change * 4
+        @current_indentation += indent_change * @settings.indent
         @io << " " * @current_indentation
     end
 
     def open(height)
-        @io << "["
+        brackets = @settings.brackets[height % @settings.brackets.size]
+        color_print(brackets[0], height)
         if compact?(height)
-            @current_indentation += 1
+            @current_indentation += brackets[0].size
         elsif height != 0
             newline(1)
         end
     end
 
     def close(height)
+        brackets = @settings.brackets[height % @settings.brackets.size]
         if compact?(height)
-            @current_indentation -= 1
+            @current_indentation -= brackets[0].size
         elsif height != 0
             newline(-1)
         end
-        @io << "]"
+        color_print(brackets[1], height)
     end
 end
 
@@ -221,76 +265,21 @@ end
 # 2.6e10
 
 my_settings = FormatterSettings.new 
-my_settings.cascade_height = 2
+# my_settings.cascade_height = 4
+my_settings.display_elements = [3]
+my_settings.colors_enabled = true
+my_settings.indent = 3
+my_settings.brackets = [{"A[","]A"}, {"before "," after"}, {"hot","cold"}, {"sweet","sour"}, {"new","old"},{"crystal","lattice"}]
 
-my_narr = NArray.build([20,20, 20, 6]) {|c, i| i}
+my_narr = NArray.build([6,6,6,6,6, 6]) {|c, i| i}
 
 dur = Time.measure do 
     Formatter.print(my_narr, my_settings)
 end
 puts dur
 
-#puts my_narr
-
-#puts ["Hello", "wo\nrld"]
-# iter =  FormatIterator(NArray(Int32), Int32).new(my_narr)
-
-# puts iter.next
-# iter.skip(1, 2) # => []
-# puts iter.next # =>
-
-# max_columns = 4
-# if 7 > max_columns
-#     to_print = max_columns // 2
-
-#     to_print.times do
-#         print "#{iter.unsafe_next_value},"
-#     end
-
-#     print "...,"
-#     iter.skip(2, 7 - 2 * to_print)
-
-#     (to_print).times do
-#         print "#{iter.unsafe_next_value},"
-#     end
-# else
-    
-# end
-
-
-
-# [[[[0,  1, ...,  2,  3],
-#    [ 2,  3]],
-
-#   [[ 4,  5],
-#    [ 6,  7]]
-
-#  [[[ 8,  9], 
-#    [10, 11]],
-
-#   [[12, 13], 
-#    [14, 15]]]]
-
-
-# [
-#   [
-#     [[ 0,  1, ...,  2,  3],
-#         ⋮ (2 of 1002 shown)
-#      [ 2,  3]],
-     
-#     [[ 4,  5],
-#         ⋮ (2 of 1002 shown)
-#      [ 6,  7]]
-#   ],
-#     ⋮ (4 of 50 shown)
-#   [
-#     [[ 8,  9],
-#      [10, 11]],
-
-#     [[12, 13],
-#      [14, 15]]
-#   ]
-# ]
+small_narr = NArray.build([3,3,3]) {|c,i| i}
+Formatter.print_literal(small_narr)
 
 # puts narr # read formatter settings from your computer, print according to those
 # # first check project directory for config file
