@@ -21,7 +21,7 @@ struct FormatterSettings
   property display_elements = [5] # last one repeats
   property newline_between = true
 
-  property cascade_depth = 4
+  property cascade_height = 2 # starts having effect from 2
 
   def initialize()
   end
@@ -60,6 +60,12 @@ end
 
 class Formatter(T)
 
+    private enum Flags
+        ELEM 
+        SKIP 
+        LAST 
+    end
+
     @settings : FormatterSettings
     @io : IO
 
@@ -73,7 +79,6 @@ class Formatter(T)
         io << "#{narr.shape.join('x')} #{narr.class}\n"
         fmt = Formatter.new(narr, io, settings)
 
-        fmt.measure
         fmt.print
     end
 
@@ -83,40 +88,36 @@ class Formatter(T)
         @shape = narr.shape
     end
 
-    def write(str)
-        @io << str
-        @col += str.size
-    end
-
-    private def capped_iterator(depth, max_count, message, &action)
+    private def capped_iterator(depth, max_count, &action)
         if @shape[depth] > max_count
             left = max_count // 2
             right = max_count - left - 1
 
             left.times do |idx|
-                yield false
+                yield Flags::ELEM
             end
             
-            @io << message % @shape[depth]
-            newline unless depth == @shape.size - 1
             @iter.skip(depth, @shape[depth] - max_count)
+            yield Flags::SKIP
 
             right.times do |idx|
-                yield idx == right - 1
+                yield (idx == right - 1 ? Flags::LAST : Flags::ELEM)
             end
         else
             @shape[depth].times do |idx|
-                yield idx == @shape[depth] - 1
+                yield (idx == @shape[depth] - 1 ? Flags::LAST : Flags::ELEM)
             end
         end
     end
 
+    # get the length of the longest element to be displayed (for justification purposes)
     def measure
         @justify_length = walk_n_measure
         @iter.reset
     end
 
     def print
+        measure
         walk_n_print
         @io << "\n"
         @iter.reset
@@ -128,13 +129,17 @@ class Formatter(T)
 
         max_length = 0
         if depth < @shape.size - 1
-            capped_iterator(depth, max_columns, "") do |last|
-                max_length = {max_length, walk_n_measure(depth + 1)}.max
+            capped_iterator(depth, max_columns) do |flag|
+                unless flag == Flags::SKIP
+                    max_length = {max_length, walk_n_measure(depth + 1)}.max
+                end
             end
         else
-            capped_iterator(depth, max_columns, "") do |last|
-                elem_length = @iter.unsafe_next_value.inspect.size
-                max_length = {max_length, elem_length}.max
+            capped_iterator(depth, max_columns) do |flag|
+                unless flag == Flags::SKIP
+                    elem_length = @iter.unsafe_next_value.inspect.size
+                    max_length = {max_length, elem_length}.max
+                end
             end
         end
         return max_length
@@ -145,29 +150,41 @@ class Formatter(T)
         max_columns = @settings.display_elements[{@settings.display_elements.size - 1, height}.min]
 
         open(height)
-        if depth < @shape.size - 1
+        if height > 0
             # iterating over rows
-            capped_iterator(depth, max_columns, " ⋮ (%d total, #{max_columns -1} shown)") do |last|
-                walk_n_print(depth + 1)
-                unless last
-                    @io << ","
+            capped_iterator(depth, max_columns) do |flag|
+                if flag == Flags::SKIP
+                    @io << " ⋮ (%d total, #{max_columns -1} shown)" % @shape[depth]
                     newline
-                    newline if height == 2
+                    newline if height == 2 || (@settings.cascade_height < 2 && height != 1)
+                else
+                    walk_n_print(depth + 1)
+                    unless flag == Flags::LAST
+                        @io << ","; newline
+                        newline if height == 2 || (@settings.cascade_height < 2 && height != 1)
+                    end
                 end
             end
         else
             # printing elements in a single "row" (deepest axis)
-            capped_iterator(depth, max_columns, "..., ") do |last|
-                str = @iter.unsafe_next_value.inspect
-                # str = str.rjust(@cutoff_length, ' ')[0...@cutoff_length]
-                str = str.rjust(@justify_length, ' ')
-                @io << str
-                @io << ", " unless last
+            capped_iterator(depth, max_columns) do |flag|
+                if flag == Flags::SKIP
+                    @io <<  "..., "
+                else
+                    str = @iter.unsafe_next_value.inspect
+                    # str = str.rjust(@cutoff_length, ' ')[0...@cutoff_length]
+                    str = str.rjust(@justify_length, ' ')
+                    @io << str
+                    @io << ", " unless flag == Flags::LAST
+                end
             end
         end
         close(height)
     end
 
+    protected def compact?(height)
+        height > @settings.cascade_height || height == 1
+    end
 
     def newline(indent_change = 0)
         @io << "\n"
@@ -177,16 +194,21 @@ class Formatter(T)
 
     def open(height)
         @io << "["
-        newline(1) unless height <= 1
-        @current_indentation += 1 if height == 1
-    end
-        
-    def close(height)
-        @current_indentation -= 1 if height == 1
-        newline(-1) unless height <= 1
-        @io << "]"
+        if compact?(height)
+            @current_indentation += 1
+        elsif height != 0
+            newline(1)
+        end
     end
 
+    def close(height)
+        if compact?(height)
+            @current_indentation -= 1
+        elsif height != 0
+            newline(-1)
+        end
+        @io << "]"
+    end
 end
 
 
@@ -198,8 +220,15 @@ end
 # "2626"...
 # 2.6e10
 
-my_narr = NArray.build([3, 3, 3]) {|c, i| i.to_s*(i//2 + 1)}
-Formatter.print(my_narr, FormatterSettings.new)
+my_settings = FormatterSettings.new 
+my_settings.cascade_height = 2
+
+my_narr = NArray.build([20,20, 20, 6]) {|c, i| i}
+
+dur = Time.measure do 
+    Formatter.print(my_narr, my_settings)
+end
+puts dur
 
 #puts my_narr
 
