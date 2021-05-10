@@ -40,6 +40,11 @@ module Lattice
         setup_coord(@coord, @step)
       end
 
+      def reset
+        @coord = @first.dup
+        setup_coord(@coord, @step)
+      end
+
       def reverse!
         @last, @first = @first, @last
         @step.map! &.-

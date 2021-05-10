@@ -67,6 +67,15 @@ class Formatter(T)
     @col = 0
     @current_indentation = 0
     @cutoff_length = 8
+    @justify_length = 8
+
+    def self.print(narr : MultiIndexable(T), settings = nil, io = STDOUT)
+        io << "#{narr.shape.join('x')} #{narr.class}\n"
+        fmt = Formatter.new(narr, io, settings)
+
+        fmt.measure
+        fmt.print
+    end
 
     def initialize(narr : MultiIndexable(T), @io, @settings)
         @depth = 0
@@ -74,21 +83,6 @@ class Formatter(T)
         @shape = narr.shape
     end
 
-    def self.print(narr : MultiIndexable(T), settings = nil, io = STDOUT)
-        io << "#{narr.shape.join('x')} #{narr.class}\n"
-        fmt = Formatter.new(narr, io, settings)
-        fmt.walk_n_print
-    end
-
-    # no newlines plz (how to handle if there are special characters in the data?? learn from Array?)
-    # def to_s(io : IO) : Nil
-    #     executed = exec_recursive(:to_s) do
-    #       io << '['
-    #       join io, ", ", &.inspect(io)
-    #       io << ']'
-    #     end
-    #     io << "[...]" unless executed
-    #   end
     def write(str)
         @io << str
         @col += str.size
@@ -116,14 +110,43 @@ class Formatter(T)
             end
         end
     end
+
+    def measure
+        @justify_length = walk_n_measure
+        @iter.reset
+    end
+
+    def print
+        walk_n_print
+        @io << "\n"
+        @iter.reset
+    end
+
+    protected def walk_n_measure(depth = 0)
+        height = @shape.size - depth - 1
+        max_columns = @settings.display_elements[{@settings.display_elements.size - 1, height}.min]
+
+        max_length = 0
+        if depth < @shape.size - 1
+            capped_iterator(depth, max_columns, "") do |last|
+                max_length = {max_length, walk_n_measure(depth + 1)}.max
+            end
+        else
+            capped_iterator(depth, max_columns, "") do |last|
+                elem_length = @iter.unsafe_next_value.inspect.size
+                max_length = {max_length, elem_length}.max
+            end
+        end
+        return max_length
+    end
         
     protected def walk_n_print(depth = 0)
         height = @shape.size - depth - 1
         max_columns = @settings.display_elements[{@settings.display_elements.size - 1, height}.min]
 
         open(height)
-
         if depth < @shape.size - 1
+            # iterating over rows
             capped_iterator(depth, max_columns, " ⋮ (%d total, #{max_columns -1} shown)") do |last|
                 walk_n_print(depth + 1)
                 unless last
@@ -133,9 +156,11 @@ class Formatter(T)
                 end
             end
         else
+            # printing elements in a single "row" (deepest axis)
             capped_iterator(depth, max_columns, "..., ") do |last|
                 str = @iter.unsafe_next_value.inspect
                 # str = str.rjust(@cutoff_length, ' ')[0...@cutoff_length]
+                str = str.rjust(@justify_length, ' ')
                 @io << str
                 @io << ", " unless last
             end
@@ -173,7 +198,7 @@ end
 # "2626"...
 # 2.6e10
 
-my_narr = NArray.build([3, 3, 3]) {|c, i| i.to_s*10}
+my_narr = NArray.build([3, 3, 3]) {|c, i| i.to_s*(i//2 + 1)}
 Formatter.print(my_narr, FormatterSettings.new)
 
 #puts my_narr
