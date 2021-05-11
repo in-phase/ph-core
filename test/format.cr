@@ -20,9 +20,8 @@ struct FormatterSettings
   property colors = [:default, :light_green, :light_yellow, :cyan, :light_magenta, :light_red] # cycles
   property colors_enabled = false
   property indent = 4
-  property max_elem_length = 20
+  property max_elem_length = 20 # not implemented
   property display_elements = [5] # last one repeats
-  property newline_between = true
   property cascade_height = 5 # starts having effect from 2
 
   def initialize()
@@ -100,23 +99,24 @@ class Formatter(T)
     end
 
     private def capped_iterator(depth, max_count, &action)
-        if @shape[depth] > max_count
+        size = @shape[depth]
+        if size > max_count
             left = max_count // 2
             right = max_count - left - 1
 
             left.times do |idx|
-                yield Flags::ELEM
+                yield Flags::ELEM, idx
             end
             
-            @iter.skip(depth, @shape[depth] - max_count)
-            yield Flags::SKIP
+            @iter.skip(depth, size - max_count)
+            yield Flags::SKIP, -1
 
             right.times do |idx|
-                yield (idx == right - 1 ? Flags::LAST : Flags::ELEM)
+                yield (idx == right - 1 ? Flags::LAST : Flags::ELEM), size - right + idx
             end
         else
-            @shape[depth].times do |idx|
-                yield (idx == @shape[depth] - 1 ? Flags::LAST : Flags::ELEM)
+            size.times do |idx|
+                yield (idx == size - 1 ? Flags::LAST : Flags::ELEM), idx
             end
         end
     end
@@ -151,7 +151,7 @@ class Formatter(T)
 
         max_length = 0
         if depth < @shape.size - 1
-            capped_iterator(depth, max_columns) do |flag|
+            capped_iterator(depth, max_columns) do |flag, i|
                 unless flag == Flags::SKIP
                     max_length = {max_length, walk_n_measure(depth + 1)}.max
                 end
@@ -186,20 +186,20 @@ class Formatter(T)
         @io << "]"
     end
         
-    protected def walk_n_print(depth = 0)
+    protected def walk_n_print(depth = 0, idx = 0)
         height = @shape.size - depth - 1
         max_columns = @settings.display_elements[{@settings.display_elements.size - 1, height}.min]
 
-        open(height)
+        open(height, idx)
         if height > 0
             # iterating over rows
-            capped_iterator(depth, max_columns) do |flag|
+            capped_iterator(depth, max_columns) do |flag, i|
                 if flag == Flags::SKIP
                     color_print(" ⋮ %d total, #{max_columns -1} shown" % @shape[depth], height)
                     newline
                     newline if height == 2 || (@settings.cascade_height < 2 && height != 1)
                 else
-                    walk_n_print(depth + 1)
+                    walk_n_print(depth + 1, i)
                     unless flag == Flags::LAST
                         color_print(",", height)
                         newline
@@ -209,7 +209,7 @@ class Formatter(T)
             end
         else
             # printing elements in a single "row" (deepest axis)
-            capped_iterator(depth, max_columns) do |flag|
+            capped_iterator(depth, max_columns) do |flag, i|
                 if flag == Flags::SKIP
                     @io <<  "..., "
                 else
@@ -221,7 +221,7 @@ class Formatter(T)
                 end
             end
         end
-        close(height)
+        close(height, idx)
     end
 
     protected def compact?(height)
@@ -234,24 +234,24 @@ class Formatter(T)
         @io << " " * @current_indentation
     end
 
-    def open(height)
+    def open(height, idx)
         brackets = @settings.brackets[height % @settings.brackets.size]
-        color_print(brackets[0], height)
+        color_print(brackets[0] % idx, height)
         if compact?(height)
-            @current_indentation += brackets[0].size
+            @current_indentation += (brackets[0] % idx).size
         elsif height != 0
             newline(1)
         end
     end
 
-    def close(height)
+    def close(height, idx)
         brackets = @settings.brackets[height % @settings.brackets.size]
         if compact?(height)
-            @current_indentation -= brackets[0].size
+            @current_indentation -= (brackets[0] % idx).size
         elsif height != 0
             newline(-1)
         end
-        color_print(brackets[1], height)
+        color_print(brackets[1] % idx, height)
     end
 end
 
@@ -269,9 +269,13 @@ my_settings = FormatterSettings.new
 my_settings.display_elements = [3]
 my_settings.colors_enabled = true
 my_settings.indent = 3
-my_settings.brackets = [{"A[","]A"}, {"before "," after"}, {"hot","cold"}, {"sweet","sour"}, {"new","old"},{"crystal","lattice"}]
+my_settings.brackets = [{"[","]"}, {"(%d)before "," after"}, {"(%d)hot","cold"}, {"(%d)sweet","sour"}, {"(%d)new","old"},{"(%d)crystal","lattice"}]
+my_settings.display_elements = [4]
 
-my_narr = NArray.build([6,6,6,6,6, 6]) {|c, i| i}
+# my_settings = FormatterSettings.new 
+
+
+my_narr = NArray.build([20, 20, 20]) {|c, i| i}
 
 dur = Time.measure do 
     Formatter.print(my_narr, my_settings)
