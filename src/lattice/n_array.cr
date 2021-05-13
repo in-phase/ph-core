@@ -155,19 +155,28 @@ module Lattice
       {{@type}}.new(shape) { value }
     end
 
+    # shorthand
+    # pad(0, {0, 3, 5}, {1, 0, 6}, "hi")
+    # def pad(value, *amounts : Tuple(Int32, Int32, Int32) | String)
 
-    def pad(shape, value, vertical = :bottom, horizontal = :left)
-
+    # core
+    # pad(0, {0 => {2, 2}, 1 => {3, 4}, -1 => {0, 5}})
+    def pad(value, amounts : Hash(Int32, Tuple(Int32, Int32)))
     end
 
-
-    def pad(value, top = 0, bottom = 0, left = 0, right = 0)
+    def fit(shape, pad_with value, align : Hash(Int32, NArray::Alignment | Int32))
     end
 
+    def pad!
+    end
+
+    def fit!
+    end
+    
     # Requires that shape is equal to coord + self.shape in each dimension
-    protected def unsafe_pad(shape, value, coord)
-      padded = NArray.fill(shape, value.as(T))
-      padded.unsafe_set_region(RegionHelpers.extent(coord, @shape), self)
+    protected def unsafe_pad(new_shape, value, coord)
+      padded = NArray.fill(new_shape, value.as(T))
+      padded.unsafe_set_region(RegionHelpers.translate_shape(@shape, coord), self)
       padded
     end
 
@@ -197,7 +206,6 @@ module Lattice
 
     # creates an {{@type}}-type vector from a tuple of scalars.
     def self.wrap(*objects)
-      # TODO: Figure out how this will work with inheritance & Tensor
       NArray.new(objects.to_a)
     end
 

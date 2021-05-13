@@ -122,6 +122,14 @@ module Lattice
       get_element(coord)
     end
 
+    def get_region(coord : Enumerable, shape : Enumerable)
+      get_region(RegionHelpers.translate_shape(shape, coord))
+    end
+
+    def get_available(region : Enumerable)
+    
+    end
+
     def [](region : Range)
       get_region([region])
     end

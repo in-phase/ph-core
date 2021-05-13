@@ -1,3 +1,54 @@
+
+
+
+# iterates over slices (any axis)
+# iterating 3x3 kernels
+
+# remainders: discard? pass, unfilled?
+
+[a b c d e f g]
+=> a b c 
+=> d e f 
+=> discard g
+
+
+narr.get(coord, size)
+narr.get_available
+
+
+[1..3..9, 2..4]
+
+make a chunkiter and give me regions with shape [3, 2]
+narr.chunkiter(3, 3) &[1..2..3, ...]
+
+
+chunkiter(shape, )
+
+narr.chunks(chunk_shape, strides) # => ChunkIterator(NArray(T)), expensive and slow, safe
+narr.view.chunks(chunk_shape, strides) # => ChunkIterator(View(T)), fast and cheap, iffy
+
+..3...
+
+
+[1,2,3
+4,5,6
+7,8,9
+10,11,12
+13,14,15]
+
+=>
+[1,2,3
+7,8,9]
+
+=> 
+[4,5,6
+10,11,12]
+
+
+
+
+
+
 module Lattice
   module MultiIndexable(T)
     abstract class RegionIterator(A, T)

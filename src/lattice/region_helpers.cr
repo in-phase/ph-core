@@ -64,8 +64,8 @@ module Lattice
       coord.to_a.map_with_index { |index, axis| canonicalize_index(index, shape, axis).to_i32 }
     end
 
-    def canonicalize_range(range, shape, axis) : SteppedRange
-      SteppedRange.new(range, shape[axis])
+    def canonicalize_range(range, shape, axis, trim_to_fit = false) : SteppedRange
+      SteppedRange.new(range, shape[axis], trim_to_fit)
     end
 
     # TODO: specify parameters, implement step sizes other than 1
@@ -79,10 +79,10 @@ module Lattice
     #           corresponding axis of `shape`, in canonical (positive) form
     #     - if `step > 0`, then `range.begin <= range.end`, and if `step < 0`, then `range.begin <= range.end`
     #     - `range` is inclusive
-    def canonicalize_region(region, shape) : Array(SteppedRange)
+    def canonicalize_region(region, shape, trim_to_fit = false) : Array(SteppedRange)
       canonical_region = region.to_a + [..] * (shape.size - region.size)
       canonical_region = canonical_region.map_with_index do |rule, axis|
-        next canonicalize_range(rule, shape, axis)
+        next canonicalize_range(rule, shape, axis, trim_to_fit)
       end
     end
 
@@ -135,7 +135,7 @@ module Lattice
       end
     end
 
-    def extend(coord, shape) : Array(SteppedRange)
+    def translate_shape(shape, coord) : Array(SteppedRange)
       top_left = canonicalize_coord(coord)
       top_left.map_with_index do |start, i|
         SteppedRange.new_canonical(start, start + shape[i] - 1, 1)
@@ -145,21 +145,24 @@ module Lattice
     # Stores similar information to a StepIterator, which (as of Crystal 0.36) have issues of uncertain types and may change behaviour in the future.
     # To avoid compatibility issues we define our own struct here.
     struct SteppedRange
-
       getter size : Int32
       getter step : Int32
       getter begin : Int32
       getter end : Int32
 
-      def self.new(range : Range, step : Int, bound : Int)
+      def self.empty
+        SteppedRange.new
+      end
+
+      def self.new(range : Range, step : Int, bound : Int, trim_to_fit = false)
         canonicalize(range.begin, range.end, range.excludes_end?, bound, step)
       end
 
-      def self.new(range : SteppedRange, bound)
-        self.canonicalize(range.begin, range.end, false, bound, range.step)
+      def self.new(range : SteppedRange, bound, trim_to_fit = false)
+        canonicalize(range.begin, range.end, false, bound, range.step,)
       end
   
-      def self.new(range : Range, bound)
+      def self.new(range : Range, bound, trim_to_fit = false)
         first = range.begin
         case first
         when Range
@@ -184,11 +187,22 @@ module Lattice
         @size = ((@end - @begin) // @step).abs.to_i32 + 1
       end
 
+      protected def initialize
+        @size = 0
+        @step = 0
+        @begin = 0
+        @end = 0
+      end
+
       protected def initialize(index)
         @size = 1
         @step = 1
         @begin = index  
         @end = index
+      end
+
+      def empty? : Bool
+        @size == 0
       end
 
       def reverse : SteppedRange
@@ -214,9 +228,24 @@ module Lattice
         SteppedRange.new(local_to_absolute(subrange.begin), local_to_absolute(subrange.end), @step * subrange.step)
       end
 
+      def trim(new_bound) : SteppedRange
+        if @begin >= new_bound
+          if @end >= new_bound # both out of bounds
+            return SteppedRange.empty
+          elsif @step < 0 # We started too high, but terminate inside the bounds
+            span = (new_bound - 1) - @end
+            span -= span % @step.abs
+            return SteppedRange.new(@end + span, @end, @step)
+          end
+        elsif @step > 0 && @end >= new_bound # start in bounds, increase past bound
+          span = (new_bound - 1) - @begin
+          span -= span % @step.abs
+          return SteppedRange.new(@begin, @begin + span, @step)
+        end
+        self
+      end
 
       protected def self.canonicalize(start, stop, exclusive, bound, step = nil) : SteppedRange
-
         if !step
           # Infer endpoints normally, and determine iteration direction
           start = start ? RegionHelpers.canonicalize_index(start, bound) : 0
@@ -235,6 +264,8 @@ module Lattice
             raise IndexError.new("Could not canonicalize range: Conflict between implicit direction of #{Range.new(start, stop, exclusive)} and provided step #{step}")
           end
         end
+
+
 
         # Account for exclusive ends of a range
         if stop && exclusive
