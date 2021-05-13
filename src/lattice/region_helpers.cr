@@ -135,6 +135,13 @@ module Lattice
       end
     end
 
+    def extend(coord, shape) : Array(SteppedRange)
+      top_left = canonicalize_coord(coord)
+      top_left.map_with_index do |start, i|
+        SteppedRange.new_canonical(start, start + shape[i] - 1, 1)
+      end
+    end
+
     # Stores similar information to a StepIterator, which (as of Crystal 0.36) have issues of uncertain types and may change behaviour in the future.
     # To avoid compatibility issues we define our own struct here.
     struct SteppedRange
@@ -161,6 +168,10 @@ module Lattice
         else
           return canonicalize(first, range.end, range.excludes_end?, bound)
         end
+      end
+
+      def self.new_canonical(start, stop, step)
+        self.new(start, stop, step)
       end
   
       # This method is supposed to capture numeric objects. We avoid specifying type

@@ -155,6 +155,22 @@ module Lattice
       {{@type}}.new(shape) { value }
     end
 
+
+    def pad(shape, value, vertical = :bottom, horizontal = :left)
+
+    end
+
+
+    def pad(value, top = 0, bottom = 0, left = 0, right = 0)
+    end
+
+    # Requires that shape is equal to coord + self.shape in each dimension
+    protected def unsafe_pad(shape, value, coord)
+      padded = NArray.fill(shape, value.as(T))
+      padded.unsafe_set_region(RegionHelpers.extent(coord, @shape), self)
+      padded
+    end
+
     # Adds a dimension at highest level, where each "row" is an input {{@type}}.
     # If pad is false, then throw error if shapes of objects do not match;
     # otherwise, pad subarrays along each axis to match whichever is largest in that axis
