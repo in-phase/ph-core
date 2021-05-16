@@ -1,14 +1,5 @@
-# Improvements:
-# truncate data when it's too big (...s), two dimensionally
-# align elements
-# (0) [
-#   (1) [a, b, c]
-#   (1) [d, e, f]
-#   (1) [g, h, i]
-# ]
 require "yaml"
 require "../src/lattice"
-
 require "colorize"
 
 include Lattice
@@ -21,20 +12,20 @@ struct FormatterSettings
   property colors_enabled = false
   property indent = 4
   property max_elem_length = 20 # not implemented
-  property display_elements = [5] # last one repeats
+  property display_elements = [10,5] # last one repeats
   property cascade_height = 5 # starts having effect from 2
 
   def initialize()
   end
 end
 
-class FormatIterator(A,T) < MultiIndexable::LexRegionIterator(A,T)
+class FormatIterator(T) < MultiIndexable::LexRegionIterator(AT)
     
     def skip(axis, amount) : Nil
         @coord[axis] += amount + 1
     end
 
-    def next
+    def unsafe_next
         (@coord.size - 1).downto(0) do |i| # ## least sig .. most sig
             if @coord[i] == @last[i]
                 # dimension change
@@ -82,7 +73,7 @@ class Formatter(T)
             display_shape = narr.shape
         end
         
-        io << "#{display_shape.join('x')} #{narr.class}\n"
+        io << "#{display_shape.join('x')}#{" element" if narr.shape.size == 1} #{narr.class}\n"
         fmt = Formatter.new(narr, io, settings)
         fmt.print
     end
@@ -265,25 +256,24 @@ end
 # 2.6e10
 
 my_settings = FormatterSettings.new 
-# my_settings.cascade_height = 4
-my_settings.display_elements = [3]
+my_settings.cascade_height = 4
 my_settings.colors_enabled = true
 my_settings.indent = 3
-my_settings.brackets = [{"[","]"}, {"(%d)before "," after"}, {"(%d)hot","cold"}, {"(%d)sweet","sour"}, {"(%d)new","old"},{"(%d)crystal","lattice"}]
+my_settings.brackets = [{"〈", "〉"}, {"❮", "❯"}, {"❰", "❱"}]
+my_settings.colors = [:red, :yellow, :green, :blue]
 my_settings.display_elements = [4]
 
-# my_settings = FormatterSettings.new 
+my_settings = FormatterSettings.new 
 
-
-my_narr = NArray.build([20, 20, 20]) {|c, i| i}
+my_narr = NArray.build([10,10,10,10,10]) {|c, i| i}
 
 dur = Time.measure do 
     Formatter.print(my_narr, my_settings)
 end
 puts dur
 
-small_narr = NArray.build([3,3,3]) {|c,i| i}
-Formatter.print_literal(small_narr)
+# small_narr = NArray.build([3,3,3]) {|c,i| i}
+# Formatter.print_literal(small_narr)
 
 # puts narr # read formatter settings from your computer, print according to those
 # # first check project directory for config file

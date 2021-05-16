@@ -64,8 +64,8 @@ module Lattice
       coord.to_a.map_with_index { |index, axis| canonicalize_index(index, shape, axis).to_i32 }
     end
 
-    def canonicalize_range(range, shape, axis, trim_to_fit = false) : SteppedRange
-      SteppedRange.new(range, shape[axis], trim_to_fit)
+    def canonicalize_range(range, shape, axis) : SteppedRange
+      SteppedRange.new(range, shape[axis])
     end
 
     # TODO: specify parameters, implement step sizes other than 1
@@ -79,10 +79,10 @@ module Lattice
     #           corresponding axis of `shape`, in canonical (positive) form
     #     - if `step > 0`, then `range.begin <= range.end`, and if `step < 0`, then `range.begin <= range.end`
     #     - `range` is inclusive
-    def canonicalize_region(region, shape, trim_to_fit = false) : Array(SteppedRange)
+    def canonicalize_region(region, shape) : Array(SteppedRange)
       canonical_region = region.to_a + [..] * (shape.size - region.size)
       canonical_region = canonical_region.map_with_index do |rule, axis|
-        next canonicalize_range(rule, shape, axis, trim_to_fit)
+        next canonicalize_range(rule, shape, axis)
       end
     end
 
@@ -135,10 +135,16 @@ module Lattice
       end
     end
 
-    def translate_shape(shape, coord) : Array(SteppedRange)
-      top_left = canonicalize_coord(coord)
+    def translate_shape(region_shape, coord, parent_shape) : Array(SteppedRange)
+      top_left = canonicalize_coord(coord, parent_shape)
       top_left.map_with_index do |start, i|
-        SteppedRange.new_canonical(start, start + shape[i] - 1, 1)
+        SteppedRange.new_canonical(start, start + region_shape[i] - 1, 1)
+      end
+    end
+
+    def trim_region(region, shape)
+      region.map_with_index do |range, i|
+        SteppedRange.new(range, Int32::MAX).trim(shape[i])
       end
     end
 
@@ -154,15 +160,15 @@ module Lattice
         SteppedRange.new
       end
 
-      def self.new(range : Range, step : Int, bound : Int, trim_to_fit = false)
+      def self.new(range : Range, step : Int, bound : Int)
         canonicalize(range.begin, range.end, range.excludes_end?, bound, step)
       end
 
-      def self.new(range : SteppedRange, bound, trim_to_fit = false)
-        canonicalize(range.begin, range.end, false, bound, range.step,)
+      def self.new(range : SteppedRange, bound)
+        canonicalize(range.begin, range.end, false, bound, range.step)
       end
   
-      def self.new(range : Range, bound, trim_to_fit = false)
+      def self.new(range : Range, bound)
         first = range.begin
         case first
         when Range

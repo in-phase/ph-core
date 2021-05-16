@@ -34,8 +34,8 @@ module Lattice
       end
 
       @shape = shape.map do |dim|
-        if dim < 1
-          raise DimensionError.new("Cannot create {{@type}}: One or more of the provided dimensions was less than one.")
+        if dim < 0
+          raise DimensionError.new("Cannot create {{@type}}: One or more of the provided dimensions was negative.")
         end
         dim
       end
@@ -601,6 +601,7 @@ module Lattice
       {concat_shape, Slice.new(values.to_unsafe, values.size)}
     end
 
+
     # TODO: Update documentation. I (seth) rewrote this function to make it validate the shape fully.
     # documentation doesn't currently reflect that
     # Returns the estimated dimension of a multidimensional array that is provided as a nested array literal.
@@ -610,7 +611,7 @@ module Lattice
     # from the fact that the top-level array contains 2 elements, and the `1` comes from the size of
     # the sub-array `[1]`. However, we can clearly see that the size isn't uniform - the second
     # sub-array is `[1, 2]`, which is two elements, not one!
-    protected def self.measure_nested_array(nested_array current, depth = 0, max_depth = StaticArray[0i32], shape = [] of Int32) : Array(Int32)
+    protected def self.measure_nested_array(nested_array current, depth = 0, max_depth = Slice[-1i32], shape = [] of Int32) : Array(Int32)
       # There are three main goals here:
       # 1. Measure the array shape
       # 2. Ensure that the number of elements in each dimension is consistent
@@ -622,11 +623,12 @@ module Lattice
       if current.is_a? Array
         # If this is the first time we've gotten this deep
         if depth == shape.size
-          if current.size == 0
-            raise DimensionError.new("Could not profile nested array: Found an array with size zero.")
-          end
-
           shape << current.size
+        else
+          if shape[depth] != current.size
+            # We've been at this before, but the shape was different then.
+            raise DimensionError.new("Could not profile nested array: Array shape was inconsistent.")
+          end
         end
 
         current.each do |sub_element|
@@ -639,7 +641,7 @@ module Lattice
         end
       else
         # This will only be -1 if the depth had not yet been determined
-        if max_depth[0] = -1
+        if max_depth[0] == -1
           max_depth[0] = depth
         else
           # Ensure the depth recorded last time is consistent
@@ -786,7 +788,7 @@ module Lattice
         buffer_index
       end
 
-      def next
+      def unsafe_next
         (@coord.size - 1).downto(0) do |i| # ## least sig .. most sig
           if @coord[i] == @last[i]
             @buffer_index -= (@coord[i] - @first[i]) * @buffer_step[i]
@@ -814,7 +816,7 @@ module Lattice
         buffer_index
       end
 
-      def next
+      def unsafe_next
         0.upto(@coord.size - 1) do |i| # ## least sig .. most sig
           if @coord[i] == @last[i]
             @buffer_index -= (@coord[i] - @first[i]) * @buffer_step[i]

@@ -1,7 +1,7 @@
 require "./region_helpers.cr"
 require "../iterators/region_iterators.cr"
 require "./order.cr"
-require "./multi_indexable_formatter.cr"
+require "./formatter.cr"
 
 module Lattice
 
@@ -14,7 +14,6 @@ module Lattice
     # add search, traversal methods
     include Enumerable(T)
     include MultiEnumerable(T)
-    include MultiIndexableFormatter(T)
 
     # For performance gains, we recommend the user to consider overriding the following methods when including MultiIndexable(T):
     # - #each_fastest
@@ -88,14 +87,20 @@ module Lattice
       shape_internal.size
     end
 
-    # FIXME: NArrayFormatter depends on buffer indices.
-    def to_s : String
-      MultiIndexableFormatter.format(self)
+    def to_literal_s(io : IO) : Nil
+      Formatter.print_literal(self, io)
     end
 
     # FIXME: NArrayFormatter depends on buffer indices.
-    def to_s(io : IO) : Nil
-      MultiIndexableFormatter.print(self, io)
+    def to_s(settings = FormatterSettings.new) : String
+      String.build do |str|
+        Formatter.print(self, str, settings: settings)
+      end
+    end
+
+    # FIXME: NArrayFormatter depends on buffer indices.
+    def to_s(io : IO, settings = FormatterSettings.new) : Nil
+      Formatter.print(self, io, settings: settings)
     end
 
     # Checks that `coord` is in-bounds for this `{{type}}`.
@@ -122,12 +127,12 @@ module Lattice
       get_element(coord)
     end
 
-    def get_region(coord : Enumerable, shape : Enumerable)
-      get_region(RegionHelpers.translate_shape(shape, coord))
+    def get_region(coord : Enumerable, region_shape : Enumerable)
+      get_region(RegionHelpers.translate_shape(region_shape, coord))
     end
 
     def get_available(region : Enumerable)
-    
+      get_region(RegionHelpers.trim_region(region, shape))
     end
 
     def [](region : Range)
@@ -136,7 +141,6 @@ module Lattice
 
     # Copies the elements in `region` to a new `{{type}}`, and throws an error if `region` is out-of-bounds for this `{{type}}`.
     def [](region : Enumerable)
-
       get_region(region)
     end
 
