@@ -1,3 +1,7 @@
+require "./region_helpers"
+require "./order"
+require "./iterators/*"
+
 module Lattice
   module MultiWritable(T)
     # TODO: discuss: should mutators explicitly return the object itself, for chaining purposes?
@@ -89,5 +93,6 @@ module Lattice
     end
 
     # TODO: once we figure out map, figure out map!
+    # Will throw compile error if not both read and writeable
   end
 end

@@ -1,6 +1,7 @@
 require "colorize"
 require "yaml"
-require "./multi_indexable.cr"
+
+require "./iterators/*"
 
 # when you first print an narray, it loads whatever it should find from file, and then saves it in a static variable on FormatterSettings
 module Lattice
@@ -44,7 +45,7 @@ module Lattice
       property brackets : Array(Tuple(String, String))
 
       @[YAML::Field(converter: YAML::ArrayConverter(ColorConverter))]
-      property colors : Array(Colorize::Color | Symbol) | Array(Colorize::Color) | Array(Symbol)
+      property colors : Array(Colorize::Color | Symbol) | Array(Colorize::Color) | Array(Symbol) = [:default] # TODO: remove value
 
       @[YAML::Field(key: "collapse_brackets_after")]
       property collapse_height : Int32
@@ -68,7 +69,7 @@ module Lattice
           path = Path[dir] / USER_CONFIG_FILENAME
 
           if File.exists?(path)
-            return @@cached_user_settings = from_yaml(File.read(path))
+            # return @@cached_user_settings = from_yaml(File.read(path))
           end
         end
 
@@ -77,7 +78,7 @@ module Lattice
             path = Path[dir] / "lattice" / USER_CONFIG_FILENAME
 
             if File.exists?(path)
-              return @@cached_user_settings = from_yaml(File.read(path))
+              # return @@cached_user_settings = from_yaml(File.read(path))
             end
           end
         end
@@ -344,6 +345,22 @@ module Lattice
           self.next.unsafe_as(Tuple(T, Array(Int32)))[0]
         end
       end
+    end
+
+    def to_literal_s(io : IO) : Nil
+      Formatter.print_literal(self, io)
+    end
+
+    # FIXME: NArrayFormatter depends on buffer indices.
+    def to_s(settings = Settings.new) : String
+      String.build do |str|
+        Formatter.print(self, str, settings: settings)
+      end
+    end
+
+    # FIXME: NArrayFormatter depends on buffer indices.
+    def to_s(io : IO, settings = Settings.new) : Nil
+      Formatter.print(self, io, settings: settings)
     end
   end
 end

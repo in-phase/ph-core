@@ -1,5 +1,5 @@
-
-
+require "../multi_indexable"
+require "../region_helpers"
 
 # iterates over slices (any axis)
 # iterating 3x3 kernels

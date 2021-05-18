@@ -1,4 +1,4 @@
-require "../lattice"
+require "./view_object"
 
 module Lattice
 

@@ -1,11 +1,13 @@
-require "./exceptions/*"
+require "./**"
 
-require "./patches/*"
+# require "./exceptions/*"
 
-require "./n_dim/*"
-require "./n_dim/iterators/*"
+# require "./patches/*"
 
-require "views"
+# require "./n_dim/*"
+# require "./n_dim/iterators/*"
+
+# require "views"
 
 # TODO: Write documentation for `Lattice::Core`
 module Lattice

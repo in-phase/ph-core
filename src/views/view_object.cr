@@ -1,4 +1,4 @@
-require "../lattice"
+require "../n_dim/*"
 
 module Lattice
 

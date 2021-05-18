@@ -1,10 +1,8 @@
-require "./region_helpers.cr"
-require "../iterators/region_iterators.cr"
-require "./order.cr"
-require "./formatter.cr"
+require "./region_helpers"
+require "./order"
+require "./iterators/*"
 
 module Lattice
-
 
   # Assumptions:
   # - length along every axis is finite and positive, and each element is positively indexed
@@ -13,7 +11,6 @@ module Lattice
 
     # add search, traversal methods
     include Enumerable(T)
-    include MultiEnumerable(T)
 
     # For performance gains, we recommend the user to consider overriding the following methods when including MultiIndexable(T):
     # - #each_fastest
@@ -87,21 +84,6 @@ module Lattice
       shape_internal.size
     end
 
-    def to_literal_s(io : IO) : Nil
-      Formatter.print_literal(self, io)
-    end
-
-    # FIXME: NArrayFormatter depends on buffer indices.
-    def to_s(settings = Settings.new) : String
-      String.build do |str|
-        Formatter.print(self, str, settings: settings)
-      end
-    end
-
-    # FIXME: NArrayFormatter depends on buffer indices.
-    def to_s(io : IO, settings = Settings.new) : Nil
-      Formatter.print(self, io, settings: settings)
-    end
 
     # Checks that `coord` is in-bounds for this `{{type}}`.
     def has_coord?(coord : Enumerable) : Bool
