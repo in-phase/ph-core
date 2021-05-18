@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="generator" content="Crystal Docs 0.36.1">
+<meta name="crystal_docs.project_version" content="main-dev">
+<meta name="crystal_docs.project_name" content="lattice-core">
+
+
+
+<link href="../css/style.css" rel="stylesheet" type="text/css" />
+<script type="text/javascript" src="../js/doc.js"></script>
+
+  <meta name="repository-name" content="lattice-core">
+  <title>Lattice::ViewObject(B, T, R) - lattice-core main-dev</title>
+  <script type="text/javascript">
+    CrystalDocs.base_path = "../";
+  </script>
+</head>
+<body>
+
+<svg class="hidden">
+  <symbol id="octicon-link" viewBox="0 0 16 16">
+    <path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path>
+  </symbol>
+</svg>
+<div class="sidebar">
+  <div class="sidebar-header">
+    <div class="search-box">
+      <input type="search" class="search-input" placeholder="Search..." spellcheck="false" aria-label="Search">
+    </div>
+
+    <div class="project-summary">
+      <h1 class="project-name">
+        <a href="../index.html">
+          lattice-core
+        </a>
+      </h1>
+
+      <span class="project-version">
+        main-dev
+      </span>
+    </div>
+  </div>
+
+  <div class="search-results hidden">
+    <ul class="search-list"></ul>
+  </div>
+
+  <div class="types-list">
+    <ul>
+  
+  <li class=" " data-id="lattice-core/Complex" data-name="complex">
+      <a href="../Complex.html">Complex</a>
+      
+    </li>
+  
+  <li class="parent open current" data-id="lattice-core/Lattice" data-name="lattice">
+      <a href="../Lattice.html">Lattice</a>
+      
+        <ul>
+  
+  <li class=" " data-id="lattice-core/Lattice/DimensionError" data-name="lattice::dimensionerror">
+      <a href="../Lattice/DimensionError.html">DimensionError</a>
+      
+    </li>
+  
+  <li class="parent " data-id="lattice-core/Lattice/MultiEnumerable" data-name="lattice::multienumerable(t)">
+      <a href="../Lattice/MultiEnumerable.html">MultiEnumerable</a>
+      
+        <ul>
+  
+  <li class=" " data-id="lattice-core/Lattice/MultiEnumerable/EmptyError" data-name="lattice::multienumerable::emptyerror">
+      <a href="../Lattice/MultiEnumerable/EmptyError.html">EmptyError</a>
+      
+    </li>
+  
+</ul>
+
+      
+    </li>
+  
+  <li class="parent " data-id="lattice-core/Lattice/MultiIndexable" data-name="lattice::multiindexable(t)">
+      <a href="../Lattice/MultiIndexable.html">MultiIndexable</a>
+      
+        <ul>
+  
+  <li class="parent " data-id="lattice-core/Lattice/MultiIndexable/ChunkIterator" data-name="lattice::multiindexable::chunkiterator(a, t)">
+      <a href="../Lattice/MultiIndexable/ChunkIterator.html">ChunkIterator</a>
+      
+        <ul>
+  
+  <li class=" " data-id="lattice-core/Lattice/MultiIndexable/ChunkIterator/FringeBehaviour" data-name="lattice::multiindexable::chunkiterator::fringebehaviour">
+      <a href="../Lattice/MultiIndexable/ChunkIterator/FringeBehaviour.html">FringeBehaviour</a>
+      
+    </li>
+  
+</ul>
+
+      
+    </li>
+  
+  <li class=" " data-id="lattice-core/Lattice/MultiIndexable/ColexRegionIterator" data-name="lattice::multiindexable::colexregioniterator(a, t)">
+      <a href="../Lattice/MultiIndexable/ColexRegionIterator.html">ColexRegionIterator</a>
+      
+    </li>
+  
+  <li class="parent " data-id="lattice-core/Lattice/MultiIndexable/Formatter" data-name="lattice::multiindexable::formatter(t)">
+      <a href="../Lattice/MultiIndexable/Formatter.html">Formatter</a>
+      
+        <ul>
+  
+  <li class=" " data-id="lattice-core/Lattice/MultiIndexable/Formatter/FormatIterator" data-name="lattice::multiindexable::formatter::formatiterator(a, t)">
+      <a href="../Lattice/MultiIndexable/Formatter/FormatIterator.html">FormatIterator</a>
+      
+    </li>
+  
+</ul>
+
+      
+    </li>
+  
+  <li class=" " data-id="lattice-core/Lattice/MultiIndexable/LexRegionIterator" data-name="lattice::multiindexable::lexregioniterator(a, t)">
+      <a href="../Lattice/MultiIndexable/LexRegionIterator.html">LexRegionIterator</a>
+      
+    </li>
+  
+  <li class=" " data-id="lattice-core/Lattice/MultiIndexable/RegionIterator" data-name="lattice::multiindexable::regioniterator(a, t)">
+      <a href="../Lattice/MultiIndexable/RegionIterator.html">RegionIterator</a>
+      
+    </li>
+  
+  <li class=" " data-id="lattice-core/Lattice/MultiIndexable/Settings" data-name="lattice::multiindexable::settings">
+      <a href="../Lattice/MultiIndexable/Settings.html">Settings</a>
+      
+    </li>
+  
+</ul>
+
+      
+    </li>
+  
+  <li class=" " data-id="lattice-core/Lattice/MultiWritable" data-name="lattice::multiwritable(t)">
+      <a href="../Lattice/MultiWritable.html">MultiWritable</a>
+      
+    </li>
+  
+  <li class="parent " data-id="lattice-core/Lattice/NArray" data-name="lattice::narray(t)">
+      <a href="../Lattice/NArray.html">NArray</a>
+      
+        <ul>
+  
+  <li class=" " data-id="lattice-core/Lattice/NArray/BufferedColexRegionIterator" data-name="lattice::narray::bufferedcolexregioniterator(a, t)">
+      <a href="../Lattice/NArray/BufferedColexRegionIterator.html">BufferedColexRegionIterator</a>
+      
+    </li>
+  
+  <li class=" " data-id="lattice-core/Lattice/NArray/BufferedLexRegionIterator" data-name="lattice::narray::bufferedlexregioniterator(a, t)">
+      <a href="../Lattice/NArray/BufferedLexRegionIterator.html">BufferedLexRegionIterator</a>
+      
+    </li>
+  
+</ul>
+
+      
+    </li>
+  
+  <li class=" " data-id="lattice-core/Lattice/Order" data-name="lattice::order">
+      <a href="../Lattice/Order.html">Order</a>
+      
+    </li>
+  
+  <li class=" " data-id="lattice-core/Lattice/ProcessedView" data-name="lattice::processedview(b, t, r)">
+      <a href="../Lattice/ProcessedView.html">ProcessedView</a>
+      
+    </li>
+  
+  <li class="parent " data-id="lattice-core/Lattice/RegionHelpers" data-name="lattice::regionhelpers">
+      <a href="../Lattice/RegionHelpers.html">RegionHelpers</a>
+      
+        <ul>
+  
+  <li class=" " data-id="lattice-core/Lattice/RegionHelpers/SteppedRange" data-name="lattice::regionhelpers::steppedrange">
+      <a href="../Lattice/RegionHelpers/SteppedRange.html">SteppedRange</a>
+      
+    </li>
+  
+</ul>
+
+      
+    </li>
+  
+  <li class=" " data-id="lattice-core/Lattice/View" data-name="lattice::view(b, t)">
+      <a href="../Lattice/View.html">View</a>
+      
+    </li>
+  
+  <li class=" current" data-id="lattice-core/Lattice/ViewObject" data-name="lattice::viewobject(b, t, r)">
+      <a href="../Lattice/ViewObject.html">ViewObject</a>
+      
+    </li>
+  
+</ul>
+
+      
+    </li>
+  
+  <li class=" " data-id="lattice-core/Number" data-name="number">
+      <a href="../Number.html">Number</a>
+      
+    </li>
+  
+</ul>
+
+  </div>
+</div>
+
+
+<div class="main-content">
+<h1 class="type-name">
+
+  <span class="kind">module</span> Lattice::ViewObject(B, T, R)
+
+</h1>
+
+
+
+
+
+
+
+
+
+  <h2>
+    <a id="included-modules" class="anchor" href="#included-modules">
+  <svg class="octicon-link" aria-hidden="true">
+    <use href="#octicon-link"/>
+  </svg>
+</a>
+    Included Modules
+  </h2>
+  <ul class="other-types-list">
+    
+      <li class="other-type"><a href="../Lattice/MultiIndexable.html">Lattice::MultiIndexable(R)</a></li>
+    
+  </ul>
+
+
+
+
+
+
+
+  <h2>
+    <a id="direct-including-types" class="anchor" href="#direct-including-types">
+  <svg class="octicon-link" aria-hidden="true">
+    <use href="#octicon-link"/>
+  </svg>
+</a>
+    Direct including types
+  </h2>
+  <ul class="other-types-list">
+    
+      <li class="other-type"><a href="../Lattice/ProcessedView.html">Lattice::ProcessedView(B, T, R)</a></li>
+    
+      <li class="other-type"><a href="../Lattice/View.html">Lattice::View(B, T)</a></li>
+    
+  </ul>
+
+
+
+
+  <h2>
+    <a id="defined-in" class="anchor" href="#defined-in">
+  <svg class="octicon-link" aria-hidden="true">
+    <use href="#octicon-link"/>
+  </svg>
+</a>
+    Defined in:
+  </h2>
+  
+    
+      views/view_object.cr
+    
+    <br/>
+  
+
+
+
+
+
+
+
+
+
+  <h2>
+    <a id="instance-method-summary" class="anchor" href="#instance-method-summary">
+  <svg class="octicon-link" aria-hidden="true">
+    <use href="#octicon-link"/>
+  </svg>
+</a>
+    Instance Method Summary
+  </h2>
+  <ul class="list-summary">
+    
+      <li class="entry-summary">
+        <a href="#clone-instance-method" class="signature"><strong>#clone</strong></a>
+        
+      </li>
+    
+      <li class="entry-summary">
+        <a href="#region:Array(RegionHelpers::SteppedRange)-instance-method" class="signature"><strong>#region</strong> : Array(RegionHelpers::SteppedRange)</a>
+        
+      </li>
+    
+      <li class="entry-summary">
+        <a href="#reverse-instance-method" class="signature"><strong>#reverse</strong></a>
+        
+      </li>
+    
+      <li class="entry-summary">
+        <a href="#reverse!-instance-method" class="signature"><strong>#reverse!</strong></a>
+        
+      </li>
+    
+      <li class="entry-summary">
+        <a href="#shape:Array(Int32)-instance-method" class="signature"><strong>#shape</strong> : Array(Int32)</a>
+        
+          <div class="summary"><p>For use externally</p></div>
+        
+      </li>
+    
+      <li class="entry-summary">
+        <a href="#size:Int32-instance-method" class="signature"><strong>#size</strong> : Int32</a>
+        
+          <div class="summary"><p>Returns the number of elements in the <code>{{type}}</code>; equal to <code>shape.product</code>.</p></div>
+        
+      </li>
+    
+      <li class="entry-summary">
+        <a href="#src:B-instance-method" class="signature"><strong>#src</strong> : B</a>
+        
+      </li>
+    
+      <li class="entry-summary">
+        <a href="#transpose-instance-method" class="signature"><strong>#transpose</strong></a>
+        
+      </li>
+    
+      <li class="entry-summary">
+        <a href="#transpose!-instance-method" class="signature"><strong>#transpose!</strong></a>
+        
+      </li>
+    
+      <li class="entry-summary">
+        <a href="#view(region,order:Order)-instance-method" class="signature"><strong>#view</strong>(region, order : Order)</a>
+        
+      </li>
+    
+      <li class="entry-summary">
+        <a href="#view(*region)-instance-method" class="signature"><strong>#view</strong>(*region)</a>
+        
+      </li>
+    
+  </ul>
+
+
+
+
+
+<div class="methods-inherited">
+  
+    
+
+  <h3>Instance methods inherited from module <code><a href="../Lattice/MultiIndexable.html">Lattice::MultiIndexable(R)</a></code></h3>
+  
+  
+    <a href="../Lattice/MultiIndexable.html#%25(other:MultiIndexable(U))forallU-instance-method" class="tooltip">
+      <span>%(other : MultiIndexable(U)) forall U<br/>%(other)</span>
+    %</a>, 
+    
+  
+    <a href="../Lattice/MultiIndexable.html#&(other:MultiIndexable(U))forallU-instance-method" class="tooltip">
+      <span>&(other : MultiIndexable(U)) forall U<br/>&(other)</span>
+    &</a>, 
+    
+  
+    <a href="../Lattice/MultiIndexable.html#&**(other:MultiIndexable(U))forallU-instance-method" class="tooltip">
+      <span>&**(other : MultiIndexable(U)) forall U<br/>&**(other)</span>
+    &**</a>, 
+    
+  
+    <a href="../Lattice/MultiIndexable.html#&+(other)-instance-method" class="tooltip">
+      <span>&+(other)<br/>&+(other : MultiIndexable(U)) forall U</span>
+    &+</a>, 
+    
+  
+    <a href="../Lattice/MultiIndexable.html#&-(other)-instance-method" class="tooltip">
+      <span>&-(other)<br/>&-(other : MultiIndexable(U)) forall U</span>
+    &-</a>, 
+    
+  
+    <a href="../Lattice/MultiIndexable.html#*(other)-instance-method" class="tooltip">
+      <span>*(other)<br/>*(other : MultiIndexable(U)) forall U</span>
+    *</a>, 
+    
+  
+    <a href="../Lattice/MultiIndexable.html#**(other:MultiIndexable(U))forallU-instance-method" class="tooltip">
+      <span>**(other : MultiIndexable(U)) forall U<br/>**(other)</span>
+    **</a>, 
+    
+  
+    <a href="../Lattice/MultiIndexable.html#+(other)-instance-method" class="tooltip">
+      <span>+(other)<br/>+(other : MultiIndexable(U)) forall U<br/>+</span>
+    +</a>, 
+    
+  
+    <a href="../Lattice/MultiIndexable.html#-(other)-instance-method" class="tooltip">
+      <span>-(other)<br/>-<br/>-(other : MultiIndexable(U)) forall U</span>
+    -</a>, 
+    
+  
+    <a href="../Lattice/MultiIndexable.html#/(other)-instance-method" class="tooltip">
+      <span>/(other)<br/>/(other : MultiIndexable(U)) forall U</span>
+    /</a>, 
+    
+  
+    <a href="../Lattice/MultiIndexable.html#//(other)-instance-method" class="tooltip">
+      <span>//(other)<br/>//(other : MultiIndexable(U)) forall U</span>
+    //</a>, 
+    
+  
+    <a href="../Lattice/MultiIndexable.html#%3C(other:MultiIndexable(U))forallU-instance-method" class="tooltip">
+      <span><(other : MultiIndexable(U)) forall U<br/><(other)</span>
+    <</a>, 
+    
+  
+    <a href="../Lattice/MultiIndexable.html#%3C=(other)-instance-method" class="tooltip">
+      <span><=(other)<br/><=(other : MultiIndexable(U)) forall U</span>
+    <=</a>, 
+    
+  
+    <a href="../Lattice/MultiIndexable.html#(other)-instance-method" class="tooltip">
+      <span><=>(other)<br/><=>(other : MultiIndexable(U)) forall U</span>
+    <=></a>, 
+    
+  
+    <a href="../Lattice/MultiIndexable.html#%3E(other:MultiIndexable(U))forallU-instance-method" class="tooltip">
+      <span>>(other : MultiIndexable(U)) forall U<br/>>(other)</span>
+    ></a>, 
+    
+  
+    <a href="../Lattice/MultiIndexable.html#%3E=(other)-instance-method" class="tooltip">
+      <span>>=(other)<br/>>=(other : MultiIndexable(U)) forall U</span>
+    >=</a>, 
+    
+  
+    <a href="../Lattice/MultiIndexable.html#[](region:Range)-instance-method" class="tooltip">
+      <span>[](region : Range)<br/>[](*region)<br/>[](region : Enumerable)</span>
+    []</a>, 
+    
+  
+    <a href="../Lattice/MultiIndexable.html#%5E(other:MultiIndexable(U))forallU-instance-method" class="tooltip">
+      <span>^(other : MultiIndexable(U)) forall U<br/>^(other)</span>
+    ^</a>, 
+    
+  
+    <a href="../Lattice/MultiIndexable.html#dimensions:Int32-instance-method" class="tooltip">
+      <span>dimensions : Int32</span>
+    dimensions</a>, 
+    
+  
+    <a href="../Lattice/MultiIndexable.html#each(iter_type:RegionIterator.class,**args)-instance-method" class="tooltip">
+      <span>each(iter_type : <span class="t">RegionIterator</span>.<span class="k">class</span>, **args)<br/>each(order : Order = <span class="t">Order</span><span class="t">::</span><span class="t">LEX</span>, &)<br/>each(order : Order = <span class="t">Order</span><span class="t">::</span><span class="t">LEX</span>)</span>
+    each</a>, 
+    
+  
+    <a href="../Lattice/MultiIndexable.html#each_fastest-instance-method" class="tooltip">
+      <span>each_fastest</span>
+    each_fastest</a>, 
+    
+  
+    <a href="../Lattice/MultiIndexable.html#each_in_canonical_region_fastest(region)-instance-method" class="tooltip">
+      <span>each_in_canonical_region_fastest(region)</span>
+    each_in_canonical_region_fastest</a>, 
+    
+  
+    <a href="../Lattice/MultiIndexable.html#each_with_coord(order:Order=Order::LEX,&)-instance-method" class="tooltip">
+      <span>each_with_coord(order : Order = <span class="t">Order</span><span class="t">::</span><span class="t">LEX</span>, &)</span>
+    each_with_coord</a>, 
+    
+  
+    <a href="../Lattice/MultiIndexable.html#empty?:Bool-instance-method" class="tooltip">
+      <span>empty? : Bool</span>
+    empty?</a>, 
+    
+  
+    <a href="../Lattice/MultiIndexable.html#eq_elem(other:MultiIndexable(U)):MultiIndexable(Bool)forallU-instance-method" class="tooltip">
+      <span>eq_elem(other : MultiIndexable(U)) : MultiIndexable(Bool) forall U</span>
+    eq_elem</a>, 
+    
+  
+    <a href="../Lattice/MultiIndexable.html#equals?(other:MultiIndexable):Bool-instance-method" class="tooltip">
+      <span>equals?(other : MultiIndexable) : Bool<br/>equals?(other : MultiIndexable, &) : Bool</span>
+    equals?</a>, 
+    
+  
+    <a href="../Lattice/MultiIndexable.html#first:T-instance-method" class="tooltip">
+      <span>first : T</span>
+    first</a>, 
+    
+  
+    <a href="../Lattice/MultiIndexable.html#get(coord):T-instance-method" class="tooltip">
+      <span>get(coord) : T<br/>get(*tuple)</span>
+    get</a>, 
+    
+  
+    <a href="../Lattice/MultiIndexable.html#get_available(region:Enumerable)-instance-method" class="tooltip">
+      <span>get_available(region : Enumerable)</span>
+    get_available</a>, 
+    
+  
+    <a href="../Lattice/MultiIndexable.html#get_element(coord:Enumerable):T-instance-method" class="tooltip">
+      <span>get_element(coord : Enumerable) : T<br/>get_element(*tuple)</span>
+    get_element</a>, 
+    
+  
+    <a href="../Lattice/MultiIndexable.html#get_region(coord:Enumerable,region_shape:Enumerable)-instance-method" class="tooltip">
+      <span>get_region(coord : Enumerable, region_shape : Enumerable)<br/>get_region(region : Enumerable)<br/>get_region(*tuple)</span>
+    get_region</a>, 
+    
+  
+    <a href="../Lattice/MultiIndexable.html#has_coord?(coord:Enumerable):Bool-instance-method" class="tooltip">
+      <span>has_coord?(coord : Enumerable) : Bool<br/>has_coord?(*tuple)</span>
+    has_coord?</a>, 
+    
+  
+    <a href="../Lattice/MultiIndexable.html#has_region?(*tuple)-instance-method" class="tooltip">
+      <span>has_region?(*tuple)<br/>has_region?(region : Enumerable) : Bool</span>
+    has_region?</a>, 
+    
+  
+    <a href="../Lattice/MultiIndexable.html#sample(random=Random::DEFAULT)-instance-method" class="tooltip">
+      <span>sample(random = <span class="t">Random</span><span class="t">::</span><span class="t">DEFAULT</span>)</span>
+    sample</a>, 
+    
+  
+    <a href="../Lattice/MultiIndexable.html#scalar?:Bool-instance-method" class="tooltip">
+      <span>scalar? : Bool</span>
+    scalar?</a>, 
+    
+  
+    <a href="../Lattice/MultiIndexable.html#shape:Array(Int32)-instance-method" class="tooltip">
+      <span>shape : Array(Int32)</span>
+    shape</a>, 
+    
+  
+    <a href="../Lattice/MultiIndexable.html#size-instance-method" class="tooltip">
+      <span>size</span>
+    size</a>, 
+    
+  
+    <a href="../Lattice/MultiIndexable.html#to_literal_s(io:IO):Nil-instance-method" class="tooltip">
+      <span>to_literal_s(io : IO) : Nil</span>
+    to_literal_s</a>, 
+    
+  
+    <a href="../Lattice/MultiIndexable.html#to_narr:NArray(T)-instance-method" class="tooltip">
+      <span>to_narr : NArray(T)</span>
+    to_narr</a>, 
+    
+  
+    <a href="../Lattice/MultiIndexable.html#to_nested_a:Array-instance-method" class="tooltip">
+      <span>to_nested_a : Array</span>
+    to_nested_a</a>, 
+    
+  
+    <a href="../Lattice/MultiIndexable.html#to_s(io:IO,settings=Settings.new):Nil-instance-method" class="tooltip">
+      <span>to_s(io : IO, settings = <span class="t">Settings</span>.<span class="k">new</span>) : Nil<br/>to_s(settings = <span class="t">Settings</span>.<span class="k">new</span>) : String</span>
+    to_s</a>, 
+    
+  
+    <a href="../Lattice/MultiIndexable.html#to_scalar:T-instance-method" class="tooltip">
+      <span>to_scalar : T</span>
+    to_scalar</a>, 
+    
+  
+    <a href="../Lattice/MultiIndexable.html#unsafe_fetch_element(coord):T-instance-method" class="tooltip">
+      <span>unsafe_fetch_element(coord) : T</span>
+    unsafe_fetch_element</a>, 
+    
+  
+    <a href="../Lattice/MultiIndexable.html#unsafe_fetch_region(region)-instance-method" class="tooltip">
+      <span>unsafe_fetch_region(region)</span>
+    unsafe_fetch_region</a>, 
+    
+  
+    <a href="../Lattice/MultiIndexable.html#view(*region,order:Order=Order::LEX):View(self,T)-instance-method" class="tooltip">
+      <span>view(*region, order : Order = <span class="t">Order</span><span class="t">::</span><span class="t">LEX</span>) : View(<span class="k">self</span>, T)</span>
+    view</a>, 
+    
+  
+    <a href="../Lattice/MultiIndexable.html#%7C(other:MultiIndexable(U))forallU-instance-method" class="tooltip">
+      <span>|(other : MultiIndexable(U)) forall U<br/>|(other)</span>
+    |</a>, 
+    
+  
+    <a href="../Lattice/MultiIndexable.html#~-instance-method" class="tooltip">
+      <span>~</span>
+    ~</a>
+    
+  
+
+
+    
+
+
+    
+
+
+  
+    
+
+
+    
+
+
+    
+
+
+  
+</div>
+
+
+
+
+
+
+  <h2>
+    <a id="instance-method-detail" class="anchor" href="#instance-method-detail">
+  <svg class="octicon-link" aria-hidden="true">
+    <use href="#octicon-link"/>
+  </svg>
+</a>
+    Instance Method Detail
+  </h2>
+  
+    <div class="entry-detail" id="clone-instance-method">
+      <div class="signature">
+        abstract 
+        def <strong>clone</strong>
+
+        <a class="method-permalink" href="#clone-instance-method">#</a>
+      </div>
+      
+      <br/>
+      <div>
+        
+      </div>
+    </div>
+  
+    <div class="entry-detail" id="region:Array(RegionHelpers::SteppedRange)-instance-method">
+      <div class="signature">
+        
+        def <strong>region</strong> : Array(<a href="../Lattice/RegionHelpers/SteppedRange.html">RegionHelpers::SteppedRange</a>)
+
+        <a class="method-permalink" href="#region:Array(RegionHelpers::SteppedRange)-instance-method">#</a>
+      </div>
+      
+      <br/>
+      <div>
+        
+      </div>
+    </div>
+  
+    <div class="entry-detail" id="reverse-instance-method">
+      <div class="signature">
+        
+        def <strong>reverse</strong>
+
+        <a class="method-permalink" href="#reverse-instance-method">#</a>
+      </div>
+      
+      <br/>
+      <div>
+        
+      </div>
+    </div>
+  
+    <div class="entry-detail" id="reverse!-instance-method">
+      <div class="signature">
+        
+        def <strong>reverse!</strong>
+
+        <a class="method-permalink" href="#reverse!-instance-method">#</a>
+      </div>
+      
+      <br/>
+      <div>
+        
+      </div>
+    </div>
+  
+    <div class="entry-detail" id="shape:Array(Int32)-instance-method">
+      <div class="signature">
+        
+        def <strong>shape</strong> : Array(Int32)
+
+        <a class="method-permalink" href="#shape:Array(Int32)-instance-method">#</a>
+      </div>
+      
+        <div class="doc">
+          
+          <p>For use externally</p>
+        </div>
+      
+      <br/>
+      <div>
+        
+      </div>
+    </div>
+  
+    <div class="entry-detail" id="size:Int32-instance-method">
+      <div class="signature">
+        
+        def <strong>size</strong> : Int32
+
+        <a class="method-permalink" href="#size:Int32-instance-method">#</a>
+      </div>
+      
+        <div class="doc">
+          
+            <div class="doc-inherited">
+              Description copied from module <a href="../Lattice/MultiIndexable.html">Lattice::MultiIndexable(R)</a>
+            </div>
+          
+          <p>Returns the number of elements in the <code>{{type}}</code>; equal to <code>shape.product</code>.</p>
+        </div>
+      
+      <br/>
+      <div>
+        
+      </div>
+    </div>
+  
+    <div class="entry-detail" id="src:B-instance-method">
+      <div class="signature">
+        
+        def <strong>src</strong> : B
+
+        <a class="method-permalink" href="#src:B-instance-method">#</a>
+      </div>
+      
+      <br/>
+      <div>
+        
+      </div>
+    </div>
+  
+    <div class="entry-detail" id="transpose-instance-method">
+      <div class="signature">
+        
+        def <strong>transpose</strong>
+
+        <a class="method-permalink" href="#transpose-instance-method">#</a>
+      </div>
+      
+      <br/>
+      <div>
+        
+      </div>
+    </div>
+  
+    <div class="entry-detail" id="transpose!-instance-method">
+      <div class="signature">
+        
+        def <strong>transpose!</strong>
+
+        <a class="method-permalink" href="#transpose!-instance-method">#</a>
+      </div>
+      
+      <br/>
+      <div>
+        
+      </div>
+    </div>
+  
+    <div class="entry-detail" id="view(region,order:Order)-instance-method">
+      <div class="signature">
+        abstract 
+        def <strong>view</strong>(region, order : <a href="../Lattice/Order.html">Order</a>)
+
+        <a class="method-permalink" href="#view(region,order:Order)-instance-method">#</a>
+      </div>
+      
+      <br/>
+      <div>
+        
+      </div>
+    </div>
+  
+    <div class="entry-detail" id="view(*region)-instance-method">
+      <div class="signature">
+        
+        def <strong>view</strong>(*region)
+
+        <a class="method-permalink" href="#view(*region)-instance-method">#</a>
+      </div>
+      
+      <br/>
+      <div>
+        
+      </div>
+    </div>
+  
+
+
+
+
+</div>
+
+</body>
+</html>

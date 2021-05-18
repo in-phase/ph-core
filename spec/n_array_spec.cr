@@ -3,8 +3,10 @@ require "./spec_helper"
 include Lattice
 
 # Useful variables
-LEGAL_SHAPES   = [[5, 5], [2], [10, 1, 3], [1, 1, 1, 1]]
-ILLEGAL_SHAPES = [[0], [] of Int32, [-4], [5, 0, 5]]
+NONEMPTY_SHAPES   = [[5, 5], [2], [10, 1, 3], [1, 1, 1, 1]]
+EMPTY_SHAPES = [[5, 0, 2], [0, 0, 0], [0]]
+LEGAL_SHAPES = NONEMPTY_SHAPES + EMPTY_SHAPES
+ILLEGAL_SHAPES = [[] of Int32, [-4], [-10, 0]]
 
 
 describe Lattice::NArray do
@@ -73,19 +75,21 @@ describe Lattice::NArray do
 
   describe ".fill" do
     it "populates an NArray with scalar types" do
-      LEGAL_SHAPES.each do |shape|
+      NONEMPTY_SHAPES.each do |shape|
         narr = NArray.fill(shape, 0)
 
         narr.buffer.to_a.uniq.should eq [0]
       end
+
+      EMPTY_SHAPES.each do |shape|
+        narr = NArray.fill(shape, 0)
+        narr.buffer.to_a.should eq [] of Int32
+      end
     end
 
     it "populates an NArray with shallow copies of other types" do
-      LEGAL_SHAPES.each do |shape|
-        narr = NArray.fill([2], TestObject.new)
-
-        narr.get(0).should be narr.get(1)
-      end
+      narr = NArray.fill([2], TestObject.new)
+      narr.get(0).should be narr.get(1)
     end
 
     it "raises an error when an illegal shape is provided" do
@@ -101,7 +105,7 @@ describe Lattice::NArray do
     it "serializes numeric types as flow sequences" do
       elem = 0i32
 
-      LEGAL_SHAPES.each do |shape|
+      NONEMPTY_SHAPES.each do |shape|
         src = NArray.fill(shape, elem)
         yaml = src.to_yaml
 
@@ -116,24 +120,24 @@ describe Lattice::NArray do
       end
     end
 
-    it "serializes objects as block sequences" do
-      LEGAL_SHAPES.each do |shape|
-        src = NArray.build(shape) { |_, i| [i] }
-        json = src.to_json
-        yaml = src.to_yaml
-        puts json
-        puts NArray(typeof([0])).from_json(json)
-        abort
-
-        # Make sure that deserialization works
-        reconstructed = NArray(typeof([0])).from_yaml(yaml)
-        reconstructed.should eq src
-
-        # Verify that a block sequence was used
-        expected_text = Array(Int32).new(shape.product) { |i| i }.join("--")
-        oneline_yaml = yaml.gsub(' ', "").lines.sum
-        oneline_yaml.includes?(expected_text).should be_true
-      end
+    pending "properly serializes empty NArray" do
     end
+
+    # it "serializes objects as block sequences" do
+    #   LEGAL_SHAPES.each do |shape|
+    #     src = NArray.build(shape) { |_, i| [i] }
+    #     json = src.to_json
+    #     yaml = src.to_yaml
+
+    #     # Make sure that deserialization works
+    #     reconstructed = NArray(typeof([0])).from_yaml(yaml)
+    #     reconstructed.should eq src
+
+    #     # Verify that a block sequence was used
+    #     expected_text = Array(Int32).new(shape.product) { |i| i }.join("--")
+    #     oneline_yaml = yaml.gsub(' ', "").lines.sum
+    #     oneline_yaml.includes?(expected_text).should be_true
+    #   end
+    # end
   end
 end
