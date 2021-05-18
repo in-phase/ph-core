@@ -1,4 +1,4 @@
-require "../src/lattice"
+require "../../src/lattice"
 
 include Lattice
 
