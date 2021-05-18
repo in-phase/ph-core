@@ -92,14 +92,14 @@ module Lattice
     end
 
     # FIXME: NArrayFormatter depends on buffer indices.
-    def to_s(settings = FormatterSettings.new) : String
+    def to_s(settings = Settings.new) : String
       String.build do |str|
         Formatter.print(self, str, settings: settings)
       end
     end
 
     # FIXME: NArrayFormatter depends on buffer indices.
-    def to_s(io : IO, settings = FormatterSettings.new) : Nil
+    def to_s(io : IO, settings = Settings.new) : Nil
       Formatter.print(self, io, settings: settings)
     end
 

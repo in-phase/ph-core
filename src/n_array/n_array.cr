@@ -1,6 +1,7 @@
-require "./exceptions.cr"
-require "./n_array_formatter.cr"
-require "./region_helpers.cr"
+# require "./exceptions.cr"
+# require "./region_helpers.cr"
+require "yaml"
+require "json"
 
 module Lattice
   # An `{{@type}}` is a multidimensional array for any arbitrary type.
@@ -8,13 +9,9 @@ module Lattice
   # only implements primitive data operations (construction, data reading,
   # data writing, and region sampling / slicing).
   #
-  # `{{@type}}` is designed to provide the best user experience possible, and
-  # that methodology led to the use of the `method_missing` macro for element-wise
-  # operations. Please read its documentation, as it provides a large amount
-  # of functionality that may otherwise appear missing.
   class NArray(T)
-    include Enumerable(T)
-    #include MultiIndexable(T)
+    include MultiIndexable(T)
+    include MultiWritable(T)
 
     # Stores the elements of an `{{@type}}` in lexicographic (row-major) order.
     getter buffer : Slice(T)
@@ -23,8 +20,8 @@ module Lattice
     # More explicitly, axis *k* contains *@shape[k]* elements.
     @shape : Array(Int32)
 
-    # Cached version of `.buffer_step_sizes`.
-    @buffer_step_sizes : Array(Int32)
+    # Cached version of `.axis_strides`.
+    protected getter axis_strides : Array(Int32)
 
     # Creates an `{{@type}}` using only a shape (see `shape`) and a packed index.
     # This is used internally to make code faster - converting from a packed
@@ -37,13 +34,13 @@ module Lattice
       end
 
       @shape = shape.map do |dim|
-        if dim < 1
-          raise DimensionError.new("Cannot create {{@type}}: One or more of the provided dimensions was less than one.")
+        if dim < 0
+          raise DimensionError.new("Cannot create {{@type}}: One or more of the provided dimensions was negative.")
         end
         dim
       end
 
-      @buffer_step_sizes = NArray.buffer_step_sizes(@shape)
+      @axis_strides = NArray.axis_strides(@shape)
 
       num_elements = shape.product.to_i32
       @buffer = Slice(T).new(num_elements) { |i| yield i }
@@ -53,13 +50,13 @@ module Lattice
     # Frequently used internally (for example, this is used in
     # `reshape` as of Feb 5th 2021).
     # TODO: Should be protected, had to remove for testing
-    protected def initialize(shape, @buffer : Slice(T))
+    def initialize(shape, @buffer : Slice(T))
       if shape.product != @buffer.size
         raise ArgumentError.new("Cannot create {{@type}}: Given shape does not match number of elements in buffer.")
       end
 
       @shape = shape.dup
-      @buffer_step_sizes = NArray.buffer_step_sizes(@shape)
+      @axis_strides = NArray.axis_strides(@shape)
     end
 
     # Constructs an `{{@type}}` using a user-provided *shape* (see `shape`) and a callback.
@@ -158,6 +155,31 @@ module Lattice
       {{@type}}.new(shape) { value }
     end
 
+    # shorthand
+    # pad(0, {0, 3, 5}, {1, 0, 6}, "hi")
+    # def pad(value, *amounts : Tuple(Int32, Int32, Int32) | String)
+
+    # core
+    # pad(0, {0 => {2, 2}, 1 => {3, 4}, -1 => {0, 5}})
+    def pad(value, amounts : Hash(Int32, Tuple(Int32, Int32)))
+    end
+
+    def fit(shape, pad_with value, align : Hash(Int32, NArray::Alignment | Int32))
+    end
+
+    def pad!
+    end
+
+    def fit!
+    end
+    
+    # Requires that shape is equal to coord + self.shape in each dimension
+    protected def unsafe_pad(new_shape, value, coord)
+      padded = NArray.fill(new_shape, value.as(T))
+      padded.unsafe_set_region(RegionHelpers.translate_shape(@shape, coord), self)
+      padded
+    end
+
     # Adds a dimension at highest level, where each "row" is an input {{@type}}.
     # If pad is false, then throw error if shapes of objects do not match;
     # otherwise, pad subarrays along each axis to match whichever is largest in that axis
@@ -181,11 +203,14 @@ module Lattice
       # TODO: Figure out how this will work with inheritance & Tensor
       NArray(T).new(container) { |i| combined_buffer[i] }
     end
-  
+
     # creates an {{@type}}-type vector from a tuple of scalars.
     def self.wrap(*objects)
-      # TODO: Figure out how this will work with inheritance & Tensor
       NArray.new(objects.to_a)
+    end
+
+    protected def shape_internal : Array(Int32)
+      @shape
     end
 
     # Returns the number of elements in each axis of the `{{@type}}`.
@@ -194,22 +219,11 @@ module Lattice
       @shape.clone
     end
 
-    # Returns the number of dimensions of this `{{@type}}`.
-    # This is equivalent to, but slightly faster than, `shape.size`.
-    def dimensions : Int32
-      @shape.size
+    def size : Int32
+      return @shape.product
     end
 
-    def to_s : String
-      NArrayFormatter.format(self)
-    end
-
-    # Override for printing a string output to stream (e.g., puts)
-    def to_s(io : IO) : Nil
-      NArrayFormatter.print(self, io)
-    end
-
-        # Creates a deep copy of this {{@type}};
+    # Creates a deep copy of this {{@type}};
     # Allocates a new buffer of the same shape, and calls #clone on every item in the buffer.
     def clone : self
       {{@type}}.new(@shape, @buffer.clone)
@@ -219,10 +233,6 @@ module Lattice
     # Allocates a new buffer of the same shape, and duplicates every item in the buffer.
     def dup : self
       {{@type}}.new(@shape, @buffer.dup)
-    end
-
-    def to_a : Array(T)
-      @buffer.to_a
     end
 
     # TODO any way to avoid copying these out yet, too? Iterator magic?
@@ -239,15 +249,13 @@ module Lattice
         mapping << buffer_idx
       end
       shape = RegionHelpers.measure_region(region, @shape)
-      step = @buffer_step_sizes[axis]
+      step = @axis_strides[axis]
 
       slices = (0...@shape[axis]).map do |slice_number|
         offset = step * slice_number
         {{@type}}.new(shape) { |i| mapping[i] + offset }
       end
     end
-
-
 
     def flatten : self
       reshape(@buffer.size)
@@ -266,42 +274,30 @@ module Lattice
       @shape.size == 1 && @shape[0] == 1
     end
 
-    # Maps a zero-dimensional {{@type}} to the element it contains.
-    def to_scalar : T
-      if scalar?
-        return @buffer[0]
-      else
-        raise DimensionError.new("Cannot cast to scalar: self has more than one dimension or more than one element.")
-      end
+    # Checks for elementwise equality between `self` and *other*.
+    def ==(other : MultiIndexable) : Bool
+      equals?(other) { |x, y| x == y }
     end
 
-    # Checks if a given list of integers represent an index that is in range for this `{{@type}}`.
-    # TODO: Rename and document
-    def has_coord?(coord) : Bool
-      RegionHelpers.has_coord?(coord, @shape)
-    end
-
-    def has_region?(region) : Bool
-      RegionHelpers.has_region?(region, @shape)
-    end
-
-     # Convert from n-dimensional indexing to a buffer location.
+    # Convert from n-dimensional indexing to a buffer location.
     def coord_to_index(coord) : Int32
-      {{@type}}.coord_to_index_fast(coord, @shape, @buffer_step_sizes)
+      coord = RegionHelpers.canonicalize_coord(coord, @shape)
+      {{@type}}.coord_to_index_fast(coord, @shape, @axis_strides)
     end
 
     # TODO: Talk about what this should be named
     def self.coord_to_index(coord, shape) : Int32
-      steps = buffer_step_sizes(shape)
-      {{@type}}.coord_to_index_fast(coord, shape, steps)     
+      coord = RegionHelpers.canonicalize_coord(coord, shape)
+      steps = axis_strides(shape)
+      {{@type}}.coord_to_index_fast(coord, shape, steps)
     end
 
-    protected def self.coord_to_index_fast(coord, shape, buffer_step_sizes) : Int32
+    # Assumes coord is canonical
+    def self.coord_to_index_fast(coord, shape, axis_strides) : Int32
       begin
-        coord = RegionHelpers.canonicalize_coord(coord,shape)
         index = 0
         coord.each_with_index do |elem, idx|
-          index += elem * buffer_step_sizes[idx]
+          index += elem * axis_strides[idx]
         end
         index
       rescue exception
@@ -314,7 +310,7 @@ module Lattice
       {{@type}}.index_to_coord(index, @shape)
     end
 
-    # OPTIMIZE: This could (maybe) be improved with use of `buffer_step_sizes`
+    # OPTIMIZE: This could (maybe) be improved with use of `axis_strides`
     def self.index_to_coord(index, shape) : Array(Int32)
       if index > shape.product
         raise IndexError.new("Cannot convert index to coordinate: the given index is out of bounds for this {{@type}} along at least one dimension.")
@@ -327,13 +323,24 @@ module Lattice
       coord.reverse
     end
 
-    def get(coord : Enumerable) : T
-      @buffer[coord_to_index(coord)]
+    # Copies the elements in `region` to a new `{{type}}`, assuming that `region` is in canonical form and in-bounds for this `{{type}}`.
+    # For full specification of canonical form see `RegionHelpers` documentation. TODO: make this actually happen
+    def unsafe_fetch_region(region)
+      shape = RegionHelpers.measure_canonical_region(region)
+
+      # TODO optimize this! Any way to avoid double iteration?
+      buffer_arr = [] of T
+      narray_each_in_canonical_region(region) do |elem, idx, src_idx|
+        buffer_arr << elem
+      end
+
+      {{@type}}.new(shape) { |i| buffer_arr[i] }
     end
 
-    # Given a fully-qualified coordinate, returns the scalar at that position.
-    def get(*coord) : T
-      get(coord)
+    # Retrieves the element specified by `coord`, assuming that `coord` is in canonical form and in-bounds for this `{{type}}`.
+    # For full specification of canonical form see `RegionHelpers` documentation. TODO: make this actually happen
+    def unsafe_fetch_element(coord) : T
+      @buffer.unsafe_fetch(NArray.coord_to_index_fast(coord, @shape, @axis_strides))
     end
 
     # Takes a single index into the {{@type}}, returning a slice of the largest dimension possible.
@@ -343,7 +350,7 @@ module Lattice
     # invoke `#to_scalar`.
     # TODO: Either make the type restriction here go away (it was getting called when indexing
     # with a single range), or remove this method entirely in favor of read only views
-    def [](index) : self
+    def [](index : Int32) : self
       index = RegionHelpers.canonicalize_index(index, @shape, axis = 0)
 
       if dimensions == 1
@@ -358,46 +365,20 @@ module Lattice
       {{@type}}.new(new_shape, new_buffer.clone)
     end
 
-    def [](region : Enumerable) : self
-      region = RegionHelpers.canonicalize_region(region, @shape)
-      shape = RegionHelpers.measure_canonical_region(region, @shape)
-
-      # TODO optimize this! Any way to avoid double iteration?
-      buffer_arr = [] of T
-      each_in_canonical_region(region) do |elem, idx, src_idx|
-        buffer_arr << elem
-      end
-      
-      {{@type}}.new(shape) { |i| buffer_arr[i] }
-    end
-
-    # Higher-order slicing operations (like slicing in numpy)
-    def [](*region) : self
-      get_region(region)
-    end
-
-    # replaces an indexed chunk with a given chunk of the same shape.
-    def set(region, value : self)
-      region = RegionHelpers.canonicalize_region(region, @shape)
-      # check that the replacement slice matches the destination shape
-      if value.shape != RegionHelpers.measure_canonical_region(region)
-        raise DimensionError.new("Cannot substitute array: given array does not match shape of specified slice.")
-      end
-
-      each_in_canonical_region(region) do |elem, other_idx, this_idx|
-        @buffer[this_idx] = value.buffer[other_idx]
+    # Copies the elements from a MultiIndexable `src` into `region`, assuming that `region` is in canonical form and in-bounds for this `{{type}}`
+    # and the shape of `region` matches the shape of `src`.
+    def unsafe_set_region(region : Enumerable, src : MultiIndexable(T))
+      narray_each_in_canonical_region(region) do |elem, other_idx, this_idx|
+        # @buffer[this_idx] = src.buffer[other_idx]
+        # TODO: see if this is the best way! (Want it to be generalizable to MultiIndexable...)
+        @buffer[this_idx] = src.unsafe_fetch_element(src.index_to_coord(other_idx))
       end
     end
 
-    # replaces all values in an indexed chunk with the given value.
-    def set(region, value) # prev: set(region, value : T)
-
-      # Try to cast the value to T; throws an error if it fails
-      # TODO: decide if this is how we want to handle it
-      fill_value = value.as(T)
-
-      each_in_region(region) do |elem, idx, buffer_idx|
-        @buffer[buffer_idx] = fill_value
+    # Sets each element in `region` to `value`, assuming that `region` is in canonical form and in-bounds for this `{{type}}`
+    def unsafe_set_region(region : Enumerable, value : T)
+      narray_each_in_canonical_region(region) do |elem, idx, buffer_idx|
+        @buffer[buffer_idx] = value
       end
     end
 
@@ -414,17 +395,11 @@ module Lattice
       end
     end
 
-    def []=(*args : *U) forall U
-      {% begin %}
-        set([{% for i in 0...(U.size - 1) %}args[{{i}}] {% if i < U.size - 2 %}, {% end %}{% end %}], args.last)
-      {% end %}
-    end
-
-    def each(&block : T ->)
-      each_with_index do |elem|
-        yield elem
-      end
-    end
+    # def each(&block : T ->)
+    #   each_with_index do |elem|
+    #     yield elem
+    #   end
+    # end
 
     def each_with_index(&block : T, Int32 ->)
       @buffer.each_with_index do |elem, idx|
@@ -432,61 +407,60 @@ module Lattice
       end
     end
 
-    def each_with_coord(&block : T, Array(Int32), Int32 ->)
-      each_with_index do |elem, idx|
-        yield elem, index_to_coord(idx), idx
-      end
-    end
+    # def each_with_coord(&block : T, Array(Int32), Int32 ->)
+    #   each_with_index do |elem, idx|
+    #     yield elem, index_to_coord(idx), idx
+    #   end
+    # end
 
-    def map(&block : T -> U) forall U
-      map_with_index do |elem|
-        yield elem
-      end
-    end
+    # def map(&block : T -> U) forall U
+    #   map_with_index do |elem|
+    #     yield elem
+    #   end
+    # end
 
-    def map_with_index(&block : T, Int32 -> U) forall U
-      buffer = Slice(U).new(@shape.product) do |idx|
-        yield @buffer[idx], idx
-      end
+    # def map_with_index(&block : T, Int32 -> U) forall U
+    #   buffer = Slice(U).new(@shape.product) do |idx|
+    #     yield @buffer[idx], idx
+    #   end
 
-      {% begin %}
-        {{@type.id}}(U).new(@shape, buffer)
-      {% end %}
-    end
+    #   NArray(U).new(@shape, buffer)
+    # end
 
-    def map_with_coord(&block : T, Array(Int32), Int32 -> U) forall U
-      map_with_index do |elem, idx|
-        yield elem, index_to_coord(idx), idx
-      end
-    end
+    # def map_with_coord(&block : T, Array(Int32), Int32 -> U) forall U
+    #   map_with_index do |elem, idx|
+    #     yield elem, index_to_coord(idx), idx
+    #   end
+    # end
 
-    def map!(&block : T -> U) forall U
-      map_with_index! do |elem|
-        yield elem
-      end
-    end
+    # def map!(&block : T -> U) forall U
+    #   map_with_index! do |elem|
+    #     yield elem
+    #   end
+    # end
 
-    def map_with_index!(&block : T, Int32 -> T) forall T
-      @buffer.map_with_index! do |elem, idx|
-        yield elem, idx
-      end
-      self
-    end
+    # def map_with_index!(&block : T, Int32 -> T) forall T
+    #   @buffer.map_with_index! do |elem, idx|
+    #     yield elem, idx
+    #   end
+    #   self
+    # end
 
-    def map_with_coord!(&block : T, Array(Int32), Int32 -> U) forall U
-      map_with_index! do |elem, idx|
-        yield elem, index_to_coord(idx), idx
-      end
-    end
+    # def map_with_coord!(&block : T, Array(Int32), Int32 -> U) forall U
+    #   map_with_index! do |elem, idx|
+    #     yield elem, index_to_coord(idx), idx
+    #   end
+    # end
 
     def each_in_region(region, &block : T, Int32, Int32 ->)
       region = RegionHelpers.canonicalize_region(region, @shape)
 
-      each_in_canonical_region(region, &block)
+      narray_each_in_canonical_region(region, &block)
     end
 
     # TODO: Document
-    def each_in_canonical_region(region, axis = 0, read_index = 0, write_index = [0], &block : T, Int32, Int32 ->)
+    def narray_each_in_canonical_region(region, axis = 0, read_index = 0, write_index = [0], &block : T, Int32, Int32 ->)
+
       current_range = region[axis]
 
       # Base case - yield the scalars in a subspace
@@ -501,13 +475,13 @@ module Lattice
       end
 
       # Otherwise, recurse
-      buffer_step_size = @buffer_step_sizes[axis]
+      buffer_step_size = @axis_strides[axis]
       initial_read_index = read_index
 
       current_range.each do |idx|
         # navigate to the correct start index
         read_index = initial_read_index + idx * buffer_step_size
-        each_in_canonical_region(region, axis + 1, read_index, write_index) do |a, b, c|
+        narray_each_in_canonical_region(region, axis + 1, read_index, write_index) do |a, b, c|
           block.call(a, b, c)
         end
       end
@@ -515,18 +489,18 @@ module Lattice
 
     # Given an array of step sizes in each coordinate axis, returns the offset in the buffer
     # that a step of that size represents.
-    # The buffer index of a multidimensional coordinate, x, is equal to x dotted with buffer_step_sizes
-    def self.buffer_step_sizes(shape)
+    # The buffer index of a multidimensional coordinate, x, is equal to x dotted with axis_strides
+    def self.axis_strides(shape)
       ret = shape.clone
       ret[-1] = 1
-      
+
       ((ret.size - 2)..0).step(-1) do |idx|
         ret[idx] = ret[idx + 1] * shape[idx + 1]
       end
 
       ret
     end
-    
+
     # Given a list of `{{@type}}`s, returns the smallest shape array in which any one of those `{{@type}}s` can be contained.
     # TODO: Example
     def self.common_container(*objects)
@@ -539,6 +513,95 @@ module Lattice
       container
     end
 
+    # Checks that the shape of this and other match in every dimension
+    # (except `axis`, if it is specified)
+    def compatible?(*others : MultiIndexable, axis = -1) : Bool
+      shape.each_with_index do |dim, idx|
+        others.each do |narr|
+          return false if dim != narr.shape[idx] && idx != axis
+        end
+      end
+      return true
+    end
+
+    # Checks that the shape of this and other match in every dimension
+    # (except `axis`, if it is specified)
+    def self.compatible?(*narrs : MultiIndexable, axis = -1) : Bool
+      first = narrs.to_a.pop
+      first.compatible?(narrs, axis: axis)
+    end
+    
+
+    def <<(other : self) : self
+      push(other)
+    end
+
+    # optimization for pushing other NArrays on axis 0, in-place
+    def push(*others : self) : self
+      raise DimensionError.new("Cannot concatenate these arrays along axis #{axis}: shapes do not match") if !compatible?(*others, axis: axis)
+
+      concat_size = size + others.sum {|narr| narr.size}
+      
+      full_ptr = Pointer(T).malloc(concat_size)
+      full_ptr.move_from(@buffer.to_unsafe, size)
+      ptr = full_ptr + size
+
+      # more in-place - but feels much less thread-safe?
+      # full_ptr = @buffer.to_unsafe.realloc(concat_size)
+      # @buffer = Slice.new(full_ptr, concat_size)
+      # ptr = full_ptr + size
+
+      others.each do |narr|
+        ptr.move_from(narr.buffer.to_unsafe, narr.size)
+        ptr += narr.size
+      end
+
+      @shape[0] += others.sum{|narr| narr.shape[0]}
+      @buffer = Slice.new(full_ptr, concat_size)
+      self
+    end
+
+
+    def concatenate(*others, axis = 0) : self
+      self.new *(narrs[0].concatenate_to_slice(*narrs, axis: axis))
+    end
+
+    def concatenate!(*others, axis = 0) : self
+      @shape, @buffer = concatenate_to_slice(self, *others, axis: axis)
+      self
+    end
+
+    def self.concatenate(*narrs : MultiIndexable(T), axis = 0) : NArray(T)
+      self.new *(narrs[0].concatenate_to_slice(*narrs, axis: axis))
+    end
+
+    # Cycle between the iterators of each narr maybe?
+    # NOTE: narrs should include self.
+    protected def concatenate_to_slice(*narrs, axis = 0) : Tuple(Array(Int32), Slice(T))
+      raise DimensionError.new("Cannot concatenate these arrays along axis #{axis}: shapes do not match") if !self.compatible?(*narrs, axis: axis)
+
+      concat_size = narrs.sum {|narr| narr.size}
+      concat_shape = @shape.dup
+      concat_shape[axis] = narrs.sum { |narr| narr.shape[axis]}
+
+      partial_chunk_size = @axis_strides[axis]
+      chunk_sizes = narrs.map {|narr| narr.shape[axis] * partial_chunk_size }
+      num_chunks = concat_shape[...axis].product
+
+      values = Array(T).new(initial_capacity: concat_size)
+      iters = narrs.map {|narr| narr.each }
+
+      num_chunks.times do
+        iters.each_with_index do |narr_iter, i|
+          chunk_sizes[i].times do
+            values << narr_iter.next.as(Tuple(T, Array(Int32)))[0]
+          end
+        end
+      end
+      {concat_shape, Slice.new(values.to_unsafe, values.size)}
+    end
+
+
     # TODO: Update documentation. I (seth) rewrote this function to make it validate the shape fully.
     # documentation doesn't currently reflect that
     # Returns the estimated dimension of a multidimensional array that is provided as a nested array literal.
@@ -548,7 +611,7 @@ module Lattice
     # from the fact that the top-level array contains 2 elements, and the `1` comes from the size of
     # the sub-array `[1]`. However, we can clearly see that the size isn't uniform - the second
     # sub-array is `[1, 2]`, which is two elements, not one!
-    protected def self.measure_nested_array(nested_array current, depth = 0, max_depth = StaticArray[0i32], shape = [] of Int32) : Array(Int32)
+    protected def self.measure_nested_array(nested_array current, depth = 0, max_depth = Slice[-1i32], shape = [] of Int32) : Array(Int32)
       # There are three main goals here:
       # 1. Measure the array shape
       # 2. Ensure that the number of elements in each dimension is consistent
@@ -560,11 +623,12 @@ module Lattice
       if current.is_a? Array
         # If this is the first time we've gotten this deep
         if depth == shape.size
-          if current.size == 0
-            raise DimensionError.new("Could not profile nested array: Found an array with size zero.")
-          end
-
           shape << current.size
+        else
+          if shape[depth] != current.size
+            # We've been at this before, but the shape was different then.
+            raise DimensionError.new("Could not profile nested array: Array shape was inconsistent.")
+          end
         end
 
         current.each do |sub_element|
@@ -577,7 +641,7 @@ module Lattice
         end
       else
         # This will only be -1 if the depth had not yet been determined
-        if max_depth[0] = -1
+        if max_depth[0] == -1
           max_depth[0] = depth
         else
           # Ensure the depth recorded last time is consistent
@@ -591,6 +655,182 @@ module Lattice
       end
 
       shape
+    end
+
+    def to_json(json : JSON::Builder)
+      json.object do
+        json.scalar("shape")
+        @shape.to_json(json)
+
+        json.scalar("elements")
+        json.array do
+          @buffer.each &.to_json(json)
+        end
+      end
+    end
+
+    def self.new(pull : JSON::PullParser)
+        {% begin %}
+        shape = [] of Int32
+        elements = [] of {{ @type.type_vars[0] }}
+
+        found_shape = false
+        found_elements = false
+
+        pull.read_object do |key, key_loc|
+          case key
+          when "shape"
+            found_shape = true
+            pull.read_array do
+              shape << pull.read?(Int32).not_nil!
+            end
+          when "elements"
+            pull.read_array do
+              found_elements = true
+              elements << {{ @type.type_vars[0] }}.new(pull)
+            end
+          end
+        end
+
+        if found_shape && found_elements
+          if shape.product == elements.size
+            buffer = Slice.new(elements.to_unsafe, elements.size)
+            return new(shape, buffer)
+          else
+            raise JSON::Error.new("Could not read NArray from YAML: wrong number of elements for shape #{shape}")
+          end
+        else
+          raise JSON::Error.new("Could not read NArray from YAML: 'shape' and/or 'elements' were missing.")
+        end
+        {% end %}
+    end
+
+    def to_yaml(yaml : YAML::Nodes::Builder)
+      yaml.mapping do
+        yaml.scalar("shape")
+        yaml.sequence(style: YAML::SequenceStyle::FLOW) do
+          @shape.each &.to_yaml(yaml)
+        end
+
+        yaml.scalar("elements")
+        style = T < Number::Primitive ? YAML::SequenceStyle::FLOW : YAML::SequenceStyle::BLOCK
+        yaml.sequence(style: style) do
+          @buffer.each &.to_yaml(yaml)
+        end
+      end
+    end
+
+    def self.new(ctx : YAML::ParseContext, node : YAML::Nodes::Node)
+      if node.is_a?(YAML::Nodes::Mapping)
+        ctx.read_alias(node, self) do |obj|
+          return obj
+        end
+
+        shape = nil
+        elements = nil
+
+        node.nodes.each_with_index.step(2).each do |child, idx|
+          if child.is_a?(YAML::Nodes::Scalar)
+            case child.value
+            when "shape"
+              shape = Array(Int32).new(ctx, node.nodes[idx + 1])
+            when "elements"
+              elements_node = node.nodes[idx + 1]
+              if elements_node.is_a? YAML::Nodes::Sequence
+                {% begin %}
+                elements = Array({{ @type.type_vars[0] }}).new(ctx, elements_node)
+                {% end %}
+              else
+                raise YAML::Error.new("Could not read NArray from YAML: Expected sequence, found #{elements_node.class}")
+              end
+            end
+          else
+            raise YAML::Error.new("Could not read NArray from YAML: Did not expect nested elements")
+          end
+        end
+
+        unless shape.nil? || elements.nil?
+          if elements.size == shape.product
+            elements = Slice.new(elements.to_unsafe, elements.size)
+            ret = new(shape, elements)
+            ctx.record_anchor(node, ret)
+            return ret
+          else
+            raise YAML::Error.new("Could not read NArray from YAML: wrong number of elements for shape #{shape}")
+          end
+        end
+
+        raise YAML::Error.new("Could not read NArray from YAML: 'shape' and/or 'elements' were missing.")
+      else
+        raise YAML::Error.new("Could not read NArray from YAML: Expected mapping, found #{node.class}")
+      end
+    end
+
+    # TODO: compare this iterator, generic MultiIndexable iterator, and old direct each
+    class BufferedLexRegionIterator(A,T) < RegionIterator(A,T)
+
+      @buffer_index : Int32
+      @buffer_step : Array(Int32)
+
+      def initialize(@narr : A, region = nil, reverse = false)
+        super
+        @buffer_step = @narr.axis_strides
+        @buffer_index = @buffer_step.map_with_index {|e, i| e * @first[i]}.sum
+        @buffer_index = setup_buffer_index(@buffer_index, @buffer_step, @step)
+      end
+
+      def setup_coord(coord, step)
+        coord[-1] -= step[-1]
+      end
+
+      def setup_buffer_index(buffer_index, buffer_step, step)
+        buffer_index -= buffer_step[-1] * step[-1]
+        buffer_index
+      end
+
+      def unsafe_next
+        (@coord.size - 1).downto(0) do |i| # ## least sig .. most sig
+          if @coord[i] == @last[i]
+            @buffer_index -= (@coord[i] - @first[i]) * @buffer_step[i]
+            @coord[i] = @first[i]
+            return stop if i == 0 # most sig
+          else
+            @coord[i] += @step[i]
+            @buffer_index += @buffer_step[i] * @step[i]
+            break
+          end
+        end
+        {@narr.buffer.unsafe_fetch(@buffer_index), @coord}
+      end
+    end
+
+
+    class BufferedColexRegionIterator(A,T) < BufferedLexRegionIterator(A,T)
+
+      def setup_coord(coord, step)
+        coord[0] -= step[0]
+      end
+
+      def setup_buffer_index(buffer_index, buffer_step, step)
+        buffer_index -= buffer_step[0] * step[0]
+        buffer_index
+      end
+
+      def unsafe_next
+        0.upto(@coord.size - 1) do |i| # ## least sig .. most sig
+          if @coord[i] == @last[i]
+            @buffer_index -= (@coord[i] - @first[i]) * @buffer_step[i]
+            @coord[i] = @first[i]
+            return stop if i == @coord.size - 1 # most sig
+          else
+            @coord[i] += @step[i]
+            @buffer_index += @buffer_step[i] * @step[i]
+            break
+          end
+        end
+        {@narr.buffer.unsafe_fetch(@buffer_index), @coord}
+      end
+
     end
   end
 end

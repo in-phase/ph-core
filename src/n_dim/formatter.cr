@@ -3,22 +3,118 @@ require "yaml"
 require "./multi_indexable.cr"
 
 # when you first print an narray, it loads whatever it should find from file, and then saves it in a static variable on FormatterSettings
-
 module Lattice
   module MultiIndexable
+    class Settings
+      # include YAML::Serializable
 
-    struct FormatterSettings
-      include YAML::Serializable
+      USER_CONFIG_FILENAME = "formatter.yaml"
 
-      property brackets = [{"[", "]"}]                                                             # cycles
-      property colors = [:default, :light_green, :light_yellow, :cyan, :light_magenta, :light_red] # cycles
-      property colors_enabled = false
-      property indent = 4
-      property max_elem_length = 20       # not implemented
-      property display_elements = [10, 5] # last one repeats
-      property cascade_height = 5         # starts having effect from 2
+      # NOTE: I tried generating this with macros, but nothing was
+      # as effective as just hardcoding it.
+      COLOR_MAP = {"default" => :default,
+                   "black" => :black,
+                   "red" => :red,
+                   "green" => :green,
+                   "yellow" => :yellow,
+                   "blue" => :blue,
+                   "magenta" => :magenta,
+                   "cyan" => :cyan,
+                   "light_gray" => :light_gray,
+                   "dark_gray" => :dark_gray,
+                   "light_red" => :light_red,
+                   "light_green" => :light_green,
+                   "light_yellow" => :light_yellow,
+                   "light_blue" => :light_blue,
+                   "light_magenta" => :light_magenta,
+                   "light_cyan" => :light_cyan,
+                   "white" => :white}
 
-      def initialize
+      @@cached_user_settings : self?
+      @@disable_user_settings = false
+
+      class_getter project_settings : self?
+
+      property indent_width : Int32
+      property max_element_width : Int32
+
+      @[YAML::Field(key: "omit_after")]
+      property display_limit : Array(Int32)
+
+      property brackets : Array(Tuple(String, String))
+
+      @[YAML::Field(converter: YAML::ArrayConverter(ColorConverter))]
+      property colors : Array(Colorize::Color | Symbol) | Array(Colorize::Color) | Array(Symbol)
+
+      @[YAML::Field(key: "collapse_brackets_after")]
+      property collapse_height : Int32
+
+      def self.new
+        @@project_settings || user_settings || default
+      end
+
+      #TODO: Figure out how this can be a serializable when all the colorize types arent
+      def initialize(@indent_width, @max_element_width, omit_after @display_limit, @brackets, colors : Indexable(Symbol), collapse_brackets_after @collapse_height)
+      end
+
+      # TODO: document properly once this is set in stone
+      # tries to read from LATTICE_CONFIG_DIR - if the file isn't there,
+      # reads from XDG_CONFIG_DIR/lattice. if still not there, tries ~/.config
+      def self.user_settings() : self?
+        return nil if @@disable_user_settings
+        return @@cached_user_settings if @@cached_user_settings
+
+        if dir = ENV["LATTICE_CONFIG_DIR"]?
+          path = Path[dir] / USER_CONFIG_FILENAME
+
+          if File.exists?(path)
+            return @@cached_user_settings = from_yaml(File.read(path))
+          end
+        end
+
+        {ENV["XDG_CONFIG_DIR"]?, "~/.config"}.each do |dir|
+          if dir
+            path = Path[dir] / "lattice" / USER_CONFIG_FILENAME
+
+            if File.exists?(path)
+              return @@cached_user_settings = from_yaml(File.read(path))
+            end
+          end
+        end
+
+        # The loading process failed. This function is called whenever an
+        # NArray is printed, so we need to remember not to do all these disk
+        # operations again.
+        @@disable_user_settings = true
+        return nil
+      end
+
+      def self.default : self
+        new(
+          indent_width: 4,
+          max_element_width: 20,
+          omit_after: [10, 5],
+          brackets: [{"[", "]"}],
+          colors: [:default],
+          collapse_brackets_after: 5
+        )
+      end
+
+      private class ColorConverter
+        def self.from_yaml(ctx : YAML::ParseContext, node : YAML::Nodes::Node) # : Symbol | Colorize::Color
+          unless node.is_a?(YAML::Nodes::Scalar)
+            node.raise "Expected scalar, not #{node.kind}"
+          end
+
+          str = node.value
+          if str[0] == '#'
+            rgb = str[1..].hexbytes
+            unless rgb.size == 3
+              node.raise "Expected a 24 bit color, but found #{rgb.size * 8} bits"
+            end
+          else
+          end
+        end
       end
     end
 
@@ -36,7 +132,7 @@ module Lattice
         LAST
       end
 
-      @settings : FormatterSettings
+      @settings : Settings
       @io : IO
 
       @shape : Array(Int32)
@@ -46,23 +142,19 @@ module Lattice
       @justify_length = 8
 
       def self.print(narr : MultiIndexable(T), io : IO = STDOUT, settings = nil)
-        settings ||= FormatterSettings.new
-        if settings.colors_enabled
-          display_shape = narr.shape.map_with_index do |dim, i|
-            color = settings.colors_enabled ? settings.colors[(-i - 1) % settings.colors.size] : :default
-            dim.to_s.colorize(color)
-          end
-        else
-          display_shape = narr.shape
+        settings ||= Settings.new
+
+        display_shape = narr.shape.map_with_index do |dim, i|
+          color = settings.colors[(-i - 1) % settings.colors.size]
+          dim.to_s.colorize(color)
         end
 
-        io << "#{display_shape.join('x')}#{" element" if narr.shape.size == 1} #{narr.class}\n"
-        fmt = Formatter.new(narr, io, settings)
-        fmt.print
+        io << "#{display_shape.join('x')} #{"element " if narr.shape.size == 1} #{narr.class}\n"
+        Formatter.new(narr, io, settings).print
       end
 
       def self.print_literal(narr : MultiIndexable(T), io = STDOUT)
-        fmt = Formatter.new(narr, io, FormatterSettings.new)
+        fmt = Formatter.new(narr, io, Settings.new)
         fmt.print_literal
       end
 
@@ -115,13 +207,13 @@ module Lattice
       end
 
       protected def color_print(text, height)
-        color = @settings.colors_enabled ? @settings.colors[height % @settings.colors.size] : :default
+        color = @settings.colors[height % @settings.colors.size]
         @io << text.colorize(color)
       end
 
       protected def walk_n_measure(depth = 0)
         height = @shape.size - depth - 1
-        max_columns = @settings.display_elements[{@settings.display_elements.size - 1, height}.min]
+        max_columns = @settings.display_limit[{@settings.display_limit.size - 1, height}.min]
 
         max_length = 0
         if depth < @shape.size - 1
@@ -162,7 +254,7 @@ module Lattice
 
       protected def walk_n_print(depth = 0, idx = 0)
         height = @shape.size - depth - 1
-        max_columns = @settings.display_elements[{@settings.display_elements.size - 1, height}.min]
+        max_columns = @settings.display_limit[{@settings.display_limit.size - 1, height}.min]
 
         open(height, idx)
         if height > 0
@@ -171,13 +263,13 @@ module Lattice
             if flag == Flags::SKIP
               color_print(" ⋮ %d total, #{max_columns - 1} shown" % @shape[depth], height)
               newline
-              newline if height == 2 || (@settings.cascade_height < 2 && height != 1)
+              newline if height == 2 || (@settings.collapse_height < 2 && height != 1)
             else
               walk_n_print(depth + 1, i)
               unless flag == Flags::LAST
                 color_print(",", height)
                 newline
-                newline if height == 2 || (@settings.cascade_height < 2 && height != 1)
+                newline if height == 2 || (@settings.collapse_height < 2 && height != 1)
               end
             end
           end
@@ -199,12 +291,12 @@ module Lattice
       end
 
       protected def compact?(height)
-        height > @settings.cascade_height || height == 1
+        height > @settings.collapse_height || height == 1
       end
 
       def newline(indent_change = 0)
         @io << "\n"
-        @current_indentation += indent_change * @settings.indent
+        @current_indentation += indent_change * @settings.indent_width
         @io << " " * @current_indentation
       end
 
