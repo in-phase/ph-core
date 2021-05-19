@@ -1,131 +1,12 @@
 require "colorize"
 require "yaml"
 
-require "./iterators/*"
+require "../iterators/*"
+require "./settings"
 
 # when you first print an narray, it loads whatever it should find from file, and then saves it in a static variable on FormatterSettings
 module Lattice
   module MultiIndexable
-    class Settings
-      # include YAML::Serializable
-
-      USER_CONFIG_FILENAME = "formatter.yaml"
-
-      # NOTE: I tried generating this with macros, but nothing was
-      # as effective as just hardcoding it.
-      COLOR_MAP = {"default" => :default,
-                   "black" => :black,
-                   "red" => :red,
-                   "green" => :green,
-                   "yellow" => :yellow,
-                   "blue" => :blue,
-                   "magenta" => :magenta,
-                   "cyan" => :cyan,
-                   "light_gray" => :light_gray,
-                   "dark_gray" => :dark_gray,
-                   "light_red" => :light_red,
-                   "light_green" => :light_green,
-                   "light_yellow" => :light_yellow,
-                   "light_blue" => :light_blue,
-                   "light_magenta" => :light_magenta,
-                   "light_cyan" => :light_cyan,
-                   "white" => :white}
-
-      @@cached_user_settings : self?
-      @@disable_user_settings = false
-
-      class_getter project_settings : self?
-
-      property indent_width : Int32
-      property max_element_width : Int32
-
-      @[YAML::Field(key: "omit_after")]
-      property display_limit : Array(Int32)
-
-      property brackets : Array(Tuple(String, String))
-
-      @[YAML::Field(converter: YAML::ArrayConverter(ColorConverter))]
-      property colors : Array(Colorize::Color | Symbol) | Array(Colorize::Color) | Array(Symbol) = [:default] # TODO: remove value
-
-      @[YAML::Field(key: "collapse_brackets_after")]
-      property collapse_height : Int32
-
-      def self.new
-        @@project_settings || user_settings || default
-      end
-
-      #TODO: Figure out how this can be a serializable when all the colorize types arent
-      def initialize(@indent_width, @max_element_width, omit_after @display_limit, @brackets, colors : Indexable(Symbol), collapse_brackets_after @collapse_height)
-      end
-
-      # TODO: document properly once this is set in stone
-      # tries to read from LATTICE_CONFIG_DIR - if the file isn't there,
-      # reads from XDG_CONFIG_DIR/lattice. if still not there, tries ~/.config
-      def self.user_settings() : self?
-        return nil if @@disable_user_settings
-        return @@cached_user_settings if @@cached_user_settings
-
-        if dir = ENV["LATTICE_CONFIG_DIR"]?
-          path = Path[dir] / USER_CONFIG_FILENAME
-
-          if File.exists?(path)
-            # return @@cached_user_settings = from_yaml(File.read(path))
-          end
-        end
-
-        {ENV["XDG_CONFIG_DIR"]?, "~/.config"}.each do |dir|
-          if dir
-            path = Path[dir] / "lattice" / USER_CONFIG_FILENAME
-
-            if File.exists?(path)
-              # return @@cached_user_settings = from_yaml(File.read(path))
-            end
-          end
-        end
-
-        # The loading process failed. This function is called whenever an
-        # NArray is printed, so we need to remember not to do all these disk
-        # operations again.
-        @@disable_user_settings = true
-        return nil
-      end
-
-      def self.default : self
-        new(
-          indent_width: 4,
-          max_element_width: 20,
-          omit_after: [10, 5],
-          brackets: [{"[", "]"}],
-          colors: [:default],
-          collapse_brackets_after: 5
-        )
-      end
-
-      private class ColorConverter
-        def self.from_yaml(ctx : YAML::ParseContext, node : YAML::Nodes::Node) # : Symbol | Colorize::Color
-          unless node.is_a?(YAML::Nodes::Scalar)
-            node.raise "Expected scalar, not #{node.kind}"
-          end
-
-          str = node.value
-          if str[0] == '#'
-            rgb = str[1..].hexbytes
-            unless rgb.size == 3
-              node.raise "Expected a 24 bit color, but found #{rgb.size * 8} bits"
-            end
-          else
-          end
-        end
-      end
-    end
-
-    # formatter settings provided programatically
-    # formatter settings from project folder (cached)
-    # formatter settings from your user account (cached)
-    # default
-
-        
-
     class Formatter(T)
       private enum Flags
         ELEM
@@ -352,14 +233,14 @@ module Lattice
     end
 
     # FIXME: NArrayFormatter depends on buffer indices.
-    def to_s(settings = Settings.new) : String
+    def to_s(settings = Formatter::Settings.new) : String
       String.build do |str|
         Formatter.print(self, str, settings: settings)
       end
     end
 
     # FIXME: NArrayFormatter depends on buffer indices.
-    def to_s(io : IO, settings = Settings.new) : Nil
+    def to_s(io : IO, settings = Formatter::Settings.new) : Nil
       Formatter.print(self, io, settings: settings)
     end
   end
