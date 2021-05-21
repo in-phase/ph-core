@@ -1,30 +1,57 @@
-require "../src/lattice"
+class View(T)
+  def initialize(@src : T)
+  end
 
-include Lattice
+  def process(process)
+    View(PView(T)).new(PView.new(process, @src))
+  end
 
-yaml = <<-YAML
----
-indent_width: 4
-max_element_width: 20
-omit_after:
-- 10
-- 5
-brackets:
-- - '['
-  - ']'
-colors: 
-- red
-- FF8000
-collapse_brackets_after: 5
-YAML
+  def reshape(shape)
+    RView(T).new(process, @src)
+  end
+end
 
-# ctx = YAML::ParseContext.new
-# node = YAML::Nodes::Scalar.new("test")
-# puts typeof(MultiIndexable::Formatter::Settings::ColorConverter.from_yaml(ctx, node)) # .from_yaml(yaml)
+class PView(T)
+  def initialize(@process : String, @src : T)
+  end
 
-narr = NArray.build([5, 5]) { |_, i| i }
-puts narr
-alias F = MultiIndexable::Formatter
-F::Settings.project_settings = F::Settings.from_yaml(yaml)
+  def process(process)
+    PView(T).new(@process + process, @src)
+  end
+  
+  def reshape(shape)
+    # don't want the multiindexable behaviour
+    @src.reshape(shape)
+    #RView(PView(T)).new(shape, self)
+  end
+end
 
-puts narr
+class RView(T)
+  def initialize(@shape : String, @src : T)
+  end
+
+  def reshape(shape)
+    RView(T).new(@shape + shape, @src)
+  end
+
+  def process(process)
+    PView(RView(T)).new(process, self)
+  end
+end
+
+pp View.new(1).process("a").process("b") #.reshape("b").process("c")
+
+
+coord_to_index, index_to_coord
+
+
+View(B,T)
+  => coord_transforms: [] of Proc(Array(Int32), Array(Int32))
+
+ProcView(B,T,R)
+  @view : View(B,T)
+  => elem_transforms @proc : Proc(T,R)
+  
+  forward_missing_to @view
+
+PView(View(PView(View(PView))))

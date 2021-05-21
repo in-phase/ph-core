@@ -1,74 +1,73 @@
-require "./view_object"
-
 module Lattice
+    class View(S, T)
+        include MultiIndexable(T)
 
-    class View(B,T)
-        include ViewObject(B,T,T)
-        include MultiWritable(T)
+        # A proc that transforms one coordinate into another coordinate.
+        @src : S
+        @transforms : Array(Transform)
 
-        macro ensure_writable
-            {% unless B < MultiWritable %}
-                {% raise "Could not write to #{@type}: #{B} is not a MultiWritable." %}
-            {% end %}
+        private def initialize(@src : S, @transforms = [] of Transform)
         end
 
-        def self.of(src : B, region = nil, order : Order = Order::LEX)
-            if src.is_a?(View) 
-                src.view(region, order)
-            else
-                new_region = ViewObject.parse_region(region, src, Order.reverse?(order))
-                View(B, typeof(src.sample)).new(src, new_region, Order.colex?(order))
+        def initialize(@src : S, region)
+            self.of(@src, region)
+        end
+
+        def push_transform(t : Transform)
+            if t.composes?
+                (@transforms.size - 1).downto(0) do |i|
+                    if t.class == @transforms[i].class 
+                        if new_transform = t.compose?(@transforms[i])
+                            @transforms[i] = new_transform
+                            return
+                        end
+                    elsif !t.commutes_with?(@transforms[i])
+                        break
+                    end
+                end
             end
+            @transforms << t
         end
 
-        # TODO: Should be protected 
-        protected def initialize(@src : MultiIndexable(T), @region, @is_colex : Bool)
-            @shape = RegionHelpers.measure_canonical_region(@region)
-            @shape = @shape.reverse if @is_colex
-            @size = @shape.product
+        def self.of(src, region)
+        end
+    end
+
+    # transform types: region, colex, reverse, reshape
+    #                  RegionTransform, ColexTransform, ... 
+
+
+
+    abstract struct Transform
+        getter composes? : Bool
+        
+        def compose?(t : self) : self?
+            return nil
+        end
+        
+        def commutes_with?(t : Transform) : Bool
+            return false
         end
 
-        def clone
-            View(B, T).new(@src, @region.dup, @is_colex)
+        def composes? : Bool
+            return false
         end
 
-        def process(&block : T -> R) forall R
-            ProcessedView(B, T, R).new(@src, @region, @is_colex, block)
+        abstract def apply(coord : Array(Int32)) : Array(Int32)
+    end
+
+
+    # struct RegionTransform < Transform
+    # end
+
+    # becomes COLEX
+    struct Transpose < Transform
+        def composes?
+            true
         end
 
-        # Calls `each_in_region` on `@src`, as a faster alternative to the default of
-        # calling `each` on `self` which must convert every index
-        def each
-            order = @is_colex ? Order::COLEX : Order::LEX
-            @src.each_in_canonical_region(@region, order: order)
-        end
-
-        def unsafe_fetch_element(coord) : T
-            @src.unsafe_fetch_element(local_coord_to_srcframe(coord))
-        end
-
-        def unsafe_fetch_region(region) : View(T)
-            view(region)
-        end
-
-        def unsafe_set_element(coord)
-            ensure_writable
-            @src.unsafe_set_element(local_coord_to_srcframe(coord))
-        end
-
-        def unsafe_set_region(region : Enumerable, src : MultiIndexable(T))
-            ensure_writable
-            @src.unsafe_set_region(local_region_to_srcframe(region), src)
-        end
-
-        def unsafe_set_region(region : Enumerable, value : T)
-            ensure_writable
-            @src.unsafe_set_region(local_region_to_srcframe(region), value)
-        end
-
-        def view(region, order : Order = Order::LEX) : View(B, T)
-            new_region = parse_and_convert_region(region, Order.reverse?(order))
-            View(B, T).new(@src, new_region, @is_colex ^ Order.colex?(order))
+        def compose?(t : self) : self?
+            
         end
     end
 end
