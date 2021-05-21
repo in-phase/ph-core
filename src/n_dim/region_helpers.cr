@@ -5,6 +5,18 @@ module Lattice
 
     # TODO: define "canonical form" of coord/region/index somewhere visible and easy to access.
 
+    # For a given axis length `size`, a "canonical index" `idx` is `0 <= idx < size`.
+    # For a given axis length `size`, a "canonical range" `range` obeys the following:
+    # - Stored as a `SteppedRange` object
+    # - `range.begin` and `range.end` are canonical indices for an axis of length `size`
+    # - `range.size >= 0` and represents the number of elements that would be iterated through
+    # - `range.begin + (range.size * range.step) == range.end`. In particular this means:
+    #    - 
+    # - If empty (no elements spanned), then all of `range.size, range.step, range.begin, range.end` are 0.
+   
+    # For a given shape, a "canonical region"
+    # - 
+
     def has_index?(index, size)
       index >= -size && index < size
     end
