@@ -1,3 +1,18 @@
+require "../n_dim/*"
+require "./transforms"
+
+
+
+# our framework:
+# View(B,T)
+#   => coord_transforms: [] of Proc(Array(Int32), Array(Int32))
+
+# ProcView(B,T,R)
+#   @view : View(B,T)
+#   => elem_transforms @proc : Proc(T,R)
+  
+#   forward_missing_to @view
+
 module Lattice
     class View(S, T)
         include MultiIndexable(T)
@@ -9,16 +24,28 @@ module Lattice
         private def initialize(@src : S, @transforms = [] of Transform)
         end
 
-        def initialize(@src : S, region)
-            self.of(@src, region)
+        def clone : self
+            self.new(@src, @transforms)
         end
 
-        def push_transform(t : Transform)
+        def shape : Array(Int32)
+            @src.shape
+        end
+
+        # def initialize(@src : S, region)
+        #     self.of(@src, region)
+        # end
+
+        def push_transform(t : Transform) : Nil
             if t.composes?
                 (@transforms.size - 1).downto(0) do |i|
                     if t.class == @transforms[i].class 
                         if new_transform = t.compose?(@transforms[i])
-                            @transforms[i] = new_transform
+                            if new_transform < NoTransform # If composition => annihiliation
+                                @transforms.delete_at(i)
+                            else
+                                @transforms[i] = new_transform
+                            end
                             return
                         end
                     elsif !t.commutes_with?(@transforms[i])
@@ -33,41 +60,4 @@ module Lattice
         end
     end
 
-    # transform types: region, colex, reverse, reshape
-    #                  RegionTransform, ColexTransform, ... 
-
-
-
-    abstract struct Transform
-        getter composes? : Bool
-        
-        def compose?(t : self) : self?
-            return nil
-        end
-        
-        def commutes_with?(t : Transform) : Bool
-            return false
-        end
-
-        def composes? : Bool
-            return false
-        end
-
-        abstract def apply(coord : Array(Int32)) : Array(Int32)
-    end
-
-
-    # struct RegionTransform < Transform
-    # end
-
-    # becomes COLEX
-    struct Transpose < Transform
-        def composes?
-            true
-        end
-
-        def compose?(t : self) : self?
-            
-        end
-    end
 end
