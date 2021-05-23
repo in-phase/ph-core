@@ -39,15 +39,13 @@ module Lattice
         def push_transform(t : Transform) : Nil
             if t.composes?
                 (@transforms.size - 1).downto(0) do |i|
-                    if t.class == @transforms[i].class 
-                        if new_transform = t.compose?(@transforms[i])
-                            if new_transform < NoTransform # If composition => annihiliation
-                                @transforms.delete_at(i)
-                            else
-                                @transforms[i] = new_transform
-                            end
-                            return
+                    if new_transform = t.compose?(@transforms[i])
+                        if new_transform < NoTransform # If composition => annihiliation
+                            @transforms.delete_at(i)
+                        else
+                            @transforms[i] = new_transform
                         end
+                        return
                     elsif !t.commutes_with?(@transforms[i])
                         break
                     end

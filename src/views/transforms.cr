@@ -13,6 +13,10 @@ module Lattice
     # end    
     # then repeat for A and C
 
+    # alternatively: just make Reverse a type of Region, not its own transform?
+    # - no longer commutative with reshape
+    # - resolves issues of one-way composability
+
     # compile time
 
     abstract struct Transform
@@ -81,9 +85,26 @@ module Lattice
     end
 
     struct RegionTransform < Transform
+
+        def compose?(t : Transform) : Transform?
+            case t
+            when self
+                # compose regions
+            when ReverseTransform
+            end
+        end
+
         def apply(coord : Array(Int32)) : Array(Int32)
-            raise NotImplementedError.new
-            coord
+            local_coord_to_srcframe(coord)
+        end
+
+        protected def local_coord_to_srcframe(coord) : Array(Int32)
+            new_coord = @region.map_with_index { |range, dim| range.local_to_absolute(coord[dim]) }
+        end
+
+        protected def local_region_to_srcframe(region) : Array(RegionHelpers::SteppedRange)
+            region = region.reverse if @is_colex
+            new_region = @region.map_with_index { |range, dim| range.compose(region[dim])}
         end
     end
 
