@@ -19,43 +19,48 @@ module Lattice
 
         # A proc that transforms one coordinate into another coordinate.
         @src : S
-        @transforms : Array(Transform)
+        @transform : ComposedTransform
 
-        private def initialize(@src : S, @transforms = [] of Transform)
-        end
-
-        def clone : self
-            self.new(@src, @transforms)
-        end
-
-        def shape : Array(Int32)
-            @src.shape
+        private def initialize(@src : S, @transform = ComposedTransform.new)
         end
 
         # def initialize(@src : S, region)
         #     self.of(@src, region)
         # end
 
-        def push_transform(t : Transform) : Nil
-            if t.composes?
-                (@transforms.size - 1).downto(0) do |i|
-                    if new_transform = t.compose?(@transforms[i])
-                        if new_transform < NoTransform # If composition => annihiliation
-                            @transforms.delete_at(i)
-                        else
-                            @transforms[i] = new_transform
-                        end
-                        return
-                    elsif !t.commutes_with?(@transforms[i])
-                        break
-                    end
-                end
-            end
-            @transforms << t
-        end
-
         def self.of(src, region)
         end
+
+        def clone : self
+            self.new(@src, @transform.clone)
+        end
+
+        def shape : Array(Int32)
+            @src.shape
+        end
+
+        def view(region = nil) : self
+            return clone unless region
+            RegionTransform.new(RegionHelpers.canonicalize_region(region))
+            new(@src, @transform.compose())
+        end
+
+        # def reshape : self
+        # end
+
+        # def transpose : self
+        # end
+
+        # def reverse : self
+        # end
+
+        
+        # def process : ProcView
+        # end
+
+        # def to_narr : NArray(T)
+        # end
+
     end
 
 end

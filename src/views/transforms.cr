@@ -3,6 +3,30 @@ module Lattice
     # NOTE: We talked about types not composing with each other. I forgot that reverse and region compose well. It probably is useful to worry about these cases
     # since reverse and region don't commute; so chains of reverse/region could stack up.
 
+
+    # 
+    # ReverseTransform -> RegionTransform 
+
+    # 1 2 3
+    # 4 5 6 
+    # 7 8 9
+
+    # 4 5
+    # 7 8
+
+    # 4 7
+    # 5 8
+
+    # RegionTransform, ColexTransform 
+    # [1..2, 0..1]
+
+    # ColexTransoform, RegionTransform [0..1, 1..2]
+
+    # RegionTransofrm, ColexTransform, Region, Colex, Region, Colex
+
+
+    # [A, B, C] B.compose(C) 
+    # [A, C, B] 
     # unlike commutes composes should be strictly one-way. The algorithm for Reverse.compose(Region) is different (much easier) from Region.compose(Reverse).
     # If we have [A,B] and add C:
     # try C(B). else:
@@ -13,45 +37,103 @@ module Lattice
     # end    
     # then repeat for A and C
 
-    # alternatively: just make Reverse a type of Region, not its own transform?
+    # alternatively: just make Reverse a type of Region, not its own CoordTransform?
     # - no longer commutative with reshape
     # - resolves issues of one-way composability
 
     # compile time
 
-    abstract struct Transform
-
-        # make this constant? Class variable?
-        COMMUTES = [] of Transform.class
-        COMPOSES = false
+    abstract struct CoordTransform
+        @@commutes = [] of CoordTransform.class
         
-        # currently: use a NoTransform as a special return type?
-        # alternatively, since we are already checking whether it composes - use Nil to indicate annhiliation?
-        def compose?(t : Transform) : Transform?
-            return nil
+        def compose(t : CoordTransform) : CoordTransform
+            return ComposedTransform[t, self]
         end
-        
-        def commutes_with?(t : Transform) : Bool
+
+        # Possibly
+        # def commute?(t : CoordTransform) : Tuple(Transform, CoordTransform)
+        # end
+
+        def commutes_with?(t : CoordTransform) : Bool
             return commutes.any? {|type| type == t.class} || t.commutes.any? {|type| type == self.class}
         end
 
         protected def commutes
-            {% begin %}{{@type.id}}::COMMUTES{% end %}
-        end
-
-        def composes? : Bool
-            {% begin %}{{@type.id}}::COMPOSES{% end %}
+            @@commutes
         end
 
         abstract def apply(coord : Array(Int32)) : Array(Int32)
     end
 
-    struct NoTransform < Transform
-        COMMUTES = [ReverseTransform, ReshapeTransform, RegionTransform, TransposeTransform]
-        COMPOSES = true
 
-        def compose? : Transform?
-            NoTransform.new
+    struct ComposedTransform < CoordTransform
+        @transforms : Array(CoordTransform)
+
+        def initialize(@transforms = [] of CoordTransform)
+        end
+        
+        def self.[](*transforms)
+            new (transforms.map &.as(CoordTransform)).to_a
+        end
+
+        def clone
+            ComposedTransform.new(@transforms.clone)
+        end
+
+        def compose!(t : CoordTransform)
+            @transforms << t
+        end
+
+        # stolen from our attempt at View class
+        # def push_transform(t : Transform) : Nil
+        #     if t.composes?
+        #         (@transforms.size - 1).downto(0) do |i|
+        #             if new_transform = t.compose?(@transforms[i])
+        #                 if new_transform < NoTransform # If composition => annihiliation
+        #                     @transforms.delete_at(i)
+        #                 else
+        #                     @transforms[i] = new_transform
+        #                 end
+        #                 return
+        #             elsif !t.commutes_with?(@transforms[i])
+        #                 break
+        #             end
+        #         end
+        #     end
+        #     @transforms << t
+        # end
+
+        def compose!(t : ComposedTransform)
+            @transforms += t
+        end
+
+        def compose(t : CoordTransform) : CoordTransform
+            new_transform = clone
+            new_transform.compose!(t)
+        end
+
+        def compose(t : CoordTransform) : ComposedTransform
+        end
+
+        def apply(coord : Array(Int32)) : Array(Int32)
+            transforms.reverse.reduce(coord) {|coord, trans| trans.apply(coord)}
+        end
+
+        def transforms
+            @transforms.clone
+        end
+
+        protected def transforms!
+            @transforms
+        end
+    end
+
+
+   
+
+    struct NoTransform < CoordTransform
+        def compose(t : CoordTransform) : CoordTransform
+            t
         end
 
         def apply(coord : Array(Int32)) : Array(Int32)
@@ -59,10 +141,7 @@ module Lattice
         end
     end
 
-    struct ReshapeTransform < Transform
-
-        COMMUTES = [NoTransform, ReverseTransform]
-        COMPOSES = true
+    struct ReshapeTransform < CoordTransform
 
         @new_shape : Array(Int32)
         @src_shape : Array(Int32)
@@ -71,8 +150,13 @@ module Lattice
         end
 
         # Newer calls to reshape in a chain overwrite previous calls.
-        def compose?(t : Transform) : Transform?
-            return self
+        def compose(t : CoordTransform) : CoordTransform
+            case t
+            when self
+                return self
+            else
+                return super
+            end
         end
 
         def apply(coord : Array(Int32)) : Array(Int32)
@@ -84,13 +168,15 @@ module Lattice
         end
     end
 
-    struct RegionTransform < Transform
+    struct RegionTransform < CoordTransform
 
-        def compose?(t : Transform) : Transform?
+        def compose(t : CoordTransform) : CoordTransform
             case t
             when self
                 # compose regions
             when ReverseTransform
+            else
+                return super
             end
         end
 
@@ -109,12 +195,15 @@ module Lattice
     end
 
     # becomes COLEX
-    struct TransposeTransform < Transform
-        COMPOSES = true
-        COMMUTES = [ReverseTransform]
+    struct TransposeTransform < CoordTransform
 
-        def compose?(t : self) : Transform?
-            NoTransform.new
+        def compose(t : CoordTransform) : CoordTransform
+            case t
+            when self
+                return NoTransform.new
+            else
+                return super
+            end
         end
 
         def apply(coord : Array(Int32)) : Array(Int32)
@@ -123,11 +212,9 @@ module Lattice
         end
     end
 
-    struct ReverseTransform < Transform
-        COMPOSES = true
-        COMMUTES = [TransposeTransform, ReshapeTransform]
+    struct ReverseTransform < CoordTransform
 
-        def compose?(t : Transform) : Transform?
+        def compose(t : CoordTransform) : CoordTransform
             case t
             when self
                 return NoTransform.new
@@ -137,7 +224,7 @@ module Lattice
             #     end
             #     return RegionTransform.new(region)
             else 
-                nil
+                return super
             end
         end
 
@@ -150,12 +237,9 @@ module Lattice
     tran = TransposeTransform.new
     rev = ReverseTransform.new
     res = ReshapeTransform.new([3], [4])
-    puts res.commutes_with?(tran)
-    puts rev.commutes_with?(res)
-    puts res.commutes_with?(rev)
 
-    puts tran.composes?
-    puts rev.compose?(tran)
+    puts rev.compose(tran)
+    puts tran.compose(tran)
 end
 
 
