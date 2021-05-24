@@ -52,7 +52,7 @@ module Lattice
         #     if t.composes?
         #         (@transforms.size - 1).downto(0) do |i|
         #             if new_transform = t.compose?(@transforms[i])
-        #                 if new_transform < NoTransform # If composition => annihiliation
+        #                 if new_transform < IdentityTransform # If composition => annihiliation
         #                     @transforms.delete_at(i)
         #                 else
         #                     @transforms[i] = new_transform
@@ -96,7 +96,7 @@ module Lattice
 
    
     # done
-    struct NoTransform < CoordTransform
+    struct IdentityTransform < CoordTransform
         def compose(t : CoordTransform) : CoordTransform
             t
         end
@@ -190,20 +190,42 @@ module Lattice
         end
     end
 
-    struct TransposeTransform < CoordTransform
+    struct PermuteTransform < CoordTransform
 
-        # TODO
+        getter pattern : Array(Int32)
+
+        def initialize(@pattern)
+        end
+
+        def initialize(size : Int32)
+            @pattern = Array.new(size) {|i| size - i - 1}
+        end
+
         def compose(t : CoordTransform) : CoordTransform
             case t
-            when self
-                return NoTransform.new
+            when PermuteTransform
+                return new(t.permute(@pattern))
             else
                 return super
             end
         end
 
+        def permute(src_coord)
+            view_coord = Array.new(@pattern.size) do |src_idx|
+                src_coord[pattern[src_idx]]
+            end
+        end
+
+        def unpermute(view_coord)
+            src_coord = view_coord.clone
+            @pattern.each_with_index do |el, idx|
+                src_coord[el] = view_coord[idx]
+            end
+            src_coord
+        end
+
         def apply(coord : Array(Int32)) : Array(Int32)
-            coord.reverse
+            unpermute(coord)
         end
     end
 
@@ -217,7 +239,7 @@ module Lattice
         def compose(t : CoordTransform) : CoordTransform
             case t
             when self
-                return NoTransform.new
+                return IdentityTransform.new
             # when RegionTransform
             #     region = t.region.each do |range|
             #         range.reverse
@@ -263,19 +285,19 @@ module Lattice
 
     region = RegionHelpers.canonicalize_region([0..2..2, 1..], [4,3])
 
-    tran = TransposeTransform.new
+    per = PermuteTransform.new(2)
     rev = ReverseTransform.new([4,3])
     res = ReshapeTransform.new([4,3], [2, 6])
     reg = RegionTransform.new(region)
 
 
-    puts tran.apply([1,2])
+    puts per.apply([1,2])
     puts res.apply([1,3])
     puts rev.apply([0,2])
-    puts reg.apply([0, 1])
+    puts reg.apply([0,1])
 
-    puts rev.compose(tran)
-    puts tran.compose(tran)
+    # puts rev.compose(per)
+    # puts per.compose(per)
 end
 
 
