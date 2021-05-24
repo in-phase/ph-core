@@ -1,6 +1,7 @@
 require "yaml"
 require "json"
 require "../n_dim/*"
+require "../exceptions/*"
 
 module Lattice
   # An `{{@type}}` is a multidimensional array for any arbitrary type.

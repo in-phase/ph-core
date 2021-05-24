@@ -1,53 +1,15 @@
+
+# needed only for RegionTransform
+require "../n_dim/region_helpers"
+
 module Lattice
 
-    # NOTE: We talked about types not composing with each other. I forgot that reverse and region compose well. It probably is useful to worry about these cases
-    # since reverse and region don't commute; so chains of reverse/region could stack up.
-
-
-    # 
-    # ReverseTransform -> RegionTransform 
-
-    # 1 2 3
-    # 4 5 6 
-    # 7 8 9
-
-    # 4 5
-    # 7 8
-
-    # 4 7
-    # 5 8
-
-    # RegionTransform, ColexTransform 
-    # [1..2, 0..1]
-
-    # ColexTransoform, RegionTransform [0..1, 1..2]
-
-    # RegionTransofrm, ColexTransform, Region, Colex, Region, Colex
-
-
-    # [A, B, C] B.compose(C) 
-    # [A, C, B] 
-    # unlike commutes composes should be strictly one-way. The algorithm for Reverse.compose(Region) is different (much easier) from Region.compose(Reverse).
-    # If we have [A,B] and add C:
-    # try C(B). else:
-    # if B commutes C:
-    #     try B(C)
-    # else
-    #     break
-    # end    
-    # then repeat for A and C
-
-    # alternatively: just make Reverse a type of Region, not its own CoordTransform?
-    # - no longer commutative with reshape
-    # - resolves issues of one-way composability
-
-    # compile time
-
+    # probably done
     abstract struct CoordTransform
         @@commutes = [] of CoordTransform.class
         
         def compose(t : CoordTransform) : CoordTransform
-            return ComposedTransform[t, self]
+            return ComposedTransform[self, t]
         end
 
         # Possibly
@@ -65,7 +27,7 @@ module Lattice
         abstract def apply(coord : Array(Int32)) : Array(Int32)
     end
 
-
+    # probably done for now
     struct ComposedTransform < CoordTransform
         @transforms : Array(CoordTransform)
 
@@ -77,7 +39,8 @@ module Lattice
         end
 
         def clone
-            ComposedTransform.new(@transforms.clone)
+            # TODO: decide if this needs to be clone (we will have to define a clone method on all transforms then)
+            ComposedTransform.new(@transforms.dup)
         end
 
         def compose!(t : CoordTransform)
@@ -116,11 +79,13 @@ module Lattice
         end
 
         def apply(coord : Array(Int32)) : Array(Int32)
+            # NOTE: if we ever add a PadTransform, this could break. If a PadTransform encounters a coord outside the src, it should return a default/computed value early.
             transforms.reverse.reduce(coord) {|coord, trans| trans.apply(coord)}
         end
 
+        # TODO: see clone
         def transforms
-            @transforms.clone
+            @transforms.dup
         end
 
         protected def transforms!
@@ -130,7 +95,7 @@ module Lattice
 
 
    
-
+    # done
     struct NoTransform < CoordTransform
         def compose(t : CoordTransform) : CoordTransform
             t
@@ -141,6 +106,7 @@ module Lattice
         end
     end
 
+    # probably done
     struct ReshapeTransform < CoordTransform
 
         @new_shape : Array(Int32)
@@ -149,27 +115,62 @@ module Lattice
         def initialize(@src_shape, @new_shape)
         end
 
-        # Newer calls to reshape in a chain overwrite previous calls.
         def compose(t : CoordTransform) : CoordTransform
             case t
             when self
-                return self
+                # Always yield to the latest 'reshape' call in a chain
+                return t
             else
                 return super
             end
         end
 
+        # TODO: these three methods were stolen from NArray. Move to somewhere more mutually useful?
+        # Also TODO: brainstorm if there is a faster algorithm for doing this directly, without an intermediate index
+        protected def index_to_coord(index, shape)
+            coord = Array(Int32).new(shape.size, 0)
+            shape.reverse.each_with_index do |length, dim|
+                coord[dim] = index % length
+                index //= length
+            end
+            coord.reverse
+        end
+
+        protected def coord_to_index(coord, shape) : Int32
+            axis_strides = axis_strides(shape)
+            index = 0
+            coord.each_with_index do |elem, idx|
+                index += elem * axis_strides[idx]
+            end
+            index
+        end
+
+        protected def axis_strides(shape)
+            ret = shape.clone
+            ret[-1] = 1
+      
+            ((ret.size - 2)..0).step(-1) do |idx|
+              ret[idx] = ret[idx + 1] * shape[idx + 1]
+            end
+      
+            ret
+        end
+
         def apply(coord : Array(Int32)) : Array(Int32)
-            # TODO: 
-            # coord -> index in @new_shape
-            # index -> coord in @old_shape
-            raise NotImplementedError.new
-            coord
+            index = coord_to_index(coord, @new_shape)
+            src_coord = index_to_coord(index, @src_shape)
+            src_coord
         end
     end
 
     struct RegionTransform < CoordTransform
 
+        @region : Array(RegionHelpers::SteppedRange)
+
+        def initialize(@region)
+        end
+
+        # TODO
         def compose(t : CoordTransform) : CoordTransform
             case t
             when self
@@ -185,18 +186,13 @@ module Lattice
         end
 
         protected def local_coord_to_srcframe(coord) : Array(Int32)
-            new_coord = @region.map_with_index { |range, dim| range.local_to_absolute(coord[dim]) }
-        end
-
-        protected def local_region_to_srcframe(region) : Array(RegionHelpers::SteppedRange)
-            region = region.reverse if @is_colex
-            new_region = @region.map_with_index { |range, dim| range.compose(region[dim])}
+            @region.map_with_index { |range, dim| range.local_to_absolute(coord[dim]) }
         end
     end
 
-    # becomes COLEX
     struct TransposeTransform < CoordTransform
 
+        # TODO
         def compose(t : CoordTransform) : CoordTransform
             case t
             when self
@@ -207,12 +203,16 @@ module Lattice
         end
 
         def apply(coord : Array(Int32)) : Array(Int32)
-            raise NotImplementedError.new
-            coord
+            coord.reverse
         end
     end
 
     struct ReverseTransform < CoordTransform
+
+        @shape : Array(Int32)
+
+        def initialize(@shape)
+        end
 
         def compose(t : CoordTransform) : CoordTransform
             case t
@@ -229,14 +229,50 @@ module Lattice
         end
 
         def apply(coord : Array(Int32)) : Array(Int32)
-            raise NotImplementedError.new
-            coord
+            coord.map_with_index do |el, i|
+                @shape[i] - 1 - el
+            end
         end
     end
 
+
+    # OG
+    # 1 2 3
+    # 4 5 6
+    # 7 8 9
+    # 10 11 12
+
+    # reshaped
+    # 1 2 3 4 5 6 
+    # 7 8 9 10 11 12
+
+    # reversed
+    # 12 11 10
+    # 9 8 7
+    # 6 5 4
+    # 3 2 1
+
+    # transposed
+    # 1 4 7 10
+    # 2 5 8 11
+    # 3 6 9 12
+
+    # region
+    # 2 3
+    # 8 9
+
+    region = RegionHelpers.canonicalize_region([0..2..2, 1..], [4,3])
+
     tran = TransposeTransform.new
-    rev = ReverseTransform.new
-    res = ReshapeTransform.new([3], [4])
+    rev = ReverseTransform.new([4,3])
+    res = ReshapeTransform.new([4,3], [2, 6])
+    reg = RegionTransform.new(region)
+
+
+    puts tran.apply([1,2])
+    puts res.apply([1,3])
+    puts rev.apply([0,2])
+    puts reg.apply([0, 1])
 
     puts rev.compose(tran)
     puts tran.compose(tran)

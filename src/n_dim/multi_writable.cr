@@ -33,7 +33,7 @@ module Lattice
     
     # Sets the element specified by `coord` to `value`, assuming that `coord` is in canonical form and in-bounds for this `{{type}}`
     def unsafe_set_element(coord : Enumerable, value : T)
-      unsafe_set_region(coord, value)
+      unsafe_set_region(RegionHelpers.region_from_coord(coord), value)
     end
 
     # Sets the element specified by `coord` to `value`.

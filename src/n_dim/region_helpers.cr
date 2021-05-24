@@ -147,6 +147,12 @@ module Lattice
       end
     end
 
+    def region_from_coord(coord) : Array(SteppedRange)
+      coord.map do |idx|
+        SteppedRange.new(idx)
+      end
+    end
+
     def translate_shape(region_shape, coord, parent_shape) : Array(SteppedRange)
       top_left = canonicalize_coord(coord, parent_shape)
       top_left.map_with_index do |start, i|
