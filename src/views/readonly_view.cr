@@ -16,7 +16,7 @@ require "../n_dim/formatter"
 #   forward_missing_to @view
 
 module Lattice
-    abstract class ReadonlyView(S, T, R)
+    class ReadonlyView(S, R)
         include MultiIndexable(R)
 
         # A proc that transforms one coordinate into another coordinate.
@@ -24,7 +24,16 @@ module Lattice
         @transform : ComposedTransform
         @shape : Array(Int32)
 
-        abstract def unsafe_fetch_element(coord) : R 
+        def self.of(src : S, region = nil) : self
+            case src
+            when ReadonlyView
+                return src.view(region)
+            else
+                new_view = ReadonlyView(S, typeof(src.sample)).new(src)
+                new_view.restrict_to(region) if region
+                return new_view
+            end
+        end
 
         protected def initialize(@src : S, @transform : ComposedTransform = ComposedTransform.new)
             @shape = @src.shape
@@ -96,20 +105,20 @@ module Lattice
         end
 
         def unsafe_fetch_element(coord) : R
-            @src.unsafe_fetch_element(@transform.apply(coord))
+            @src.unsafe_fetch_element(@transform.apply(coord)).unsafe_as(R)
         end
 
-        def process(new_proc : (R -> U)) : ProcView(S, T, U) forall U
-            ProcView(S ,T, U).new(@src, @shape.clone, new_proc, @transform.clone)
+        def process(new_proc : (R -> U)) : ProcView(S, R, U) forall U
+            ProcView(S, R, U).new(@src, @shape.clone, new_proc, @transform.clone)
         end
 
-        def process(&block : (R -> U)) : ProcView(S, T, U) forall U
+        def process(&block : (R -> U)) : ProcView(S, R, U) forall U
             process(block)
         end
 
-        def to_narr : NArray(T)
+        def to_narr : NArray
             iter = self.each
-            NArray(T).build(@shape) {|coord,i| unsafe_fetch_element(coord)}
+            NArray.build(@shape) {|coord,i| unsafe_fetch_element(coord)}
         end
     end
 end

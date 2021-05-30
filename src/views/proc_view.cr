@@ -2,7 +2,7 @@ require "./readonly_view"
 
 module Lattice
 
-    class ProcView(S, T, R) < ReadonlyView(S, T, R)
+    class ProcView(S, T, R) < ReadonlyView(S, R)
         getter proc : Proc(T, R)
 
         # # TODO: document
@@ -43,10 +43,11 @@ module Lattice
 
         narr = NArray.fill([2,2], "Hi")
         proc = Proc(String, Int32).new { |x| x.size }
-        puts ProcView.of(narr, proc).proc
+        puts narr.view([0,1])
+        # puts ReadonlyView.of(narr).process(proc).process {|x| x.to_s}
 
         # puts typeof(proc.call("Hi"))
-        puts ProcView.of(narr, proc)
+        # puts ProcView.of(narr, proc).process {|x| x.to_s}
          
     end
 end

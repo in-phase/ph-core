@@ -219,14 +219,20 @@ module Lattice
       return true
     end
 
-    def view(*region, order : Order = Order::LEX) : View(self, T)
-      # TODO: Try to infer T from B?
-      View(self, T).of(self, region, order)
+
+    def view(*region) : View(self, T)
+        # TODO: Try to infer T from B?
+        View(self, T).of(self, region)
     end
 
-    def process
-      ProcView.of(self, proc)
+    def process(&block : (T -> R)) forall R
+        process(block)
     end
+
+    def process(proc)
+        ProcView.of(self, proc)
+    end
+    
 
     # TODO: rename!
     # Produces an NArray(Bool) (by default) describing which elements of self and other are equal.

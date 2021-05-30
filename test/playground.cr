@@ -84,3 +84,14 @@ end)
 # puts narr
 
 
+class Test(S)
+    def initialize(@val : S)
+    end
+
+    def self.of(val : W) forall W
+        {% puts @type.na %}
+        {%begin%}{{@type.name(generic_args: false)}}(W).new(val){%end%}
+    end
+end
+
+puts Test.of("hi")
