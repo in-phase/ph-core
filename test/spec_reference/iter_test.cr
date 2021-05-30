@@ -14,13 +14,13 @@ puts canonical
 puts small_arr[canonical] # => [[2,1], [5,4]]
 
 puts "Lexicographic:"
-NArray::BufferedLexRegionIterator(typeof(small_arr), Int32).new(small_arr).each { |elem, coord| puts elem }
+# NArray::BufferedLexRegionIterator(typeof(small_arr), Int32).new(small_arr).each { |elem, coord| puts elem }
 
 puts "Colexicographic:"
-NArray::BufferedColexRegionIterator(typeof(small_arr), Int32).new(small_arr).each { |elem, coord| puts elem }
+# NArray::BufferedColexRegionIterator(typeof(small_arr), Int32).new(small_arr).each { |elem, coord| puts elem }
 
 puts "Lexicographic, region"
-NArray::BufferedLexRegionIterator(typeof(small_arr), Int32).new(small_arr, canonical).each { |elem, coord| puts elem , coord}
+# NArray::BufferedLexRegionIterator(typeof(small_arr), Int32).new(small_arr, canonical).each { |elem, coord| puts elem , coord}
 
 puts "Baseline:"
 small_arr.narray_each_in_canonical_region(canonical) {|elem, idx, idx2| puts elem}
@@ -28,23 +28,23 @@ small_arr.narray_each_in_canonical_region(canonical) {|elem, idx, idx2| puts ele
 # puts "Colex, region"
 # NArray::BufferedColexRegionIterator(typeof(small_arr), Int32).new(small_arr, canonical).each { |elem, coord| puts elem }
 
-# puts "rev lex"
-# NArray::BufferedLexRegionIterator(typeof(small_arr), Int32).new(small_arr, reverse: true).each { |elem, coord| puts elem }
+puts "rev lex"
+NArray::BufferedLexRegionIterator(typeof(small_arr), Int32).new(small_arr, reverse: true).each { |elem, coord| puts elem }
 
 
-# puts "rev colex"
-# NArray::BufferedColexRegionIterator(typeof(small_arr), Int32).new(small_arr, reverse: true).each { |elem, coord| puts elem }
+puts "rev colex"
+NArray::BufferedColexRegionIterator(typeof(small_arr), Int32).new(small_arr, reverse: true).each { |elem, coord| puts elem }
 
-# puts "rev lex region"
-# NArray::BufferedLexRegionIterator(typeof(small_arr), Int32).new(small_arr, canonical, reverse: true).each { |elem, coord| puts elem }
-
-
-# puts "rev colex region"
-# NArray::BufferedColexRegionIterator(typeof(small_arr), Int32).new(small_arr, canonical, reverse: true).each { |elem, coord| puts elem }
+puts "rev lex region"
+NArray::BufferedLexRegionIterator(typeof(small_arr), Int32).new(small_arr, canonical, reverse: true).each { |elem, coord| puts elem }
 
 
-MultiIndexable::LexRegionIterator(typeof(small_arr), Int32).new(small_arr).each { |elem, coord| puts elem, coord }
-MultiIndexable::ColexRegionIterator(typeof(small_arr), Int32).new(small_arr).each { |elem, coord| puts elem, coord }
+puts "rev colex region"
+NArray::BufferedColexRegionIterator(typeof(small_arr), Int32).new(small_arr, canonical, reverse: true).each { |elem, coord| puts elem }
+
+
+# MultiIndexable::LexRegionIterator(typeof(small_arr), Int32).new(small_arr).each { |elem, coord| puts elem, coord }
+# MultiIndexable::ColexRegionIterator(typeof(small_arr), Int32).new(small_arr).each { |elem, coord| puts elem, coord }
 
 # puts "Reverse Lexicographic:"
 # MultiIndexable::LexRegionIterator(typeof(small_arr), Int32).new(small_arr, reverse: true).each { |elem, coord| puts elem, coord }

@@ -2,6 +2,7 @@ require "yaml"
 require "json"
 require "../n_dim/*"
 require "../exceptions/*"
+require "./buffer_utils.cr"
 
 module Lattice
   # An `{{@type}}` is a multidimensional array for any arbitrary type.
@@ -92,8 +93,9 @@ module Lattice
     #  [4]]
     # ```
     def self.build(shape, &block : Array(Int32), Int32 -> T)
+      coord_iter = IndexedLexIterator.new(shape)
       {{@type}}.new(shape) do |idx|
-        yield index_to_coord(idx, shape), idx
+        yield *(coord_iter.unsafe_next_with_index)
       end
     end
 
@@ -307,7 +309,7 @@ module Lattice
 
     # Convert from a buffer location to an n-dimensional coord
     def index_to_coord(index) : Array(Int32)
-      {{@type}}.index_to_coord(index, @shape)
+      typeof(self).index_to_coord(index, @shape)
     end
 
     # OPTIMIZE: This could (maybe) be improved with use of `axis_strides`
@@ -334,7 +336,7 @@ module Lattice
         buffer_arr << elem
       end
 
-      {{@type}}.new(shape) { |i| buffer_arr[i] }
+      typeof(self).new(shape) { |i| buffer_arr[i] }
     end
 
     # Retrieves the element specified by `coord`, assuming that `coord` is in canonical form and in-bounds for this `{{type}}`.
@@ -362,7 +364,7 @@ module Lattice
       step = new_shape.product
 
       new_buffer = @buffer[index * step, step]
-      {{@type}}.new(new_shape, new_buffer.clone)
+      typeof(self).new(new_shape, new_buffer.clone)
     end
 
     # Copies the elements from a MultiIndexable `src` into `region`, assuming that `region` is in canonical form and in-bounds for this `{{type}}`
@@ -487,19 +489,7 @@ module Lattice
       end
     end
 
-    # Given an array of step sizes in each coordinate axis, returns the offset in the buffer
-    # that a step of that size represents.
-    # The buffer index of a multidimensional coordinate, x, is equal to x dotted with axis_strides
-    def self.axis_strides(shape)
-      ret = shape.clone
-      ret[-1] = 1
 
-      ((ret.size - 2)..0).step(-1) do |idx|
-        ret[idx] = ret[idx + 1] * shape[idx + 1]
-      end
-
-      ret
-    end
 
     # Given a list of `{{@type}}`s, returns the smallest shape array in which any one of those `{{@type}}s` can be contained.
     # TODO: Example
@@ -767,70 +757,70 @@ module Lattice
     end
 
     # TODO: compare this iterator, generic MultiIndexable iterator, and old direct each
-    class BufferedLexRegionIterator(A,T) < RegionIterator(A,T)
+#     class BufferedLexRegionIterator(A,T) < RegionIterator(A,T)
 
-      @buffer_index : Int32
-      @buffer_step : Array(Int32)
+#       @buffer_index : Int32
+#       @buffer_step : Array(Int32)
 
-      def initialize(@narr : A, region = nil, reverse = false)
-        super
-        @buffer_step = @narr.axis_strides
-        @buffer_index = @buffer_step.map_with_index {|e, i| e * @first[i]}.sum
-        @buffer_index = setup_buffer_index(@buffer_index, @buffer_step, @step)
-      end
+#       def initialize(@narr : A, region = nil, reverse = false)
+#         super
+#         @buffer_step = @narr.axis_strides
+#         @buffer_index = @buffer_step.map_with_index {|e, i| e * @first[i]}.sum
+#         @buffer_index = setup_buffer_index(@buffer_index, @buffer_step, @step)
+#       end
 
-      def setup_coord(coord, step)
-        coord[-1] -= step[-1]
-      end
+#       def setup_coord(coord, step)
+#         coord[-1] -= step[-1]
+#       end
 
-      def setup_buffer_index(buffer_index, buffer_step, step)
-        buffer_index -= buffer_step[-1] * step[-1]
-        buffer_index
-      end
+#       def setup_buffer_index(buffer_index, buffer_step, step)
+#         buffer_index -= buffer_step[-1] * step[-1]
+#         buffer_index
+#       end
 
-      def unsafe_next
-        (@coord.size - 1).downto(0) do |i| # ## least sig .. most sig
-          if @coord[i] == @last[i]
-            @buffer_index -= (@coord[i] - @first[i]) * @buffer_step[i]
-            @coord[i] = @first[i]
-            return stop if i == 0 # most sig
-          else
-            @coord[i] += @step[i]
-            @buffer_index += @buffer_step[i] * @step[i]
-            break
-          end
-        end
-        {@narr.buffer.unsafe_fetch(@buffer_index), @coord}
-      end
-    end
+#       def unsafe_next
+#         (@coord.size - 1).downto(0) do |i| # ## least sig .. most sig
+#           if @coord[i] == @last[i]
+#             @buffer_index -= (@coord[i] - @first[i]) * @buffer_step[i]
+#             @coord[i] = @first[i]
+#             return stop if i == 0 # most sig
+#           else
+#             @coord[i] += @step[i]
+#             @buffer_index += @buffer_step[i] * @step[i]
+#             break
+#           end
+#         end
+#         {@narr.buffer.unsafe_fetch(@buffer_index), @coord}
+#       end
+#     end
 
 
-    class BufferedColexRegionIterator(A,T) < BufferedLexRegionIterator(A,T)
+#     class BufferedColexRegionIterator(A,T) < BufferedLexRegionIterator(A,T)
 
-      def setup_coord(coord, step)
-        coord[0] -= step[0]
-      end
+#       def setup_coord(coord, step)
+#         coord[0] -= step[0]
+#       end
 
-      def setup_buffer_index(buffer_index, buffer_step, step)
-        buffer_index -= buffer_step[0] * step[0]
-        buffer_index
-      end
+#       def setup_buffer_index(buffer_index, buffer_step, step)
+#         buffer_index -= buffer_step[0] * step[0]
+#         buffer_index
+#       end
 
-      def unsafe_next
-        0.upto(@coord.size - 1) do |i| # ## least sig .. most sig
-          if @coord[i] == @last[i]
-            @buffer_index -= (@coord[i] - @first[i]) * @buffer_step[i]
-            @coord[i] = @first[i]
-            return stop if i == @coord.size - 1 # most sig
-          else
-            @coord[i] += @step[i]
-            @buffer_index += @buffer_step[i] * @step[i]
-            break
-          end
-        end
-        {@narr.buffer.unsafe_fetch(@buffer_index), @coord}
-      end
+#       def unsafe_next
+#         0.upto(@coord.size - 1) do |i| # ## least sig .. most sig
+#           if @coord[i] == @last[i]
+#             @buffer_index -= (@coord[i] - @first[i]) * @buffer_step[i]
+#             @coord[i] = @first[i]
+#             return stop if i == @coord.size - 1 # most sig
+#           else
+#             @coord[i] += @step[i]
+#             @buffer_index += @buffer_step[i] * @step[i]
+#             break
+#           end
+#         end
+#         {@narr.buffer.unsafe_fetch(@buffer_index), @coord}
+#       end
 
-    end
+#     end
   end
 end

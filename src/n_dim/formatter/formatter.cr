@@ -202,12 +202,13 @@ module Lattice
         color_print(brackets[1] % idx, height)
       end
 
-      class FormatIterator(A, T) < LexRegionIterator(A, T)
+      class SkippableLexIterator < LexIterator
+
         def skip(axis, amount) : Nil
           @coord[axis] += amount + 1
         end
 
-        def unsafe_next
+        def next_if_nonempty
           (@coord.size - 1).downto(0) do |i| # ## least sig .. most sig
             if @coord[i] == @last[i]
               # dimension change
@@ -218,12 +219,13 @@ module Lattice
               break
             end
           end
-
-          {@narr.unsafe_fetch_element(@coord), @coord}
+          @coord
         end
+      end
 
-        def unsafe_next_value
-          self.next.unsafe_as(Tuple(T, Array(Int32)))[0]
+      class FormatIterator(A, T) < RegionIterator(A,T, SkippableLexIterator)
+        def skip(axis, amount) : Nil
+          @coord_iter.skip(axis, amount)
         end
       end
     end
