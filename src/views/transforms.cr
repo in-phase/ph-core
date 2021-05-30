@@ -44,7 +44,7 @@ module Lattice
         end
 
         def compose!(t : CoordTransform)
-            @transforms << t
+            @transforms.unshift(t)
         end
 
         # stolen from our attempt at View class
@@ -67,20 +67,16 @@ module Lattice
         # end
 
         def compose!(t : ComposedTransform)
-            @transforms += t
-        end
-
-        def compose(t : CoordTransform) : CoordTransform
-            new_transform = clone
-            new_transform.compose!(t)
+            @transforms = t.transforms + @transforms
         end
 
         def compose(t : CoordTransform) : ComposedTransform
+            clone.compose!(t)
         end
 
         def apply(coord : Array(Int32)) : Array(Int32)
             # NOTE: if we ever add a PadTransform, this could break. If a PadTransform encounters a coord outside the src, it should return a default/computed value early.
-            transforms.reverse.reduce(coord) {|coord, trans| trans.apply(coord)}
+            @transforms.reduce(coord) {|coord, trans| trans.apply(coord)}
         end
 
         # TODO: see clone
@@ -232,8 +228,10 @@ module Lattice
     struct ReverseTransform < CoordTransform
 
         @shape : Array(Int32)
+        @buffer : Array(Int32)
 
         def initialize(@shape)
+            @buffer = @shape.clone
         end
 
         def compose(t : CoordTransform) : CoordTransform
@@ -251,53 +249,14 @@ module Lattice
         end
 
         def apply(coord : Array(Int32)) : Array(Int32)
-            coord.map_with_index do |el, i|
-                @shape[i] - 1 - el
+            
+            coord.each_with_index do |el, i|
+                @buffer[i] = @shape[i] - 1 - el
             end
+
+            @buffer
         end
     end
-
-
-    # OG
-    # 1 2 3
-    # 4 5 6
-    # 7 8 9
-    # 10 11 12
-
-    # reshaped
-    # 1 2 3 4 5 6 
-    # 7 8 9 10 11 12
-
-    # reversed
-    # 12 11 10
-    # 9 8 7
-    # 6 5 4
-    # 3 2 1
-
-    # transposed
-    # 1 4 7 10
-    # 2 5 8 11
-    # 3 6 9 12
-
-    # region
-    # 2 3
-    # 8 9
-
-    region = RegionHelpers.canonicalize_region([0..2..2, 1..], [4,3])
-
-    per = PermuteTransform.new(2)
-    rev = ReverseTransform.new([4,3])
-    res = ReshapeTransform.new([4,3], [2, 6])
-    reg = RegionTransform.new(region)
-
-
-    puts per.apply([1,2])
-    puts res.apply([1,3])
-    puts rev.apply([0,2])
-    puts reg.apply([0,1])
-
-    # puts rev.compose(per)
-    # puts per.compose(per)
 end
 
 

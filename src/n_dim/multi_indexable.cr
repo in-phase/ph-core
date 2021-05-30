@@ -224,6 +224,10 @@ module Lattice
       View(self, T).of(self, region, order)
     end
 
+    def process
+      ProcView.of(self, proc)
+    end
+
     # TODO: rename!
     # Produces an NArray(Bool) (by default) describing which elements of self and other are equal.
     def eq_elem(other : MultiIndexable(U)) : MultiIndexable(Bool) forall U

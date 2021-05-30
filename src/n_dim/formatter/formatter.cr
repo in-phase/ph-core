@@ -203,23 +203,8 @@ module Lattice
       end
 
       class SkippableLexIterator < LexIterator
-
         def skip(axis, amount) : Nil
           @coord[axis] += amount + 1
-        end
-
-        def next_if_nonempty
-          (@coord.size - 1).downto(0) do |i| # ## least sig .. most sig
-            if @coord[i] == @last[i]
-              # dimension change
-              @coord[i] = @first[i]
-              return stop if i == 0 # most sig
-            else
-              @coord[i] += @step[i]
-              break
-            end
-          end
-          @coord
         end
       end
 

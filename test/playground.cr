@@ -2,31 +2,36 @@ require "../src/lattice"
 
 include Lattice
 
-shape = [5, 3, 4]#, 3, 20, 20, 20, 20]
-# region = [.., .., .., .., .., 5..15]
-# canon = RegionHelpers.canonicalize_region(region, shape)
+shape = [5, 3, 4, 3, 20, 20, 50]
+region = [.., .., .., .., .., 5..15]
+canon = RegionHelpers.canonicalize_region(region, shape)
 
-# narr = NArray.build(shape) {|c,i| 1}
-puts (Time.measure do 
-    narr = NArray.build(shape) {|c,i| i}
-    puts narr.size
-    puts narr
-end)
+narr = NArray.build(shape) {|c,i| 1}
 
-puts (Time.measure do 
-    narr = NArray.fill(shape, 5)
+
+
+# Comparing .build implementations
+# puts (Time.measure do 
+#     narr = NArray.build(shape) {|c,i| i}
+#     puts narr.size
+#     puts narr
+# end)
+
+# puts (Time.measure do 
+#     narr = NArray.fill(shape, 5)
     
-end)
+# end)
 
-puts (Time.measure do
-    i = -1
-    narr = NArray(Int32).new(shape) {i += 1}
-    puts narr
-end)
+# puts (Time.measure do
+#     i = -1
+#     narr = NArray(Int32).new(shape) {i += 1}
+#     puts narr
+# end)
  
 
 # current implementation: 17 s
 
+# 
 
 # puts (Time.measure do
 #     sum = 0
@@ -38,26 +43,21 @@ end)
 # end)
 
 
-# puts (Time.measure do 
-#     sum = 0
-#     view = View.of(narr).view(region).permute!.view([..]).permute!
-#     view.each do |el|
-#         sum += el
-#     end
-#     puts sum
-# end)
+puts (Time.measure do 
+    sum = 0
+    view = View.of(narr).reverse!.permute
+    view.each do |el|
+        sum += el
+    end
+    puts sum
+end)
 
-
-# class Foo 
-# end
-
-# class Bar < Foo 
-# end
-
-# puts Bar.new.is_a?(Foo)
 
 
 # narr = NArray.build([2,4,3]) {|c,i| i}
+# puts narr 
+# puts View.of(narr).reverse.permute.reverse
+
 # puts narr
 # view = View.of(narr, [..., 1..2])
 # puts view

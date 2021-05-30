@@ -5,13 +5,14 @@ module Lattice
         include MultiWritable(T)
 
         def self.of(src : S, region = nil) : self
-            if src.is_a?(ReadonlyView) 
+            case src
+            when ReadonlyView
                 return src.view(region)
             else
                 new_view = View(S, typeof(src.sample)).new(src)
                 new_view.restrict_to(region) if region
+                return new_view
             end
-            new_view
         end
 
         # protected def initialize(@src : S, @transform : ComposedTransform = ComposedTransform.new)
