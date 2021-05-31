@@ -1,8 +1,11 @@
 require "../n_dim/*"
 require "./transforms"
 require "../n_array"
+# require "./*"
 # for testing/display
 require "../n_dim/formatter"
+
+
 
 
 # our framework:

@@ -43,7 +43,7 @@ module Lattice
 
         narr = NArray.fill([2,2], "Hi")
         proc = Proc(String, Int32).new { |x| x.size }
-        puts narr.view([0,1])
+        puts narr.view([0..,1..])
         # puts ReadonlyView.of(narr).process(proc).process {|x| x.to_s}
 
         # puts typeof(proc.call("Hi"))
