@@ -74,6 +74,7 @@ module Lattice
             clone.compose!(t)
         end
 
+        # TODO: is this in-place? Should it not be?
         def apply(coord : Array(Int32)) : Array(Int32)
             # NOTE: if we ever add a PadTransform, this could break. If a PadTransform encounters a coord outside the src, it should return a default/computed value early.
             @transforms.reduce(coord) {|coord, trans| trans.apply(coord)}
@@ -107,7 +108,7 @@ module Lattice
 
         @new_shape : Array(Int32)
         @src_shape : Array(Int32)
-        
+
         @buffer : Array(Int32) # has same size as output coord (and @src_shape)
         @view_axis_strides : Array(Int32)
 
@@ -139,7 +140,7 @@ module Lattice
 
         protected def index_to_coord(index, shape, coord_buffer)
             dim = shape.size - 1
-            shape.reverse_each do |length, dim|
+            shape.reverse_each do |length|
                 coord_buffer[dim] = index % length 
                 index //= length
                 dim -= 1
@@ -199,6 +200,7 @@ module Lattice
 
         protected def local_coord_to_srcframe(coord) : Array(Int32)
             @region.each_with_index { |range, dim| @buffer[dim] = range.local_to_absolute(coord[dim]) }
+            @buffer
         end
 
         protected def local_region_to_srcframe(region) : Array(RegionHelpers::SteppedRange)
@@ -218,6 +220,7 @@ module Lattice
 
         def initialize(size : Int32)
             @pattern = Array.new(size) {|i| size - i - 1}
+            @buffer = @pattern.clone
         end
 
         def compose(t : CoordTransform) : CoordTransform
