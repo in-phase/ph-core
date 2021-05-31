@@ -9,7 +9,7 @@ module Lattice
         @@commutes = [] of CoordTransform.class
         
         def compose(t : CoordTransform) : CoordTransform
-            return ComposedTransform[self, t]
+            return ComposedTransform[t, self]
         end
 
         # Possibly
@@ -107,8 +107,13 @@ module Lattice
 
         @new_shape : Array(Int32)
         @src_shape : Array(Int32)
+        
+        @buffer : Array(Int32) # has same size as output coord (and @src_shape)
+        @view_axis_strides : Array(Int32)
 
         def initialize(@src_shape, @new_shape)
+            @buffer = @src_shape.clone
+            @view_axis_strides = axis_strides(@new_shape)
         end
 
         def compose(t : CoordTransform) : CoordTransform
@@ -132,8 +137,17 @@ module Lattice
             coord.reverse
         end
 
-        protected def coord_to_index(coord, shape) : Int32
-            axis_strides = axis_strides(shape)
+        protected def index_to_coord(index, shape, coord_buffer)
+            dim = shape.size - 1
+            shape.reverse_each do |length, dim|
+                coord_buffer[dim] = index % length 
+                index //= length
+                dim -= 1
+            end
+            coord_buffer
+        end
+
+        protected def coord_to_index(coord, axis_strides) : Int32
             index = 0
             coord.each_with_index do |elem, idx|
                 index += elem * axis_strides[idx]
@@ -153,17 +167,19 @@ module Lattice
         end
 
         def apply(coord : Array(Int32)) : Array(Int32)
-            index = coord_to_index(coord, @new_shape)
-            src_coord = index_to_coord(index, @src_shape)
-            src_coord
+            index = coord_to_index(coord, @view_axis_strides)
+            index_to_coord(index, @src_shape, @buffer)
         end
     end
 
     struct RegionTransform < CoordTransform
 
+        # each of these has size = dimensions
         @region : Array(RegionHelpers::SteppedRange)
+        @buffer : Array(Int32)
 
         def initialize(@region)
+            @buffer = @region.map {0}
         end
 
         # TODO
@@ -182,15 +198,22 @@ module Lattice
         end
 
         protected def local_coord_to_srcframe(coord) : Array(Int32)
-            @region.map_with_index { |range, dim| range.local_to_absolute(coord[dim]) }
+            @region.each_with_index { |range, dim| @buffer[dim] = range.local_to_absolute(coord[dim]) }
+        end
+
+        protected def local_region_to_srcframe(region) : Array(RegionHelpers::SteppedRange)
+            @region.map_with_index { |range, dim| range.compose(region[dim])}
         end
     end
 
     struct PermuteTransform < CoordTransform
 
+        # each of these has size = dimensions
         getter pattern : Array(Int32)
+        @buffer : Array(Int32)
 
         def initialize(@pattern)
+            @buffer = @pattern.clone
         end
 
         def initialize(size : Int32)
@@ -213,20 +236,25 @@ module Lattice
         end
 
         def unpermute(view_coord)
-            src_coord = view_coord.clone
+            src_coord = view_coord.clone 
+            unpermute(view_coord, src_coord)
+        end
+
+        def unpermute(view_coord, src_coord_buffer)
             @pattern.each_with_index do |el, idx|
-                src_coord[el] = view_coord[idx]
+                src_coord_buffer[el] = view_coord[idx]
             end
-            src_coord
+            src_coord_buffer
         end
 
         def apply(coord : Array(Int32)) : Array(Int32)
-            unpermute(coord)
+            unpermute(coord, @buffer)
         end
     end
 
     struct ReverseTransform < CoordTransform
 
+        # each of these has size = dimensions
         @shape : Array(Int32)
         @buffer : Array(Int32)
 
