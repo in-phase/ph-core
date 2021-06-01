@@ -25,6 +25,9 @@ module Lattice
             end
 
             def initialize(shape, region : Array(RegionHelpers::SteppedRange)? = nil, reverse : Bool = false)
+                if shape.size == 0
+                    raise DimensionError.new("Failed to create {{@type.id}}: cannot iterate over empty shape \"[]\"")
+                end
                 if region
                   @first = Array(Int32).new(initial_capacity: region.size)
                   @last = Array(Int32).new(initial_capacity: region.size)
@@ -51,6 +54,7 @@ module Lattice
                 end
         
                 @coord = @first.dup
+
                 setup_coord(@coord, @step)
             end
         
