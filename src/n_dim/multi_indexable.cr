@@ -9,6 +9,7 @@ module Lattice
   # - size is stored as an Int32, i.e. there are no more than Int32::MAX elements.
   module MultiIndexable(T)
 
+
     # add search, traversal methods
     include Enumerable(T)
 
@@ -196,14 +197,18 @@ module Lattice
 
     # def slices(axis = 0) : Array(self)
 
+
+    {% for transform in %w(reshape permute reverse) %}
+      def {{transform.id}}(*args)
+        view.{{transform.id}}(*args).to_narr
+      end
+    {% end %}
+
     def to_narr : NArray(T)
-      # TODO
+      NArray.build(@shape.dup) do |coord, idx|
+        unsafe_fetch_element(coord)
+      end
     end
-
-    def to_nested_a : Array
-      # TODO
-    end
-
 
     def equals?(other : MultiIndexable) : Bool
       equals?(other) do |this_elem, other_elem|
@@ -220,9 +225,13 @@ module Lattice
     end
 
 
-    def view(*region) : View(self, T)
-        # TODO: Try to infer T from B?
-        View(self, T).of(self, region)
+    def view(region : Enumerable? = nil) #: View(self, T)
+      # TODO: Try to infer T from B?
+      View(self, T).of(self, region)
+    end
+
+    def view(*region) #: View(self, T)
+        view(region)
     end
 
     def process(&block : (T -> R)) forall R
