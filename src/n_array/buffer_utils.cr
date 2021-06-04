@@ -28,14 +28,12 @@ module Lattice
     end
 
     abstract class IndexedCoordIterator < MultiIndexable::CoordIterator
-      @buffer_index : Int32
+      @buffer_index : Int32 = 0 # Initialized beforehand to placate the compiler
       @buffer_step : Array(Int32)
 
-      def initialize(shape, region = nil, reverse : Bool = false)
-        super(shape, region, reverse)
+      protected def initialize(shape, region = nil, reverse : Bool = false)
         @buffer_step = NArray.axis_strides(shape)
-        @buffer_index = @buffer_step.map_with_index { |e, i| e * @first[i] }.sum
-        @buffer_index = setup_buffer_index(@buffer_index, @buffer_step, @step)
+        super(shape, region, reverse)
       end
 
       def unsafe_next_with_index
@@ -50,16 +48,19 @@ module Lattice
         self.next
         @buffer_index
       end
+
+      def setup_buffer_index(decrement_axis)
+        @buffer_index = @buffer_step.map_with_index { |e, i| e * @first[i] }.sum
+        @buffer_index -= @buffer_step[decrement_axis] * @step[decrement_axis]
+      end
     end
 
     class IndexedLexIterator < IndexedCoordIterator
-      def setup_buffer_index(buffer_index, buffer_step, step)
-        buffer_index -= buffer_step[-1] * step[-1]
-        buffer_index
-      end
-
-      def setup_coord(coord, step)
-        coord[-1] -= step[-1]
+      
+      def reset : self
+        setup_coord(CoordIterator::LEAST_SIG)
+        setup_buffer_index(CoordIterator::LEAST_SIG)
+        self
       end
 
       def next_if_nonempty
@@ -79,13 +80,10 @@ module Lattice
     end
 
     class IndexedColexIterator < IndexedCoordIterator
-      def setup_coord(coord, step)
-        coord[0] -= step[0]
-      end
-
-      def setup_buffer_index(buffer_index, buffer_step, step)
-        buffer_index -= buffer_step[0] * step[0]
-        buffer_index
+      def reset : self
+        setup_coord(CoordIterator::MOST_SIG)
+        setup_buffer_index(CoordIterator::MOST_SIG)
+        self
       end
 
       def next_if_nonempty
@@ -104,20 +102,24 @@ module Lattice
       end
     end
 
-    abstract class BufferedRegionIterator(T) < MultiIndexable::RegionIterator(T)
-      def next
-        coord = @coord_iter.next
-        return stop if coord.is_a?(Stop)
-        {@narr.buffer.unsafe_fetch(@coord_iter.current_index), coord}
+    class BufferedRegionIterator(T) < MultiIndexable::RegionIterator(T)    
+      
+      def self.new(src, region = nil, reverse = false, iter : CoordIterator.class = IndexedLexIterator) : self
+        raise "BufferedRegionIterators must use IndexedCoordIterators" unless iter < IndexedCoordIterator
+        new(src, iter.new(src.shape, region, reverse))
+      end
+
+      protected def get_element(coord = nil)
+        @src.buffer.unsafe_fetch(@coord_iter.unsafe_as(IndexedCoordIterator).current_index)
       end
 
       def next_value : (T | Stop)
         return stop if @coord_iter.next.is_a?(Stop)
-        @narr.buffer.unsafe_fetch(@coord_iter.current_index)
+        get_element
       end
 
       def unsafe_next_value : T
-        @narr.buffer.unsafe_fetch(@coord_iter.unsafe_next_index)
+        get_element
       end
     end
   end

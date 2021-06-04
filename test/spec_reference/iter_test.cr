@@ -10,54 +10,56 @@ canonical = RegionHelpers.canonicalize_region(region, [5, 5])
 canonical[1] = RegionHelpers::SteppedRange.new(1..2..4, 5)
 puts canonical
 
-puts small_arr[canonical] # => [[2,1], [5,4]]
+puts "The NArray:"
+puts small_arr
+puts "The region:"
+puts small_arr[canonical] # => [[11,13], [6,8]]
 
-puts "Lexicographic:"
-# NArray::BufferedLexRegionIterator(typeof(small_arr), Int32).new(small_arr).each { |elem, coord| puts elem }
 
-puts "Colexicographic:"
-# NArray::BufferedColexRegionIterator(typeof(small_arr), Int32).new(small_arr).each { |elem, coord| puts elem }
+# puts "Baseline:"
+# small_arr.narray_each_in_canonical_region(canonical) { |elem, idx, idx2| puts elem }
 
-puts "Lexicographic, region"
-# NArray::BufferedLexRegionIterator(typeof(small_arr), Int32).new(small_arr, canonical).each { |elem, coord| puts elem , coord}
 
-puts "Baseline:"
-small_arr.narray_each_in_canonical_region(canonical) { |elem, idx, idx2| puts elem }
 
-# puts "Colex, region"
-# NArray::BufferedColexRegionIterator(typeof(small_arr), Int32).new(small_arr, canonical).each { |elem, coord| puts elem }
+def all_iter_types(class_name, colexiter_class, narr, region)
+    puts "\nLexicographic:"
+    class_name.new(narr).each { |elem, coord| print elem, " "}
+    # sample of what the constructor used to be:
+    # NArray::BufferedLexRegionIterator(typeof(small_arr), Int32).new(small_arr).each { |elem, coord| puts elem }
+    
+    puts "\nRev Lex"
+    class_name.new(narr, reverse: true).each { |elem, coord| print elem, " "}
 
-puts "rev lex"
-NArray::BufferedLexRegionIterator(typeof(small_arr), Int32).new(small_arr, reverse: true).each { |elem, coord| puts elem }
+    puts "\nColex:"
+    class_name.new(narr, iter: colexiter_class).each { |elem, coord| print elem, " "}
 
-puts "rev colex"
-NArray::BufferedColexRegionIterator(typeof(small_arr), Int32).new(small_arr, reverse: true).each { |elem, coord| puts elem }
+    puts "\nRev Colex:"
+    class_name.new(narr, reverse: true, iter: colexiter_class).each { |elem, coord| print elem, " "}
 
-puts "rev lex region"
-NArray::BufferedLexRegionIterator(typeof(small_arr), Int32).new(small_arr, canonical, reverse: true).each { |elem, coord| puts elem }
+    puts "\nLex, region"
+    class_name.new(narr, region: region).each  { |elem, coord| print elem, " "}
+    # Issue here! When I remove the explicit region: tag, it tries to call the protected initializer
+    # initialize(@small_arr, @coord_iter)
+    
+    puts "\nrev lex region"
+    class_name.new(narr, region, true).each { |elem, coord| print elem, " "}
 
-puts "rev colex region"
-NArray::BufferedColexRegionIterator(typeof(small_arr), Int32).new(small_arr, canonical, reverse: true).each { |elem, coord| puts elem }
+    puts "\ncolex region"
+    class_name.new(narr, region, iter: colexiter_class).each  { |elem, coord| print elem, " "}
 
-# MultiIndexable::LexRegionIterator(typeof(small_arr), Int32).new(small_arr).each { |elem, coord| puts elem, coord }
-# MultiIndexable::ColexRegionIterator(typeof(small_arr), Int32).new(small_arr).each { |elem, coord| puts elem, coord }
+    puts "\nrev colex region"
+    class_name.new(narr, region, true, colexiter_class).each { |elem, coord| print elem, " "}
 
-# puts "Reverse Lexicographic:"
-# MultiIndexable::LexRegionIterator(typeof(small_arr), Int32).new(small_arr, reverse: true).each { |elem, coord| puts elem, coord }
+    puts "\n" + "=" * 65 + "\n"
+end
 
-# puts "Reverse Colexicographic:"
-# MultiIndexable::ColexRegionIterator(typeof(small_arr), Int32).new(small_arr, reverse: true).each { |elem, coord| puts elem, coord }
 
-# puts "Reversed Lexicographic:"
-# MultiIndexable::ColexRegionIterator(typeof(small_arr), Int32).new(small_arr).reverse.each { |elem, coord| puts elem, coord }
+puts "BufferedRegionIterators"
 
-# puts "Slices, axis 0:"
-# SliceIterator.new(small_arr).each {|elem| puts elem}
+all_iter_types(NArray::BufferedRegionIterator, NArray::IndexedColexIterator, small_arr, canonical)
 
-# puts "Slices, axis 1:"
-# SliceIterator.new(small_arr, axis=1).each {|elem| puts elem}
+puts "RegionIterators"
 
-# iter.each {|elem| puts elem}
+all_iter_types(MultiIndexable::RegionIterator, MultiIndexable::ColexIterator, small_arr, canonical)
 
-# item_iter = ItemIterator(NArray(Int32), Int32).new(arr)
-# item_iter.each {|elem| puts elem}
+

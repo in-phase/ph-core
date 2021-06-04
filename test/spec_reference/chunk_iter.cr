@@ -8,14 +8,14 @@ require "complex"
 
 include Lattice
 
-alias FringeBehaviour = MultiIndexable::ChunkIterator::FringeBehaviour
-alias ChunkIterator = MultiIndexable::ChunkIterator
+alias FringeBehaviour = MultiIndexable::RegionSpecIterator::FringeBehaviour
+alias ChunkIterator = MultiIndexable::RegionSpecIterator
 
 def iterate(data, chunk_shape, strides = nil, fb = FringeBehaviour::DISCARD)
-  chunks = ChunkIterator(NArray(Int32), Int32).new(data, chunk_shape, strides, fb)
+  chunks = ChunkIterator.new(data.shape, chunk_shape, strides, fringe_behaviour: fb)
   puts "\n", data
   chunks.each do |idk|
-    puts idk[0].to_a
+    puts idk
   end
 end
 
@@ -24,20 +24,20 @@ nontile = NArray.build([7]) { |c, i| i }
 
 shape = [3]
 
-iterate(nontile, shape, strides: [1], fb: FringeBehaviour::COVER)
-iterate(nontile, shape, strides: [2], fb: FringeBehaviour::COVER)
-iterate(nontile, shape, strides: [3], fb: FringeBehaviour::COVER)
+# iterate(nontile, shape, strides: [1], fb: FringeBehaviour::COVER)
+# iterate(nontile, shape, strides: [2], fb: FringeBehaviour::COVER)
+# iterate(nontile, shape, strides: [3], fb: FringeBehaviour::COVER)
 iterate(nontile, shape, strides: [4], fb: FringeBehaviour::COVER)
 
-iterate(nontile, shape, strides: [1], fb: FringeBehaviour::ALL_START_POINTS)
-iterate(nontile, shape, strides: [2], fb: FringeBehaviour::ALL_START_POINTS)
-iterate(nontile, shape, strides: [3], fb: FringeBehaviour::ALL_START_POINTS)
-iterate(nontile, shape, strides: [4], fb: FringeBehaviour::ALL_START_POINTS)
+# iterate(nontile, shape, strides: [1], fb: FringeBehaviour::ALL_START_POINTS)
+# iterate(nontile, shape, strides: [2], fb: FringeBehaviour::ALL_START_POINTS)
+# iterate(nontile, shape, strides: [3], fb: FringeBehaviour::ALL_START_POINTS)
+# iterate(nontile, shape, strides: [4], fb: FringeBehaviour::ALL_START_POINTS)
 
-iterate(nontile, shape, strides: [1])
-iterate(nontile, shape, strides: [2])
-iterate(nontile, shape, strides: [3])
-iterate(nontile, shape, strides: [4])
+# iterate(nontile, shape, strides: [1])
+# iterate(nontile, shape, strides: [2])
+# iterate(nontile, shape, strides: [3])
+# iterate(nontile, shape, strides: [4])
 
 # Documentation notes:
 # DISCARD:

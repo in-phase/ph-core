@@ -2,17 +2,30 @@ require "../region_helpers"
 
 module Lattice
   module MultiIndexable(T)
+
+    
+
     class ChunkyRegionIterator(T)
         include Iterator(Tuple(MultiIndexable(T), Array(RegionHelpers::SteppedRange)))
 
-        @region_spec_iter : RegionSpecIterator
+        # @region_spec_iter : RegionSpecIterator
+
+        # these let us track progress at the highest level, to avoid repetative checks for Iterator::STOP
+        @size : Int32 = 5
+        @index : Int32 = 5
         
+        def next
+          return stop 
+        end
         
     end
 
     class ChunkyElemIterator(T)
         include Iterator(MultiIndexable(T))
         
+        def next 
+          return stop 
+        end
     end
 
     # CoordIterator -> CoordIterator
@@ -31,45 +44,92 @@ module Lattice
     class RegionSpecIterator
       include Iterator(Array(RegionHelpers::SteppedRange))
 
+      @src_shape : Array(Int32)
       @chunk_shape : Array(Int32)
-      @coord_iter : Array(Int32)
+      @coord_iter : CoordIterator
 
-      def initialize(@src_shape, @chunk_shape, strides = nil, iter : CoordIterator.class = LexIterator, @fringe_behaviour : FringeBehaviour = FringeBehaviour::DISCARD)
+      @fringe_behaviour : FringeBehaviour   
+      # getter size : Int32
+
+      def self.new(src_shape, chunk_shape, strides = nil, iter : CoordIterator.class = LexIterator, fringe_behaviour : FringeBehaviour = FringeBehaviour::DISCARD)
         # convert strides into an iterable region
-        @strides = strides || @chunk_shape
-        if @strides.any? { |x| x <= 0 }
+        strides ||= chunk_shape
+        if strides.any? { |x| x <= 0 }
           raise DimensionError.new("Stride size must be greater than 0.")
         end
+        last = self.compute_lasts(src_shape, chunk_shape, strides, fringe_behaviour)
 
-        @empty = @src_shape.any?(0)
+        puts "\n",src_shape, last, strides
+        coord_iter = iter.from_canonical(Array(Int32).new(src_shape.size, 0), last, strides)
 
-        case @fringe_behaviour
+        new(src_shape, chunk_shape, coord_iter, fringe_behaviour)
+      end
+
+      def self.from_canonical(src_shape, chunk_shape, coord_iter, fringe_behaviour)
+        new(src_shape, chunk_shape, coord_iter, fringe_behaviour)
+      end
+
+      def initialize(@src_shape, @chunk_shape, @coord_iter, @fringe_behaviour)
+      end
+
+      # protected def initialize(@src_shape, @chunk_shape, first, last, strides, @fringe_behaviour)
+      #   @coord_iter = iter.from_canonical(Array(Int32).new(0, @src_shape.size), last, strides)
+      # end
+
+      # stride 1    stride 2    stride 3
+      # x x x x x   x x x x x   x x x x x 
+      # o o o       o o o       o o o
+      #   o o o         o o o   ^    (o o)
+      #     o o o       ^  (o)          
+      #     ^          
+      # Returns the starting index of the last full chunk you can fit in an axis
+      protected def self.complete_chunks(size, stride, chunk)
+        (size - chunk) // stride
+      end
+
+      protected def self.chunks(size, stride, chunk = nil)
+        (size - 1) // stride
+      end
+  
+      protected def self.compute_lasts(src_shape, chunk_shape, strides, fringe_behaviour)
+
+        # case fringe_behaviour
+        # when FringeBehaviour::COVER
+        #   last = src_shape.map_with_index do |size, i|
+        #     strides[i] < chunk_shape[i] ? self.last_complete_chunk(size, strides[i], chunk_shape[i]) : last_chunk(size, strides[i])
+        #   end
+        # when FringeBehaviour::ALL_START_POINTS
+        #   last = src_shape.map_with_index { |size, i| last_chunk(size, strides[i]) }
+        # when FringeBehaviour::DISCARD
+        #   last = src_shape.map_with_index do |size, i|
+        #     last_complete_chunk(size, strides[i], chunk_shape[i])
+        #   end
+        # else
+        #   raise NotImplementedError.new("Could not get next chunk: Unrecognized FringeBehaviour type")
+        # end
+        case fringe_behaviour
         when FringeBehaviour::COVER
-          @last = @src_shape.map_with_index do |size, i|
-            @strides[i] < @chunk_shape[i] ? last_complete_chunk(size, @strides[i], @chunk_shape[i]) : size - 1
+          src_shape.map_with_index do |size, i|
+            if strides[i] < chunk_shape[i]
+              strides[i] * complete_chunks(size, strides[i], chunk_shape[i])
+            else
+              strides[i] * chunks(size, strides[i])
+            end
+            # (size - (strides[i] < chunk_shape[i] ? chunk_shape[i] : 1)) // strides[i] * strides[i]
           end
         when FringeBehaviour::ALL_START_POINTS
-          last = @src_shape.map { |size| size - 1 }
+          src_shape.map_with_index do |size, i|
+            strides[i] * chunks(size, strides[i])
+            # (size - 1) // strides[i] * strides[i]
+          end
         when FringeBehaviour::DISCARD
-          last = @src_shape.map_with_index do |size, i|
-            last_complete_chunk(size, strides[i], @chunk_shape[i])
+          src_shape.map_with_index do |size, i|
+            strides[i] * complete_chunks(size, strides[i], chunk_shape[i])
+            # (size - chunk) // strides[i] * strides[i]
           end
         else
           raise NotImplementedError.new("Could not get next chunk: Unrecognized FringeBehaviour type")
         end
-
-        @coord_iter = iter.from_canonical(Array(Int32).new(0, @src_shape.size), last, strides)
-      end
-
-      # x x x x x
-      # o o o
-      #   o o o
-      #     o o o
-      #     ?  
-      # Returns the starting index of the last full chunk you can fit in an axis
-      protected def last_complete_chunk(size, stride, chunk)
-        points = size - chunk
-        points - (points % stride)
       end
 
       protected def compute_region(coord)

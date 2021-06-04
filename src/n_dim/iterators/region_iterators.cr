@@ -10,7 +10,7 @@ module Lattice
       @src : MultiIndexable(T)
 
       def self.of(src, region = nil, reverse = false, iter : CoordIterator.class = LexIterator) : self
-        new(src, iter.new(src.shape, region))
+        new(src, region, reverse, iter)
       end
 
       def self.new(src, region = nil, reverse = false, colex = false) : self
@@ -28,6 +28,10 @@ module Lattice
       protected def initialize(@src : MultiIndexable(T), @coord_iter)
       end
 
+      protected def get_element(coord)
+        @src.unsafe_fetch_element(coord)
+      end
+
       def reset
         @coord_iter.reset
       end
@@ -35,22 +39,22 @@ module Lattice
       def next
         coord = @coord_iter.next
         return stop if coord.is_a?(Iterator::Stop)
-        @src.unsafe_fetch_element(coord)
+        get_element(coord)
       end
 
       def unsafe_next
         coord = @coord_iter.next.unsafe_as(Array(Int32))
-        @src.unsafe_fetch_element(coord)
+        get_element(coord)
       end
     end
 
-    abstract class RegionIterator(T)
+    class RegionIterator(T)
       include Iterator(Tuple(T, Array(Int32)))
 
       getter coord_iter : CoordIterator
 
       def self.of(src, region = nil, reverse = false, iter : CoordIterator.class = LexIterator)
-        new(src, iter.new(src.shape, region))
+        new(src, iter.new(src.shape, region, reverse))
       end
 
       def self.new(src, region = nil, reverse = false, colex = false) : self
@@ -62,7 +66,7 @@ module Lattice
       end
 
       def self.new(src, region = nil, reverse = false, iter : CoordIterator.class = LexIterator)
-        new(src, iter.new(src.shape, region))
+        new(src, iter.new(src.shape, region, reverse))
       end
 
       protected def initialize(@src : MultiIndexable(T), @coord_iter)
@@ -72,21 +76,25 @@ module Lattice
         @coord_iter.reset
       end
 
+      protected def get_element(coord)
+        @src.unsafe_fetch_element(coord)
+      end
+
       def next
         coord = @coord_iter.next
         return stop if coord.is_a?(Iterator::Stop)
-        {@src.unsafe_fetch_element(coord), coord}
+        {get_element(coord), coord}
       end
 
       def next_value : (T | Iterator::Stop)
         coord = @coord_iter.next
         return stop if coord.is_a?(Iterator::Stop)
-        @src.unsafe_fetch_element(coord)
+        get_element(coord)
       end
 
       def unsafe_next_value : T
         coord = @coord_iter.next.unsafe_as(Array(Int32))
-        @src.unsafe_fetch_element(coord)
+        get_element(coord)
       end
     end
   end
