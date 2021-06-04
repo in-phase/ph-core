@@ -4,6 +4,7 @@ require "./iterators/*"
 
 module Lattice
   module MultiWritable(T)
+
     # TODO: discuss: should mutators explicitly return the object itself, for chaining purposes?
 
     # For performance gains, we recommend the user to consider overriding the following methods when including MultiWritable(T):

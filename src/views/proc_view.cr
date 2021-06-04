@@ -3,7 +3,7 @@ require "./readonly_view"
 module Lattice
 
     class ProcView(S, T, R) < ReadonlyView(S, R)
-        getter proc : Proc(T, R)
+        @proc : Proc(T, R)
 
         # # TODO: document
         def self.of(src : S, proc : (T -> R)) : ProcView(S,T,R) forall T,R
@@ -40,14 +40,6 @@ module Lattice
             composition = Proc(T,U).new {|x| new_proc.call(@proc.clone.call(x))}
             ProcView(S ,T, U).new(@src, @shape.clone, composition, @transform.clone)
         end
-
-        narr = NArray.fill([2,2], "Hi")
-        proc = Proc(String, Int32).new { |x| x.size }
-        puts narr.view([0..,1..])
-        # puts ReadonlyView.of(narr).process(proc).process {|x| x.to_s}
-
-        # puts typeof(proc.call("Hi"))
-        # puts ProcView.of(narr, proc).process {|x| x.to_s}
          
     end
 end

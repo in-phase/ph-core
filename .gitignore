@@ -1,4 +1,9 @@
 docs/
 coverage/
+lib/
+bin/
 run_tests
 run_tests.cr
+minitest.cr
+minitest
+test/coverage

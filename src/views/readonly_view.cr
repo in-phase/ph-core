@@ -1,22 +1,7 @@
 require "../n_dim/*"
 require "./transforms"
+require "./proc_view"
 require "../n_array"
-# require "./*"
-# for testing/display
-require "../n_dim/formatter"
-
-
-
-
-# our framework:
-# View(B,T)
-#   => coord_transforms: [] of Proc(Array(Int32), Array(Int32))
-
-# ProcView(B,T,R)
-#   @view : View(B,T)
-#   => elem_transforms @proc : Proc(T,R)
-  
-#   forward_missing_to @view
 
 module Lattice
     class ReadonlyView(S, R)

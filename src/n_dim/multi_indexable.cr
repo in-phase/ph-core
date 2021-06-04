@@ -9,13 +9,13 @@ module Lattice
   # - size is stored as an Int32, i.e. there are no more than Int32::MAX elements.
   module MultiIndexable(T)
 
-
     # add search, traversal methods
     include Enumerable(T)
 
-    # For performance gains, we recommend the user to consider overriding the following methods when including MultiIndexable(T):
-    # - #each_fastest
-    # - #each_in_canonical_region
+    # Please consider overriding:
+    # -fast: for performance
+    # -unsafe_fetch_region: for typing and/or performance
+    # -transform functions: reshape, permute, reverse; for performance
 
     # Returns the number of elements in the `{{type}}`; equal to `shape.product`.
     abstract def size
@@ -31,10 +31,13 @@ module Lattice
     # Retrieves the element specified by `coord`, assuming that `coord` is in canonical form and in-bounds for this `{{type}}`.
     # For full specification of canonical form see `RegionHelpers` documentation. TODO: make this actually happen
     abstract def unsafe_fetch_element(coord) : T
-
     # Stuff that we can implement without knowledge of internals
 
     protected def shape_internal : Array(Int32)
+      # NOTE: Some implementations might not have a well defined @shape, but
+      # instead generate it with a function. We leave shape_internal to be
+      # overridden with @shape for a small performance boost if the implementer
+      # offers that.
       shape
     end
 
@@ -63,6 +66,7 @@ module Lattice
 
     # Returns the element at position `0` along every axis.
     def first : T
+      # TODO: what happens when empty?
       return get_element([0] * shape_internal.size)
     end
 
@@ -143,12 +147,29 @@ module Lattice
         {% end %}
     {% end %}
 
+# Iterators ====================================================================
+    def each_coord : CoordIterator 
+      LexIterator.new(shape)
+    end
+
+    {% for name in %w(each each_coord each_with_coord) %}
+      def {{name}}(&block)
+      end
+    {% end %}
+    def each_coord(&block)
+      each_coord.each { yield coord }
+    end
+
     def each(order : Order = Order::LEX)
       each_in_canonical_region(nil, order)
     end
 
+    # def each_lex
+    # def each_revlex
+
     def each(order : Order = Order::LEX, &block)
-      each(order).each do |elem, coord|
+      each(order).each do |tuple|
+        elem, coord = tuple
         yield elem
       end
     end
@@ -162,14 +183,34 @@ module Lattice
     # A method to get all elements in this `{{@type}}` when order is irrelevant.
     # Recommended that implementers override this method to take advantage of
     # the storage scheme the implementation uses
-    def each_fastest
-      each_in_canonical_region_fastest(nil)
-    end
 
     def each( iter_type : RegionIterator.class, **args)
       iter_type.new(self, **args)
     end
 
+    # recommended to override
+    def fast : Iterator(T)
+      ElemIterator.new(self)
+    end
+
+
+    private class ElemIterator(T)
+      include Iterator(T)
+
+      @coord_iter : CoordIterator
+
+      def initialize(@src : MultiIndexable(T))
+        @coord_iter = @src.each_coord
+      end
+
+      def next
+        coord = @coord_iter.next
+        return stop if coord.is_a?(Iterator::Stop)
+        @src.unsafe_fetch_element(coord)
+      end
+    end
+
+    # scrap
     protected def each_in_canonical_region(region, order : Order = Order::LEX)
       case order
       when Order::LEX
@@ -181,21 +222,37 @@ module Lattice
       when Order::REV_COLEX
         ColexRegionIterator(self, T).new(self, region: region, reverse: true)
       when Order::FASTEST
-        each_in_canonical_region_fastest(region)
+        raise "Can't use region with Order::FASTEST" # if !region
+        # fast
       else
         raise ArgumentError.new("Could not iterate over MultiIndexable: Unrecognized order #{order}.")
       end
     end
 
-    def each_in_canonical_region_fastest(region)
-      each_in_canonical_region(region, Order::LEX)
-    end
 
 
     # # TODO: Each methods should exist that allow:
     # # - Some way to handle slice iteration? (how do we pass in the axis? etc)
 
     # def slices(axis = 0) : Array(self)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
     {% for transform in %w(reshape permute reverse) %}
@@ -225,12 +282,12 @@ module Lattice
     end
 
 
-    def view(region : Enumerable? = nil) #: View(self, T)
+    def view(region : Enumerable? = nil) 
       # TODO: Try to infer T from B?
-      View(self, T).of(self, region)
+      View.of(self, region)
     end
 
-    def view(*region) #: View(self, T)
+    def view(*region)
         view(region)
     end
 

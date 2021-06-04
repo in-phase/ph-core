@@ -3,11 +3,13 @@ require "../multi_indexable"
 
 module Lattice
   module MultiIndexable(T)
-
     abstract class RegionIterator(A,T,I)
       include Iterator(Tuple(T, Array(Int32)))
 
       @coord_iter : I
+
+      # def self.of(@narr, region, reverse, colex)
+      # end
 
       def initialize(@narr : A, region = nil, reverse = false)
         @coord_iter = I.new(@narr.shape, region, reverse)

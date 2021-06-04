@@ -3,6 +3,8 @@ module Lattice
   module RegionHelpers
     extend self
 
+    # al_ias RangeSpecifier = Int32 | Range(Int32?, Int32? | Range(Int32?, Int32))
+
     # TODO: define "canonical form" of coord/region/index somewhere visible and easy to access.
 
     # For a given axis length `size`, a "canonical index" `idx` is `0 <= idx < size`.

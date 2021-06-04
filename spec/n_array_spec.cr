@@ -38,6 +38,7 @@ describe Lattice::NArray do
 
     it "raises an error when an invalid shape is used" do
       ILLEGAL_SHAPES.each do |shape|
+        puts shape
         expect_raises(DimensionError) do
           narr = NArray.build(shape) do |coord, index|
             index

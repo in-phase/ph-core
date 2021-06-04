@@ -54,7 +54,6 @@ module Lattice
                 end
         
                 @coord = @first.dup
-
                 setup_coord(@coord, @step)
             end
         
