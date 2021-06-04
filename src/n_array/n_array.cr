@@ -174,7 +174,7 @@ module Lattice
 
     def fit!
     end
-    
+
     # Requires that shape is equal to coord + self.shape in each dimension
     protected def unsafe_pad(new_shape, value, coord)
       padded = NArray.fill(new_shape, value.as(T))
@@ -462,7 +462,6 @@ module Lattice
 
     # TODO: Document
     def narray_each_in_canonical_region(region, axis = 0, read_index = 0, write_index = [0], &block : T, Int32, Int32 ->)
-
       current_range = region[axis]
 
       # Base case - yield the scalars in a subspace
@@ -488,8 +487,6 @@ module Lattice
         end
       end
     end
-
-
 
     # Given a list of `{{@type}}`s, returns the smallest shape array in which any one of those `{{@type}}s` can be contained.
     # TODO: Example
@@ -520,7 +517,6 @@ module Lattice
       first = narrs.to_a.pop
       first.compatible?(narrs, axis: axis)
     end
-    
 
     def <<(other : self) : self
       push(other)
@@ -530,8 +526,8 @@ module Lattice
     def push(*others : self) : self
       raise DimensionError.new("Cannot concatenate these arrays along axis #{axis}: shapes do not match") if !compatible?(*others, axis: axis)
 
-      concat_size = size + others.sum {|narr| narr.size}
-      
+      concat_size = size + others.sum { |narr| narr.size }
+
       full_ptr = Pointer(T).malloc(concat_size)
       full_ptr.move_from(@buffer.to_unsafe, size)
       ptr = full_ptr + size
@@ -546,11 +542,10 @@ module Lattice
         ptr += narr.size
       end
 
-      @shape[0] += others.sum{|narr| narr.shape[0]}
+      @shape[0] += others.sum { |narr| narr.shape[0] }
       @buffer = Slice.new(full_ptr, concat_size)
       self
     end
-
 
     def concatenate(*others, axis = 0) : self
       self.new *(narrs[0].concatenate_to_slice(*narrs, axis: axis))
@@ -570,16 +565,16 @@ module Lattice
     protected def concatenate_to_slice(*narrs, axis = 0) : Tuple(Array(Int32), Slice(T))
       raise DimensionError.new("Cannot concatenate these arrays along axis #{axis}: shapes do not match") if !self.compatible?(*narrs, axis: axis)
 
-      concat_size = narrs.sum {|narr| narr.size}
+      concat_size = narrs.sum { |narr| narr.size }
       concat_shape = @shape.dup
-      concat_shape[axis] = narrs.sum { |narr| narr.shape[axis]}
+      concat_shape[axis] = narrs.sum { |narr| narr.shape[axis] }
 
       partial_chunk_size = @axis_strides[axis]
-      chunk_sizes = narrs.map {|narr| narr.shape[axis] * partial_chunk_size }
+      chunk_sizes = narrs.map { |narr| narr.shape[axis] * partial_chunk_size }
       num_chunks = concat_shape[...axis].product
 
       values = Array(T).new(initial_capacity: concat_size)
-      iters = narrs.map {|narr| narr.each }
+      iters = narrs.map { |narr| narr.each }
 
       num_chunks.times do
         iters.each_with_index do |narr_iter, i|
@@ -590,7 +585,6 @@ module Lattice
       end
       {concat_shape, Slice.new(values.to_unsafe, values.size)}
     end
-
 
     # TODO: Update documentation. I (seth) rewrote this function to make it validate the shape fully.
     # documentation doesn't currently reflect that
@@ -660,7 +654,7 @@ module Lattice
     end
 
     def self.new(pull : JSON::PullParser)
-        {% begin %}
+      {% begin %}
         shape = [] of Int32
         elements = [] of {{ @type.type_vars[0] }}
 
@@ -757,70 +751,69 @@ module Lattice
     end
 
     # TODO: compare this iterator, generic MultiIndexable iterator, and old direct each
-#     class BufferedLexRegionIterator(A,T) < RegionIterator(A,T)
+    #     class BufferedLexRegionIterator(A,T) < RegionIterator(A,T)
 
-#       @buffer_index : Int32
-#       @buffer_step : Array(Int32)
+    #       @buffer_index : Int32
+    #       @buffer_step : Array(Int32)
 
-#       def initialize(@narr : A, region = nil, reverse = false)
-#         super
-#         @buffer_step = @narr.axis_strides
-#         @buffer_index = @buffer_step.map_with_index {|e, i| e * @first[i]}.sum
-#         @buffer_index = setup_buffer_index(@buffer_index, @buffer_step, @step)
-#       end
+    #       def initialize(@narr : A, region = nil, reverse = false)
+    #         super
+    #         @buffer_step = @narr.axis_strides
+    #         @buffer_index = @buffer_step.map_with_index {|e, i| e * @first[i]}.sum
+    #         @buffer_index = setup_buffer_index(@buffer_index, @buffer_step, @step)
+    #       end
 
-#       def setup_coord(coord, step)
-#         coord[-1] -= step[-1]
-#       end
+    #       def setup_coord(coord, step)
+    #         coord[-1] -= step[-1]
+    #       end
 
-#       def setup_buffer_index(buffer_index, buffer_step, step)
-#         buffer_index -= buffer_step[-1] * step[-1]
-#         buffer_index
-#       end
+    #       def setup_buffer_index(buffer_index, buffer_step, step)
+    #         buffer_index -= buffer_step[-1] * step[-1]
+    #         buffer_index
+    #       end
 
-#       def unsafe_next
-#         (@coord.size - 1).downto(0) do |i| # ## least sig .. most sig
-#           if @coord[i] == @last[i]
-#             @buffer_index -= (@coord[i] - @first[i]) * @buffer_step[i]
-#             @coord[i] = @first[i]
-#             return stop if i == 0 # most sig
-#           else
-#             @coord[i] += @step[i]
-#             @buffer_index += @buffer_step[i] * @step[i]
-#             break
-#           end
-#         end
-#         {@narr.buffer.unsafe_fetch(@buffer_index), @coord}
-#       end
-#     end
+    #       def unsafe_next
+    #         (@coord.size - 1).downto(0) do |i| # ## least sig .. most sig
+    #           if @coord[i] == @last[i]
+    #             @buffer_index -= (@coord[i] - @first[i]) * @buffer_step[i]
+    #             @coord[i] = @first[i]
+    #             return stop if i == 0 # most sig
+    #           else
+    #             @coord[i] += @step[i]
+    #             @buffer_index += @buffer_step[i] * @step[i]
+    #             break
+    #           end
+    #         end
+    #         {@narr.buffer.unsafe_fetch(@buffer_index), @coord}
+    #       end
+    #     end
 
+    #     class BufferedColexRegionIterator(A,T) < BufferedLexRegionIterator(A,T)
 
-#     class BufferedColexRegionIterator(A,T) < BufferedLexRegionIterator(A,T)
+    #       def setup_coord(coord, step)
+    #         coord[0] -= step[0]
+    #       end
 
-#       def setup_coord(coord, step)
-#         coord[0] -= step[0]
-#       end
+    #       def setup_buffer_index(buffer_index, buffer_step, step)
+    #         buffer_index -= buffer_step[0] * step[0]
+    #         buffer_index
+    #       end
 
-#       def setup_buffer_index(buffer_index, buffer_step, step)
-#         buffer_index -= buffer_step[0] * step[0]
-#         buffer_index
-#       end
+    #       def unsafe_next
+    #         0.upto(@coord.size - 1) do |i| # ## least sig .. most sig
+    #           if @coord[i] == @last[i]
+    #             @buffer_index -= (@coord[i] - @first[i]) * @buffer_step[i]
+    #             @coord[i] = @first[i]
+    #             return stop if i == @coord.size - 1 # most sig
+    #           else
+    #             @coord[i] += @step[i]
+    #             @buffer_index += @buffer_step[i] * @step[i]
+    #             break
+    #           end
+    #         end
+    #         {@narr.buffer.unsafe_fetch(@buffer_index), @coord}
+    #       end
 
-#       def unsafe_next
-#         0.upto(@coord.size - 1) do |i| # ## least sig .. most sig
-#           if @coord[i] == @last[i]
-#             @buffer_index -= (@coord[i] - @first[i]) * @buffer_step[i]
-#             @coord[i] = @first[i]
-#             return stop if i == @coord.size - 1 # most sig
-#           else
-#             @coord[i] += @step[i]
-#             @buffer_index += @buffer_step[i] * @step[i]
-#             break
-#           end
-#         end
-#         {@narr.buffer.unsafe_fetch(@buffer_index), @coord}
-#       end
-
-#     end
+    #     end
   end
 end

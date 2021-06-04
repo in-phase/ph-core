@@ -16,15 +16,15 @@ edited = Canvas.new(narr)
 StumpyPNG.write(edited, "output.png")
 
 class StumpyCore::Canvas
-    def initialize(narr : NArray(UInt16))
-        @height, @width = narr.shape
-        @pixels = narr.buffer.clone.unsafe_as(Slice(RGBA))
-    end
+  def initialize(narr : NArray(UInt16))
+    @height, @width = narr.shape
+    @pixels = narr.buffer.clone.unsafe_as(Slice(RGBA))
+  end
 
-    def to_narr : NArray(UInt16)
-        NArray.new(
-            [@height, @width, 4],
-            Slice.new(@pixels.to_unsafe.unsafe_as(Pointer(UInt16)), @pixels.size * 4).clone
-        )
-    end
+  def to_narr : NArray(UInt16)
+    NArray.new(
+      [@height, @width, 4],
+      Slice.new(@pixels.to_unsafe.unsafe_as(Pointer(UInt16)), @pixels.size * 4).clone
+    )
+  end
 end

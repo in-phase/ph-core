@@ -3,18 +3,15 @@ require "./order"
 require "./iterators/*"
 
 module Lattice
-
   # Assumptions:
   # - length along every axis is finite and positive, and each element is positively indexed
   # - size is stored as an Int32, i.e. there are no more than Int32::MAX elements.
   module MultiIndexable(T)
-
     # add search, traversal methods
     include Enumerable(T)
 
     # Please consider overriding:
     # -fast: for performance
-    # -unsafe_fetch_region: for typing and/or performance
     # -transform functions: reshape, permute, reverse; for performance
 
     # Returns the number of elements in the `{{type}}`; equal to `shape.product`.
@@ -31,6 +28,7 @@ module Lattice
     # Retrieves the element specified by `coord`, assuming that `coord` is in canonical form and in-bounds for this `{{type}}`.
     # For full specification of canonical form see `RegionHelpers` documentation. TODO: make this actually happen
     abstract def unsafe_fetch_element(coord) : T
+
     # Stuff that we can implement without knowledge of internals
 
     protected def shape_internal : Array(Int32)
@@ -89,7 +87,6 @@ module Lattice
       shape_internal.size
     end
 
-
     # Checks that `coord` is in-bounds for this `{{type}}`.
     def has_coord?(coord : Enumerable) : Bool
       RegionHelpers.has_coord?(coord, shape_internal)
@@ -139,121 +136,50 @@ module Lattice
 
     {% begin %}
       {% enumerable_functions = %w(get get_element get_region has_coord? has_region?) %}
-        {% for name in enumerable_functions %}
+      {% for name in enumerable_functions %}
           # Tuple-accepting overload of `#{{name}}`.
           def {{name.id}}(*tuple)
             {{name.id}}(tuple)
           end
-        {% end %}
+      {% end %}
     {% end %}
 
-# Iterators ====================================================================
-    def each_coord : CoordIterator 
-      LexIterator.new(shape)
+    # Iterators ====================================================================
+    def each_coord : CoordIterator
+      LexIterator.of(shape)
     end
 
-    {% for name in %w(each each_coord each_with_coord) %}
-      def {{name}}(&block)
-      end
-    {% end %}
-    def each_coord(&block)
-      each_coord.each { yield coord }
+    def each(iter = LexIterator)
+      ElemIterator.of(self, iter: iter)
     end
 
-    def each(order : Order = Order::LEX)
-      each_in_canonical_region(nil, order)
-    end
-
-    # def each_lex
-    # def each_revlex
-
-    def each(order : Order = Order::LEX, &block)
-      each(order).each do |tuple|
-        elem, coord = tuple
-        yield elem
-      end
-    end
-
-    def each_with_coord(order : Order = Order::LEX, &block)
-      each(order).each do |elem, coord|
-        yield elem, coord
-      end
+    def each_with_coord(iter = LexIterator)
+      RegionIterator.of(self, iter: iter)
     end
 
     # A method to get all elements in this `{{@type}}` when order is irrelevant.
     # Recommended that implementers override this method to take advantage of
     # the storage scheme the implementation uses
-
-    def each( iter_type : RegionIterator.class, **args)
-      iter_type.new(self, **args)
-    end
-
-    # recommended to override
     def fast : Iterator(T)
       ElemIterator.new(self)
     end
 
-
-    private class ElemIterator(T)
-      include Iterator(T)
-
-      @coord_iter : CoordIterator
-
-      def initialize(@src : MultiIndexable(T))
-        @coord_iter = @src.each_coord
-      end
-
-      def next
-        coord = @coord_iter.next
-        return stop if coord.is_a?(Iterator::Stop)
-        @src.unsafe_fetch_element(coord)
-      end
-    end
-
-    # scrap
-    protected def each_in_canonical_region(region, order : Order = Order::LEX)
-      case order
-      when Order::LEX
-        LexRegionIterator(self, T).new(self, region: region)
-      when Order::COLEX
-        ColexRegionIterator(self, T).new(self, region: region)
-      when Order::REV_LEX
-        LexRegionIterator(self, T).new(self, region: region, reverse: true)
-      when Order::REV_COLEX
-        ColexRegionIterator(self, T).new(self, region: region, reverse: true)
-      when Order::FASTEST
-        raise "Can't use region with Order::FASTEST" # if !region
-        # fast
-      else
-        raise ArgumentError.new("Could not iterate over MultiIndexable: Unrecognized order #{order}.")
-      end
-    end
-
-
-
     # # TODO: Each methods should exist that allow:
     # # - Some way to handle slice iteration? (how do we pass in the axis? etc)
 
-    # def slices(axis = 0) : Array(self)
+    def each_slice
+      chunk_shape = shape
+    end
 
+    def slices(axis = 0)
+      each_slice.to_a
+    end
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    {% for name in %w(each each_coord each_with_coord each_slice fast) %}
+      def {{name.id}}(&block)
+        {{name.id}}.each {|arg| yield arg}
+      end
+    {% end %}
 
     {% for transform in %w(reshape permute reverse) %}
       def {{transform.id}}(*args)
@@ -281,30 +207,28 @@ module Lattice
       return true
     end
 
-
-    def view(region : Enumerable? = nil) 
+    def view(region : Enumerable? = nil)
       # TODO: Try to infer T from B?
       View.of(self, region)
     end
 
     def view(*region)
-        view(region)
+      view(region)
     end
 
     def process(&block : (T -> R)) forall R
-        process(block)
+      process(block)
     end
 
     def process(proc)
-        ProcView.of(self, proc)
+      ProcView.of(self, proc)
     end
-    
 
     # TODO: rename!
     # Produces an NArray(Bool) (by default) describing which elements of self and other are equal.
     def eq_elem(other : MultiIndexable(U)) : MultiIndexable(Bool) forall U
       if shape_internal != other.shape_internal
-        raise DimensionError.new("Cannot perform elementwise operation {{name.id}}: shapes #{other.shape_internal} of other and #{shape_internal} of self do not match") 
+        raise DimensionError.new("Cannot perform elementwise operation {{name.id}}: shapes #{other.shape_internal} of other and #{shape_internal} of self do not match")
       end
       map_with_coord do |elem, coord|
         elem == other.unsafe_fetch_element(coord)

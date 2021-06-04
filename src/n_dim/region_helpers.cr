@@ -13,11 +13,11 @@ module Lattice
     # - `range.begin` and `range.end` are canonical indices for an axis of length `size`
     # - `range.size >= 0` and represents the number of elements that would be iterated through
     # - `range.begin + (range.size * range.step) == range.end`. In particular this means:
-    #    - 
+    #    -
     # - If empty (no elements spanned), then all of `range.size, range.step, range.begin, range.end` are 0.
-   
+
     # For a given shape, a "canonical region"
-    # - 
+    # -
 
     def has_index?(index, size)
       index >= -size && index < size
@@ -115,7 +115,7 @@ module Lattice
       # Measure the effect of applied restrictions (if a rule is a number, a dimension
       # gets dropped. If a rule is a range, a dimension gets resized)
       region.each do |range|
-          shape << range.size
+        shape << range.size
       end
 
       return [1] if shape.empty?
@@ -145,7 +145,7 @@ module Lattice
 
     def full_region(shape) : Array(SteppedRange)
       shape.map do |dim|
-        SteppedRange.new(0,dim - 1,1)
+        SteppedRange.new(0, dim - 1, 1)
       end
     end
 
@@ -187,7 +187,7 @@ module Lattice
       def self.new(range : SteppedRange, bound)
         canonicalize(range.begin, range.end, false, bound, range.step)
       end
-  
+
       def self.new(range : Range, bound)
         first = range.begin
         case first
@@ -202,7 +202,7 @@ module Lattice
       def self.new_canonical(start, stop, step)
         self.new(start, stop, step)
       end
-  
+
       # This method is supposed to capture numeric objects. We avoid specifying type
       # explicitly so we can have the most interoperability.
       def self.new(index : Int, bound)
@@ -223,7 +223,7 @@ module Lattice
       protected def initialize(index)
         @size = 1
         @step = 1
-        @begin = index  
+        @begin = index
         @end = index
       end
 
@@ -232,7 +232,7 @@ module Lattice
       end
 
       def reverse : SteppedRange
-         SteppedRange.new(@end, @begin, -@step)
+        SteppedRange.new(@end, @begin, -@step)
       end
 
       # TODO: rename
@@ -291,8 +291,6 @@ module Lattice
           end
         end
 
-
-
         # Account for exclusive ends of a range
         if stop && exclusive
           if temp_stop == start
@@ -310,7 +308,6 @@ module Lattice
         end
         SteppedRange.new(start, temp_stop, step)
       end
-
 
       # Given __subspace__, a canonical `Range`, and a  __step_size__, invokes the block with an index
       # for every nth integer in __subspace__. This is more or less the same as range.each, but supports
@@ -338,14 +335,14 @@ module Lattice
       def inspect(io)
         if @size == 1
           io << @begin.to_s
-        else if @step.abs == 1
-          io << "#{@begin..@end}"
         else
-          io << "#{@begin}..#{@step}..#{@end}"
+          if @step.abs == 1
+            io << "#{@begin..@end}"
+          else
+            io << "#{@begin}..#{@step}..#{@end}"
+          end
         end
       end
-
-    end
     end
   end
 end

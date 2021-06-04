@@ -3,11 +3,10 @@ require "./spec_helper"
 include Lattice
 
 # Useful variables
-NONEMPTY_SHAPES   = [[5, 5], [2], [10, 1, 3], [1, 1, 1, 1]]
-EMPTY_SHAPES = [[5, 0, 2], [0, 0, 0], [0]]
-LEGAL_SHAPES = NONEMPTY_SHAPES + EMPTY_SHAPES
-ILLEGAL_SHAPES = [[] of Int32, [-4], [-10, 0]]
-
+NONEMPTY_SHAPES = [[5, 5], [2], [10, 1, 3], [1, 1, 1, 1]]
+EMPTY_SHAPES    = [[5, 0, 2], [0, 0, 0], [0]]
+LEGAL_SHAPES    = NONEMPTY_SHAPES + EMPTY_SHAPES
+ILLEGAL_SHAPES  = [[] of Int32, [-4], [-10, 0]]
 
 describe Lattice::NArray do
   describe ".build" do

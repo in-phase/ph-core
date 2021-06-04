@@ -5,9 +5,8 @@ include Lattice
 arr = NArray.build([2, 3, 2, 3]) { |coord, index| index }
 small_arr = NArray.build([5, 5]) { |coord, index| index }
 
-
 region = [2..1, ..]
-canonical = RegionHelpers.canonicalize_region(region, [5,5])
+canonical = RegionHelpers.canonicalize_region(region, [5, 5])
 canonical[1] = RegionHelpers::SteppedRange.new(1..2..4, 5)
 puts canonical
 
@@ -23,7 +22,7 @@ puts "Lexicographic, region"
 # NArray::BufferedLexRegionIterator(typeof(small_arr), Int32).new(small_arr, canonical).each { |elem, coord| puts elem , coord}
 
 puts "Baseline:"
-small_arr.narray_each_in_canonical_region(canonical) {|elem, idx, idx2| puts elem}
+small_arr.narray_each_in_canonical_region(canonical) { |elem, idx, idx2| puts elem }
 
 # puts "Colex, region"
 # NArray::BufferedColexRegionIterator(typeof(small_arr), Int32).new(small_arr, canonical).each { |elem, coord| puts elem }
@@ -31,17 +30,14 @@ small_arr.narray_each_in_canonical_region(canonical) {|elem, idx, idx2| puts ele
 puts "rev lex"
 NArray::BufferedLexRegionIterator(typeof(small_arr), Int32).new(small_arr, reverse: true).each { |elem, coord| puts elem }
 
-
 puts "rev colex"
 NArray::BufferedColexRegionIterator(typeof(small_arr), Int32).new(small_arr, reverse: true).each { |elem, coord| puts elem }
 
 puts "rev lex region"
 NArray::BufferedLexRegionIterator(typeof(small_arr), Int32).new(small_arr, canonical, reverse: true).each { |elem, coord| puts elem }
 
-
 puts "rev colex region"
 NArray::BufferedColexRegionIterator(typeof(small_arr), Int32).new(small_arr, canonical, reverse: true).each { |elem, coord| puts elem }
-
 
 # MultiIndexable::LexRegionIterator(typeof(small_arr), Int32).new(small_arr).each { |elem, coord| puts elem, coord }
 # MultiIndexable::ColexRegionIterator(typeof(small_arr), Int32).new(small_arr).each { |elem, coord| puts elem, coord }

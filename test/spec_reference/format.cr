@@ -1,4 +1,4 @@
-my_settings = FormatterSettings.new 
+my_settings = FormatterSettings.new
 my_settings.cascade_height = 4
 my_settings.colors_enabled = true
 my_settings.indent = 3
@@ -6,12 +6,12 @@ my_settings.brackets = [{"〈", "〉"}, {"❮", "❯"}, {"❰", "❱"}]
 my_settings.colors = [:red, :yellow, :green, :blue]
 my_settings.display_elements = [4]
 
-my_settings = FormatterSettings.new 
+my_settings = FormatterSettings.new
 
-my_narr = NArray.build([10,10,10,10,10]) {|c, i| i}
+my_narr = NArray.build([10, 10, 10, 10, 10]) { |c, i| i }
 
-dur = Time.measure do 
-    Formatter.print(my_narr, my_settings)
+dur = Time.measure do
+  Formatter.print(my_narr, my_settings)
 end
 puts dur
 

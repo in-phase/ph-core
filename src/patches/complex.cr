@@ -6,7 +6,7 @@ require "../n_dim/multi_indexable"
 # e.g.
 # ``` 5 + NArray.new([1,2,3]) #=> [6,7,8] ```
 abstract struct Complex
-    {% begin %}
+  {% begin %}
       {% for name in %w(+ - * / // > < >= <= &+ &- &- ** &** % & | ^) %}
         # Invokes `#{{name.id}}` element-wise between `self` and *other*, returning
         # an `NArray` that contains the results.

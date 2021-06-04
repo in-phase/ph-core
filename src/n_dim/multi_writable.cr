@@ -4,7 +4,6 @@ require "./iterators/*"
 
 module Lattice
   module MultiWritable(T)
-
     # TODO: discuss: should mutators explicitly return the object itself, for chaining purposes?
 
     # For performance gains, we recommend the user to consider overriding the following methods when including MultiWritable(T):
@@ -26,12 +25,10 @@ module Lattice
     # For full specification of canonical form see `RegionHelpers` documentation. TODO: make this actually happen
     abstract def unsafe_set_region(region : Enumerable, value : T)
 
-    
     protected def shape_internal : Array(Int32)
       shape
     end
-    
-    
+
     # Sets the element specified by `coord` to `value`, assuming that `coord` is in canonical form and in-bounds for this `{{type}}`
     def unsafe_set_element(coord : Enumerable, value : T)
       unsafe_set_region(RegionHelpers.region_from_coord(coord), value)
@@ -56,7 +53,7 @@ module Lattice
 
       # region [1, 5, 1, 1]
       # src [1, 5]
-      unsafe_set_region(canonical_region, src) #ReshapeView.of(src, shape: RegionHelpers.measure_canonical_region(canonical_region)))
+      unsafe_set_region(canonical_region, src) # ReshapeView.of(src, shape: RegionHelpers.measure_canonical_region(canonical_region)))
     end
 
     # Sets each element in `region` to `value`.
