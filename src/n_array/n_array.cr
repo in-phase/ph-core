@@ -281,65 +281,24 @@ module Lattice
       equals?(other) { |x, y| x == y }
     end
 
-    # Convert from n-dimensional indexing to a buffer location.
-    def coord_to_index(coord) : Int32
-      coord = RegionHelpers.canonicalize_coord(coord, @shape)
-      {{@type}}.coord_to_index_fast(coord, @shape, @axis_strides)
-    end
-
-    # TODO: Talk about what this should be named
-    def self.coord_to_index(coord, shape) : Int32
-      coord = RegionHelpers.canonicalize_coord(coord, shape)
-      steps = axis_strides(shape)
-      {{@type}}.coord_to_index_fast(coord, shape, steps)
-    end
-
-    # Assumes coord is canonical
-    def self.coord_to_index_fast(coord, shape, axis_strides) : Int32
-      begin
-        index = 0
-        coord.each_with_index do |elem, idx|
-          index += elem * axis_strides[idx]
-        end
-        index
-      rescue exception
-        raise IndexError.new("Cannot convert coordinate to index: the given index is out of bounds for this {{@type}} along at least one dimension.")
-      end
-    end
-
-    # Convert from a buffer location to an n-dimensional coord
-    def index_to_coord(index) : Array(Int32)
-      typeof(self).index_to_coord(index, @shape)
-    end
-
-    # OPTIMIZE: This could (maybe) be improved with use of `axis_strides`
-    def self.index_to_coord(index, shape) : Array(Int32)
-      if index > shape.product
-        raise IndexError.new("Cannot convert index to coordinate: the given index is out of bounds for this {{@type}} along at least one dimension.")
-      end
-      coord = Array(Int32).new(shape.size, 0)
-      shape.reverse.each_with_index do |length, dim|
-        coord[dim] = index % length
-        index //= length
-      end
-      coord.reverse
-    end
-
-    # Copies the elements in `region` to a new `{{type}}`, assuming that `region` is in canonical form and in-bounds for this `{{type}}`.
+    # Copies the elements in `region` to a new `{{@type}}`, assuming that `region` is in canonical form and in-bounds for this `{{@type}}`.
     # For full specification of canonical form see `RegionHelpers` documentation. TODO: make this actually happen
     def unsafe_fetch_region(region)
       shape = RegionHelpers.measure_canonical_region(region)
 
       # TODO optimize this! Any way to avoid double iteration?
-      buffer_arr = [] of T
-      narray_each_in_canonical_region(region) do |elem, idx, src_idx|
-        buffer_arr << elem
-      end
+      # buffer_arr = [] of T
+      # narray_each_in_canonical_region(region) do |elem, idx, src_idx|
+      #   buffer_arr << elem
+      # end
 
-      typeof(self).new(shape) { |i| buffer_arr[i] }
+      # typeof(self).new(shape) { |i| buffer_arr[i] }
+      
+      iter = BufferedRegionIterator.new(self, region)
+      typeof(self).new(shape) { iter.unsafe_next_value }
     end
 
-    # Retrieves the element specified by `coord`, assuming that `coord` is in canonical form and in-bounds for this `{{type}}`.
+    # Retrieves the element specified by `coord`, assuming that `coord` is in canonical form and in-bounds for this `{{@type}}`.
     # For full specification of canonical form see `RegionHelpers` documentation. TODO: make this actually happen
     def unsafe_fetch_element(coord) : T
       @buffer.unsafe_fetch(NArray.coord_to_index_fast(coord, @shape, @axis_strides))
@@ -382,6 +341,10 @@ module Lattice
       narray_each_in_canonical_region(region) do |elem, idx, buffer_idx|
         @buffer[buffer_idx] = value
       end
+    end
+
+    def unsafe_set_element(coord : Enumerable, value : T)
+      @buffer[coord_to_index_fast(coord)] = value
     end
 
     # replaces all values in a boolean mask with a given value
@@ -751,7 +714,7 @@ module Lattice
     end
 
     # TODO: compare this iterator, generic MultiIndexable iterator, and old direct each
-    #     class BufferedLexRegionIterator(A,T) < RegionIterator(A,T)
+    #     class BufferedLexRegionIterator(A,T) < ElemAndCoordIterator(A,T)
 
     #       @buffer_index : Int32
     #       @buffer_step : Array(Int32)

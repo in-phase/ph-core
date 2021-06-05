@@ -1,7 +1,7 @@
 module Lattice
   # struct MyOrder
 
-  #   getter iter_type : MultiIndexable::RegionIterator.class
+  #   getter iter_type : MultiIndexable::ElemAndCoordIterator.class
 
   #   # Converts a coord in this order to a coord in Lex.
   #   @converter = Proc(Array(Int32), Array(Int32))

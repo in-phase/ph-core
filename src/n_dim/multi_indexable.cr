@@ -14,18 +14,18 @@ module Lattice
     # -fast: for performance
     # -transform functions: reshape, permute, reverse; for performance
 
-    # Returns the number of elements in the `{{type}}`; equal to `shape.product`.
+    # Returns the number of elements in the `{{@type}}`; equal to `shape.product`.
     abstract def size
 
-    # Returns the length of the `{{type}}` in each dimension.
-    # For a `coord` to specify an element of the `{{type}}` it must satisfy `coord[i] < shape[i]` for each `i`.
+    # Returns the length of the `{{@type}}` in each dimension.
+    # For a `coord` to specify an element of the `{{@type}}` it must satisfy `coord[i] < shape[i]` for each `i`.
     abstract def shape : Array(Int32)
 
-    # Copies the elements in `region` to a new `{{type}}`, assuming that `region` is in canonical form and in-bounds for this `{{type}}`.
+    # Copies the elements in `region` to a new `{{@type}}`, assuming that `region` is in canonical form and in-bounds for this `{{@type}}`.
     # For full specification of canonical form see `RegionHelpers` documentation. TODO: make this actually happen
     abstract def unsafe_fetch_region(region)
 
-    # Retrieves the element specified by `coord`, assuming that `coord` is in canonical form and in-bounds for this `{{type}}`.
+    # Retrieves the element specified by `coord`, assuming that `coord` is in canonical form and in-bounds for this `{{@type}}`.
     # For full specification of canonical form see `RegionHelpers` documentation. TODO: make this actually happen
     abstract def unsafe_fetch_element(coord) : T
 
@@ -39,25 +39,25 @@ module Lattice
       shape
     end
 
-    # Checks that the `{{type}}` contains no elements.
+    # Checks that the `{{@type}}` contains no elements.
     def empty? : Bool
       size == 0
     end
 
-    # Checks that this `{{type}}` is one-dimensional, and contains a single element.
+    # Checks that this `{{@type}}` is one-dimensional, and contains a single element.
     def scalar? : Bool
       shape_internal.size == 1 && size == 1
     end
 
-    # Maps a single-element 1D `{{type}}` to the element it contains.
+    # Maps a single-element 1D `{{@type}}` to the element it contains.
     def to_scalar : T
       if scalar?
         return first
       else
         if shape_internal.size != 1
-          raise DimensionError.new("Cannot cast to scalar: {{type}} must have 1 dimension, but has #{dimensions}.")
+          raise DimensionError.new("Cannot cast to scalar: {{@type}} must have 1 dimension, but has #{dimensions}.")
         else
-          raise DimensionError.new("Cannot cast to scalar: {{type}} must have 1 element, but has #{size}.")
+          raise DimensionError.new("Cannot cast to scalar: {{@type}} must have 1 element, but has #{size}.")
         end
       end
     end
@@ -68,7 +68,7 @@ module Lattice
       return get_element([0] * shape_internal.size)
     end
 
-    # Returns a random element from the `{{type}}`. Note that this might not return
+    # Returns a random element from the `{{@type}}`. Note that this might not return
     # distinct elements if the random number generator returns the same coordinate twice.
     def sample(n, random = Random::DEFAULT)
       raise ArgumentError.new("Can't sample negative number of elements") if n < 0
@@ -76,33 +76,33 @@ module Lattice
       Array(T).new(n) { sample(random) }
     end
 
-    # Returns a random element from the `{{type}}`.
+    # Returns a random element from the `{{@type}}`.
     def sample(random = Random::DEFAULT)
       raise IndexError.new("Can't sample empty collection") if empty?
       unsafe_fetch_element(shape_internal.map { |dim| random.rand(dim) })
     end
 
-    # Returns the number of indices required to specify an element in `{{type}}`.
+    # Returns the number of indices required to specify an element in `{{@type}}`.
     def dimensions : Int32
       shape_internal.size
     end
 
-    # Checks that `coord` is in-bounds for this `{{type}}`.
+    # Checks that `coord` is in-bounds for this `{{@type}}`.
     def has_coord?(coord : Enumerable) : Bool
       RegionHelpers.has_coord?(coord, shape_internal)
     end
 
-    # Checks that `region` is in-bounds for this `{{type}}`.
+    # Checks that `region` is in-bounds for this `{{@type}}`.
     def has_region?(region : Enumerable) : Bool
       RegionHelpers.has_region?(region, shape_internal)
     end
 
-    # Copies the elements in `region` to a new `{{type}}`, and throws an error if `region` is out-of-bounds for this `{{type}}`.
+    # Copies the elements in `region` to a new `{{@type}}`, and throws an error if `region` is out-of-bounds for this `{{@type}}`.
     def get_region(region : Enumerable)
       unsafe_fetch_region RegionHelpers.canonicalize_region(region, shape_internal)
     end
 
-    # Retrieves the element specified by `coord`, and throws an error if `coord` is out-of-bounds for this `{{type}}`.
+    # Retrieves the element specified by `coord`, and throws an error if `coord` is out-of-bounds for this `{{@type}}`.
     def get_element(coord : Enumerable) : T
       unsafe_fetch_element RegionHelpers.canonicalize_coord(coord, shape_internal)
     end
@@ -119,11 +119,12 @@ module Lattice
       get_region(RegionHelpers.trim_region(region, shape))
     end
 
+    # Because Range is an Enumerable, we must take care of this case before redirecting to Enumerable
     def [](region : Range)
       get_region([region])
     end
 
-    # Copies the elements in `region` to a new `{{type}}`, and throws an error if `region` is out-of-bounds for this `{{type}}`.
+    # Copies the elements in `region` to a new `{{@type}}`, and throws an error if `region` is out-of-bounds for this `{{@type}}`.
     def [](region : Enumerable)
       get_region(region)
     end
@@ -132,6 +133,26 @@ module Lattice
     # NOTE: cannot be (easily) generated in the macro since it requires syntax `[tuple]` rather than `[](tuple)`
     def [](*region)
       get_region(region)
+    end
+
+    # Because Range is an Enumerable, we must take care of this case before redirecting to Enumerable
+    def []?(region : Range)
+      self.[]?([region])
+    end
+
+    # Copies the elements in `region` to a new `{{@type}}`, or returns false if `region` is out-of-bounds for this `{{@type}}`.
+    def []?(region : Enumerable) : self?
+      if RegionHelpers.has_region?(region, shape_internal)
+        get_region(region)
+      end
+
+      false
+    end
+
+    # Tuple-accepting overload of `#{{name}}`.
+    # NOTE: cannot be (easily) generated in the macro since it requires syntax `[tuple]` rather than `[](tuple)`
+    def []?(*region)
+      self.[]?(region)
     end
 
     {% begin %}
@@ -154,7 +175,7 @@ module Lattice
     end
 
     def each_with_coord(iter = LexIterator)
-      RegionIterator.of(self, iter: iter)
+      ElemAndCoordIterator.of(self, iter: iter)
     end
 
     # A method to get all elements in this `{{@type}}` when order is irrelevant.
@@ -167,8 +188,10 @@ module Lattice
     # # TODO: Each methods should exist that allow:
     # # - Some way to handle slice iteration? (how do we pass in the axis? etc)
 
-    def each_slice
+    def each_slice(axis = 0) : Iterator
       chunk_shape = shape
+      chunk_shape[axis] = 1
+      ChunkIterator.new(self, chunk_shape)
     end
 
     def slices(axis = 0)
@@ -233,6 +256,16 @@ module Lattice
       map_with_coord do |elem, coord|
         elem == other.unsafe_fetch_element(coord)
       end
+    end
+
+    def hash(hasher)
+      hasher = shape_internal.hash(hasher)
+
+      each do |el|
+        hasher = elem.hash(hasher)
+      end
+      
+      hasher
     end
 
     {% begin %}

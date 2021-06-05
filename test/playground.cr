@@ -4,11 +4,14 @@ include Lattice
 
 include MultiIndexable(Int32)
 
-narr = NArray.build([3, 2, 4]) { |c, i| i }
+narr = NArray.build([5]) { |c, i| i }
 
-region = [..2.., ..2.., ..-1..]
+puts narr
+puts narr[2..]
 
-puts ElemIterator.of(narr, iter: LexIterator).each { |i| puts i }
+# region = [..2.., ..2.., ..-1..]
+
+# puts ElemIterator.of(narr, iter: ColexIterator).each { |i| puts i }
 
 # puts ElemIterator.new(narr, reverse: true, colex: true).each { |i| puts i }
 
@@ -22,4 +25,4 @@ puts ElemIterator.of(narr, iter: LexIterator).each { |i| puts i }
     #     @coord
     #   end
 
-puts narr.view.reverse.permute
+# puts narr.view.reverse.permute

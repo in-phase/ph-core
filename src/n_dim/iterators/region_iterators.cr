@@ -6,8 +6,7 @@ module Lattice
     class ElemIterator(T)
       include Iterator(T)
 
-      getter coord_iter : CoordIterator
-      @src : MultiIndexable(T)
+      getter region_iter : ElemAndCoordIterator(T)
 
       def self.of(src, region = nil, reverse = false, iter : CoordIterator.class = LexIterator) : self
         new(src, region, reverse, iter)
@@ -15,40 +14,38 @@ module Lattice
 
       def self.new(src, region = nil, reverse = false, colex = false) : self
         if colex
-          new(src, ColexIterator.new(src.shape, region, reverse))
+          iter = ColexIterator.new(src.shape, region, reverse)
         else
-          new(src, LexIterator.new(src.shape, region, reverse))
+          iter = LexIterator.new(src.shape, region, reverse)
         end
+        new(ElemAndCoordIterator.new(src, iter))
       end
 
       def self.new(src, region = nil, reverse = false, iter : CoordIterator.class = LexIterator) : self
-        new(src, iter.new(src.shape, region))
+        new(ElemAndCoordIterator.new(src, region, reverse, iter))
       end
 
-      protected def initialize(@src : MultiIndexable(T), @coord_iter)
-      end
-
-      protected def get_element(coord)
-        @src.unsafe_fetch_element(coord)
-      end
-
-      def reset
-        @coord_iter.reset
+      protected def initialize(@region_iter : ElemAndCoordIterator(T))
       end
 
       def next
-        coord = @coord_iter.next
-        return stop if coord.is_a?(Iterator::Stop)
-        get_element(coord)
+        @region_iter.next_value
       end
 
       def unsafe_next
-        coord = @coord_iter.next.unsafe_as(Array(Int32))
-        get_element(coord)
+        @region_iter.unsafe_next_value
+      end
+
+      def reset
+        @region_iter.reset
+      end
+
+      def coord_iter
+        @region_iter.coord_iter
       end
     end
 
-    class RegionIterator(T)
+    class ElemAndCoordIterator(T)
       include Iterator(Tuple(T, Array(Int32)))
 
       getter coord_iter : CoordIterator
@@ -69,7 +66,7 @@ module Lattice
         new(src, iter.new(src.shape, region, reverse))
       end
 
-      protected def initialize(@src : MultiIndexable(T), @coord_iter)
+      protected def initialize(@src : MultiIndexable(T), @coord_iter : CoordIterator)
       end
 
       def reset

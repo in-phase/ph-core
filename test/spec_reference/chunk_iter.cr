@@ -7,15 +7,17 @@ require "../../src/lattice"
 require "complex"
 
 include Lattice
+include MultiIndexable(Int32)
 
-alias FringeBehaviour = MultiIndexable::RegionSpecIterator::FringeBehaviour
-alias ChunkIterator = MultiIndexable::RegionSpecIterator
+alias FringeBehaviour = RegionIterator::FringeBehaviour
 
-def iterate(data, chunk_shape, strides = nil, fb = FringeBehaviour::DISCARD)
-  chunks = ChunkIterator.new(data.shape, chunk_shape, strides, fringe_behaviour: fb)
+def iterate(data, chunk_shape, strides = nil, iter = MultiIndexable::LexIterator, fb = FringeBehaviour::DISCARD)
+  # iter = RegionIterator.new(data.shape, chunk_shape, strides, iter, fb)
+  # chunks = ChunkAndRegionIterator.new(data, iter)
+  chunks = ChunkAndRegionIterator.new(data, chunk_shape, strides, iter, fringe_behaviour: fb)
   puts "\n", data
   chunks.each do |idk|
-    puts idk
+    puts idk[0]
   end
 end
 
@@ -24,20 +26,25 @@ nontile = NArray.build([7]) { |c, i| i }
 
 shape = [3]
 
-# iterate(nontile, shape, strides: [1], fb: FringeBehaviour::COVER)
-# iterate(nontile, shape, strides: [2], fb: FringeBehaviour::COVER)
-# iterate(nontile, shape, strides: [3], fb: FringeBehaviour::COVER)
+iterate(nontile, shape, strides: [1], fb: FringeBehaviour::COVER)
+iterate(nontile, shape, strides: [2], fb: FringeBehaviour::COVER)
+iterate(nontile, shape, strides: [3], fb: FringeBehaviour::COVER)
 iterate(nontile, shape, strides: [4], fb: FringeBehaviour::COVER)
 
-# iterate(nontile, shape, strides: [1], fb: FringeBehaviour::ALL_START_POINTS)
-# iterate(nontile, shape, strides: [2], fb: FringeBehaviour::ALL_START_POINTS)
-# iterate(nontile, shape, strides: [3], fb: FringeBehaviour::ALL_START_POINTS)
-# iterate(nontile, shape, strides: [4], fb: FringeBehaviour::ALL_START_POINTS)
+iterate(nontile, shape, strides: [1], fb: FringeBehaviour::ALL_START_POINTS)
+iterate(nontile, shape, strides: [2], fb: FringeBehaviour::ALL_START_POINTS)
+iterate(nontile, shape, strides: [3], fb: FringeBehaviour::ALL_START_POINTS)
+iterate(nontile, shape, strides: [4], fb: FringeBehaviour::ALL_START_POINTS)
 
-# iterate(nontile, shape, strides: [1])
-# iterate(nontile, shape, strides: [2])
-# iterate(nontile, shape, strides: [3])
-# iterate(nontile, shape, strides: [4])
+iterate(nontile, shape, strides: [1])
+iterate(nontile, shape, strides: [2])
+iterate(nontile, shape, strides: [3])
+iterate(nontile, shape, strides: [4])
+
+
+narr = NArray.build([2,2,2]) {|c,i| i}
+puts narr
+narr.each_slice(1).each {|chunk| puts chunk}
 
 # Documentation notes:
 # DISCARD:

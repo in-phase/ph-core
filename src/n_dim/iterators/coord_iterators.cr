@@ -8,7 +8,7 @@ module Lattice
       MOST_SIG = 0
       LEAST_SIG = -1
 
-      @coord : Array(Int32) = [] of Int32
+      getter coord : Array(Int32) = [] of Int32
 
       @first : Array(Int32)
       @last : Array(Int32)
@@ -32,7 +32,7 @@ module Lattice
 
       def initialize(shape, region : Array(RegionHelpers::SteppedRange)? = nil, reverse : Bool = false)
         @first, @last, @step, @size = CoordIterator.iteration_params(shape, region)
-        @empty = @size == 0
+        @empty = (@size == 0)
         reset
         reverse! if reverse
       end

@@ -3,45 +3,78 @@ require "../region_helpers"
 module Lattice
   module MultiIndexable(T)
 
-    
-
-    class ChunkyRegionIterator(T)
+    class ChunkAndRegionIterator(T)
         include Iterator(Tuple(MultiIndexable(T), Array(RegionHelpers::SteppedRange)))
 
-        # @region_spec_iter : RegionSpecIterator
+        @region_spec_iter : RegionIterator
+        @src : MultiIndexable(T)
 
-        # these let us track progress at the highest level, to avoid repetative checks for Iterator::STOP
-        @size : Int32 = 5
-        @index : Int32 = 5
-        
+        def self.new(src, chunk_shape, strides = nil, iter : CoordIterator.class = LexIterator, fringe_behaviour : FringeBehaviour = FringeBehaviour::DISCARD)
+          new(src, RegionIterator.new(src.shape, chunk_shape, strides, iter, fringe_behaviour))
+        end
+
+        def initialize(@src : MultiIndexable(T), @region_spec_iter : RegionIterator)
+        end
+
         def next
-          return stop 
+          case region = @region_spec_iter.next
+          when Stop
+            return stop
+          else
+            {@src.unsafe_fetch_region(region), region}
+          end
         end
-        
+
+        def next_value
+          case region = @region_spec_iter.next
+          when Stop
+            return stop
+          else
+            @src.unsafe_fetch_region(region)
+          end
+        end
+
+        def reset
+          @region_spec_iter.reset
+        end
     end
 
-    class ChunkyElemIterator(T)
-        include Iterator(MultiIndexable(T))
+    class ChunkIterator(T)
+      include Iterator(MultiIndexable(T))
         
-        def next 
-          return stop 
-        end
+      @chunk_and_region_iterator : ChunkAndRegionIterator(T)
+
+      def initialize(@chunk_and_region_iterator : ChunkAndRegionIterator(T))
+      end
+
+      
+      def self.new(src, chunk_shape, strides = nil, iter : CoordIterator.class = LexIterator, fringe_behaviour : FringeBehaviour = FringeBehaviour::DISCARD)
+        new(ChunkAndRegionIterator.new(src, chunk_shape, strides, iter, fringe_behaviour))
+      end
+        
+      def next
+        @chunk_and_region_iterator.next_value
+      end
+
+      def reset
+        @chunk_and_region_iterator.reset
+      end
     end
+    
+    
 
     # CoordIterator -> CoordIterator
+    # ChunkIterator (Iterates over a region, yielding the region specifiers that can be made from a box and a stride) -> RegionSpecIterator
     
     # ElemIterator -> ElemIterator
+    # New ChunkIterator XVII (Iterates over a region, yielding regions) -> RegionIterator
     
-    # RegionIterator (Iterates over a region, yielding elements and their coordinates) -> ???
-    
+    # ElemAndCoordIterator (Iterates over a region, yielding elements and their coordinates) -> ElemAndCoordIterator
     # "New ChunkIterator??" (Iterates over a region, yielding regions, the region specifiers they came from) ->
-    # ChunkIterator (Iterates over a region, yielding the region specifiers that can be made from a box and a stride) -> RegionSpecIterator
-    # New ChunkIterator XVII (Iterates over a region, yielding regions) ->
 
     
-    # {@narr.get_region(region), region}
 
-    class RegionSpecIterator
+    class RegionIterator
       include Iterator(Array(RegionHelpers::SteppedRange))
 
       @src_shape : Array(Int32)
@@ -51,7 +84,7 @@ module Lattice
       @fringe_behaviour : FringeBehaviour   
       # getter size : Int32
 
-      def self.new(src_shape, chunk_shape, strides = nil, iter : CoordIterator.class = LexIterator, fringe_behaviour : FringeBehaviour = FringeBehaviour::DISCARD)
+      def self.new(src_shape : Array(Int32), chunk_shape, strides = nil, iter : CoordIterator.class = LexIterator, fringe_behaviour : FringeBehaviour = FringeBehaviour::DISCARD)
         # convert strides into an iterable region
         strides ||= chunk_shape
         if strides.any? { |x| x <= 0 }
@@ -59,7 +92,6 @@ module Lattice
         end
         last = self.compute_lasts(src_shape, chunk_shape, strides, fringe_behaviour)
 
-        puts "\n",src_shape, last, strides
         coord_iter = iter.from_canonical(Array(Int32).new(src_shape.size, 0), last, strides)
 
         new(src_shape, chunk_shape, coord_iter, fringe_behaviour)
@@ -152,6 +184,10 @@ module Lattice
 
       def unsafe_next
         compute_region(@coord_iter.next)
+      end
+
+      def reset 
+        @coord_iter.reset
       end
 
       enum FringeBehaviour

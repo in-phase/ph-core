@@ -9,40 +9,52 @@ module Lattice
     # For performance gains, we recommend the user to consider overriding the following methods when including MultiWritable(T):
     # - `#unsafe_set_element` - while behaviour is identical to setting a one-element region, there may be optimizations for setting a single element.
 
-    # Returns the number of elements in the `{{type}}`; equal to `shape.product`.
+    # Returns the number of elements in the `{{@type}}`; equal to `shape.product`.
     abstract def size
 
-    # Returns the length of the `{{type}}` in each dimension.
-    # For a `coord` to specify an element of the `{{type}}` it must satisfy `coord[i] < shape[i]` for each `i`.
+    # Returns the length of the `{{@type}}` in each dimension.
+    # For a `coord` to specify an element of the `{{@type}}` it must satisfy `coord[i] < shape[i]` for each `i`.
     abstract def shape : Array(Int32)
 
-    # Copies the elements from a MultiIndexable `src` into `region`, assuming that `region` is in canonical form and in-bounds for this `{{type}}`
-    # and the shape of `region` matches the shape of `src`.
-    # For full specification of canonical form see `RegionHelpers` documentation. TODO: make this actually happen
-    abstract def unsafe_set_region(region : Enumerable, src : MultiIndexable(T))
-
-    # Sets each element in `region` to `value`, assuming that `region` is in canonical form and in-bounds for this `{{type}}`
-    # For full specification of canonical form see `RegionHelpers` documentation. TODO: make this actually happen
-    abstract def unsafe_set_region(region : Enumerable, value : T)
+    # Given a coordinate representing some location in the {{@type}} and a value, store the value at that coordinate.
+    # Assumes that the coordinate is in-bounds for this {{@type}}.
+    abstract def unsafe_set_element(coord : Enumerable, value : T)
 
     protected def shape_internal : Array(Int32)
       shape
     end
 
-    # Sets the element specified by `coord` to `value`, assuming that `coord` is in canonical form and in-bounds for this `{{type}}`
+    # Sets the element specified by `coord` to `value`, assuming that `coord` is in canonical form and in-bounds for this `{{@type}}`
     def unsafe_set_element(coord : Enumerable, value : T)
       unsafe_set_region(RegionHelpers.region_from_coord(coord), value)
     end
 
+    # Copies the elements from a MultiIndexable `src` into `region`, assuming that `region` is in canonical form and in-bounds for this `{{@type}}`
+    # and the shape of `region` matches the shape of `src`.
+    # For full specification of canonical form see `RegionHelpers` documentation. TODO: make this actually happen
+    def unsafe_set_region(region : Enumerable,  src : MultiIndexable(T))
+      LexIterator.new(shape_internal).each do |coord|
+        unsafe_set_element(coord, unsafe_fetch_element(coord))
+      end
+    end
+    
+    # Sets each element in `region` to `value`, assuming that `region` is in canonical form and in-bounds for this `{{@type}}`
+    # For full specification of canonical form see `RegionHelpers` documentation. TODO: make this actually happen
+    def unsafe_set_region(region : Enumerable, value : T)
+      LexIterator.new(shape_internal).each do |coord|
+        unsafe_set_element(coord, value)
+      end
+    end
+    
     # Sets the element specified by `coord` to `value`.
-    # Raises an error if `coord` is out-of-bounds for this `{{type}}`.
+    # Raises an error if `coord` is out-of-bounds for this `{{@type}}`.
     def set_element(coord : Enumerable, value)
       unsafe_set_element(RegionHelpers.canonicalize_coord(coord, shape_internal), value.as(T))
     end
 
     # NOTE: changed name from 'value' to 'src' - approve?
     # Copies the elements from a MultiIndexable `src` into `region`.
-    # Raises an error if `region` is out-of-bounds for this `{{type}}` or if the shape of `region` does not match `src.shape`
+    # Raises an error if `region` is out-of-bounds for this `{{@type}}` or if the shape of `region` does not match `src.shape`
     def set_region(region : Enumerable, src : MultiIndexable)
       canonical_region = RegionHelpers.canonicalize_region(region, shape_internal)
       if !RegionHelpers.compatible_shapes(src.shape_internal, RegionHelpers.measure_canonical_region(canonical_region))
@@ -57,7 +69,7 @@ module Lattice
     end
 
     # Sets each element in `region` to `value`.
-    # Raises an error if `region` is out-of-bounds for this `{{type}}`.
+    # Raises an error if `region` is out-of-bounds for this `{{@type}}`.
     def set_region(region : Enumerable, value)
       unsafe_set_region(RegionHelpers.canonicalize_region(region, shape_internal), value.as(T))
     end

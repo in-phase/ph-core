@@ -27,11 +27,59 @@ module Lattice
       ret
     end
 
+        # Convert from n-dimensional indexing to a buffer location.
+    def coord_to_index(coord) : Int32
+      coord = RegionHelpers.canonicalize_coord(coord, @shape)
+      {{@type}}.coord_to_index_fast(coord, @shape, @axis_strides)
+    end
+
+    # TODO: Talk about what this should be named
+    def self.coord_to_index(coord, shape) : Int32
+      coord = RegionHelpers.canonicalize_coord(coord, shape)
+      steps = axis_strides(shape)
+      {{@type}}.coord_to_index_fast(coord, shape, steps)
+    end
+
+    # Assumes coord is canonical
+    def self.coord_to_index_fast(coord, shape, axis_strides) : Int32
+      begin
+        index = 0
+        coord.each_with_index do |elem, idx|
+          index += elem * axis_strides[idx]
+        end
+        index
+      rescue exception
+        raise IndexError.new("Cannot convert coordinate to index: the given index is out of bounds for this {{@type}} along at least one dimension.")
+      end
+    end
+
+    # Convert from a buffer location to an n-dimensional coord
+    def index_to_coord(index) : Array(Int32)
+      typeof(self).index_to_coord(index, @shape)
+    end
+
+    # OPTIMIZE: This could (maybe) be improved with use of `axis_strides`
+    def self.index_to_coord(index, shape) : Array(Int32)
+      if index > shape.product
+        raise IndexError.new("Cannot convert index to coordinate: the given index is out of bounds for this {{@type}} along at least one dimension.")
+      end
+      coord = Array(Int32).new(shape.size, 0)
+      shape.reverse.each_with_index do |length, dim|
+        coord[dim] = index % length
+        index //= length
+      end
+      coord.reverse
+    end
+
     abstract class IndexedCoordIterator < MultiIndexable::CoordIterator
       @buffer_index : Int32 = 0 # Initialized beforehand to placate the compiler
       @buffer_step : Array(Int32)
 
       protected def initialize(shape, region = nil, reverse : Bool = false)
+        if shape.size == 0
+          raise DimensionError.new("Failed to create {{@type.id}}: cannot iterate over empty shape \"[]\"")
+        end
+
         @buffer_step = NArray.axis_strides(shape)
         super(shape, region, reverse)
       end
@@ -102,7 +150,7 @@ module Lattice
       end
     end
 
-    class BufferedRegionIterator(T) < MultiIndexable::RegionIterator(T)    
+    class BufferedRegionIterator(T) < MultiIndexable::ElemAndCoordIterator(T)    
       
       def self.new(src, region = nil, reverse = false, iter : CoordIterator.class = IndexedLexIterator) : self
         raise "BufferedRegionIterators must use IndexedCoordIterators" unless iter < IndexedCoordIterator
@@ -119,6 +167,7 @@ module Lattice
       end
 
       def unsafe_next_value : T
+        @coord_iter.next
         get_element
       end
     end
