@@ -74,6 +74,10 @@ module Lattice
       unsafe_set_region(RegionHelpers.canonicalize_region(region, shape_internal), value.as(T))
     end
 
+    def set_available(region : Indexable, value)
+      unsafe_set_region(RegionHelpers.trim_region(region, shape))
+    end
+
     # See `#set_region(region : Enumerable, value)`
     def []=(region : Enumerable, value)
       set_region(region, value)

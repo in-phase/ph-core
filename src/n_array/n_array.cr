@@ -164,16 +164,54 @@ module Lattice
     # core
     # pad(0, {0 => {2, 2}, 1 => {3, 4}, -1 => {0, 5}})
     def pad(value, amounts : Hash(Int32, Tuple(Int32, Int32)))
+      # figure out the resulting shape and alignment
+      # pad(0, {0 => {2, 2}, 1 => {3, 4}, -1 => {0, 5}})
+      # [5, 5, 5] -> [4 + 5, 7 + 5, 5 + 5]
+      # amounts.transform_values { |value| value[0] }
+      fit()
     end
 
-    def fit(shape, pad_with value, align : Hash(Int32, NArray::Alignment | Int32))
+    # This version requires you are only <= on each axis; cannot pad
+    def fit(new_shape, *, align : Hash(Int32, NArray::Alignment | Int32))
+      # If the new shape is larger (at all), you need to have provided a pad_with value
+      @shape.each_with_index do |size, idx|
+        if size > new_shape[idx]
+
+        end
+      end
+
+      # move this to where applicable
+      raise "Can't fit array: provided shape is larger that shape of self. Provide a `pad_with` argument if padding is desired."
+
+      # if only shrinking: value is not needed, can just take a region
+      # compute region based on align
+      return self.unsafe_fetch_region(region)
+    end    
+
+    fit([1, 2, 3], align: {1 => 5}, pad_with: nil)
+    
+    def fit(new_shape, *, align : Hash(Int32, NArray::Alignment | Int32)? = nil, pad_with value = nil)
+      if new_shape.size != @shape.size
+        raise "Cannot not fit a #{@shape.size} dimensional {{@type}} into a #{new_shape.size} dimensional shape. Consider calling `reshape` if you wish to change dimensionality."
+      end
+      # otherwise: 
     end
 
     def pad!
     end
 
     def fit!
+      # implement for real
     end
+
+    # def fit
+    #   clone_but_cast_to().fit!
+    # end
+
+    # protected fit_buffer()
+    # end
+
+    # def self.fit(narr : NArray(T), ..., value : U) : NArray(T | U) forall U
 
     # Requires that shape is equal to coord + self.shape in each dimension
     protected def unsafe_pad(new_shape, value, coord)
@@ -360,11 +398,22 @@ module Lattice
       end
     end
 
-    # def each(&block : T ->)
-    #   each_with_index do |elem|
-    #     yield elem
-    #   end
-    # end
+
+    # Iterator overrides for buffer-based speedups
+    
+    # The default "each" with no iterator type passed is lexicographic.
+    # For other orders, default to MultiIndexable's implementation.
+    def each
+      @buffer.each
+    end
+
+    def fast
+      @buffer.each
+    end
+
+    def each_with_coord(iter : CoordIterator = IndexedLexIterator)
+      BufferedRegionIterator.new(self, )
+    end
 
     def each_with_index(&block : T, Int32 ->)
       @buffer.each_with_index do |elem, idx|

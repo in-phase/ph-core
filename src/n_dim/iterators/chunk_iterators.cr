@@ -1,10 +1,11 @@
 require "../region_helpers"
+require "../../stepped_range.cr"
 
 module Lattice
   module MultiIndexable(T)
 
     class ChunkAndRegionIterator(T)
-        include Iterator(Tuple(MultiIndexable(T), Array(RegionHelpers::SteppedRange)))
+        include Iterator(Tuple(MultiIndexable(T), Array(SteppedRange)))
 
         @region_spec_iter : RegionIterator
         @src : MultiIndexable(T)
@@ -75,7 +76,7 @@ module Lattice
     
 
     class RegionIterator
-      include Iterator(Array(RegionHelpers::SteppedRange))
+      include Iterator(Array(SteppedRange))
 
       @src_shape : Array(Int32)
       @chunk_shape : Array(Int32)

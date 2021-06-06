@@ -83,27 +83,27 @@ module Lattice
     end
 
     # Returns the number of indices required to specify an element in `{{@type}}`.
-    def dimensions : Int32
+    def dimensions : Int
       shape_internal.size
     end
 
     # Checks that `coord` is in-bounds for this `{{@type}}`.
-    def has_coord?(coord : Enumerable) : Bool
+    def has_coord?(coord : Indexable) : Bool
       RegionHelpers.has_coord?(coord, shape_internal)
     end
 
     # Checks that `region` is in-bounds for this `{{@type}}`.
-    def has_region?(region : Enumerable) : Bool
+    def has_region?(region : Indexable) : Bool
       RegionHelpers.has_region?(region, shape_internal)
     end
 
     # Copies the elements in `region` to a new `{{@type}}`, and throws an error if `region` is out-of-bounds for this `{{@type}}`.
-    def get_region(region : Enumerable)
+    def get_region(region : Indexable)
       unsafe_fetch_region RegionHelpers.canonicalize_region(region, shape_internal)
     end
 
     # Retrieves the element specified by `coord`, and throws an error if `coord` is out-of-bounds for this `{{@type}}`.
-    def get_element(coord : Enumerable) : T
+    def get_element(coord : Indexable) : T
       unsafe_fetch_element RegionHelpers.canonicalize_coord(coord, shape_internal)
     end
 
@@ -111,12 +111,12 @@ module Lattice
       get_element(coord)
     end
 
-    def get_region(coord : Enumerable, region_shape : Enumerable)
+    def get_region(coord : Indexable, region_shape : Indexable)
       get_region(RegionHelpers.translate_shape(region_shape, coord))
     end
 
-    def get_available(region : Enumerable)
-      get_region(RegionHelpers.trim_region(region, shape))
+    def get_available(region : Indexable)
+      unsafe_get_region(RegionHelpers.trim_region(region, shape))
     end
 
     # Because Range is an Enumerable, we must take care of this case before redirecting to Enumerable
@@ -125,7 +125,7 @@ module Lattice
     end
 
     # Copies the elements in `region` to a new `{{@type}}`, and throws an error if `region` is out-of-bounds for this `{{@type}}`.
-    def [](region : Enumerable)
+    def [](region : Indexable)
       get_region(region)
     end
 
@@ -141,7 +141,7 @@ module Lattice
     end
 
     # Copies the elements in `region` to a new `{{@type}}`, or returns false if `region` is out-of-bounds for this `{{@type}}`.
-    def []?(region : Enumerable) : self?
+    def []?(region : Indexable) : self?
       if RegionHelpers.has_region?(region, shape_internal)
         get_region(region)
       end
@@ -170,11 +170,11 @@ module Lattice
       LexIterator.of(shape)
     end
 
-    def each(iter = LexIterator)
+    def each(iter = LexIterator) : Iterator(T)
       ElemIterator.of(self, iter: iter)
     end
 
-    def each_with_coord(iter = LexIterator)
+    def each_with_coord(iter = LexIterator) : Iterator(Tuple(T, Array(Int32)))
       ElemAndCoordIterator.of(self, iter: iter)
     end
 
@@ -243,7 +243,7 @@ module Lattice
       process(block)
     end
 
-    def process(proc)
+    def process(proc : Proc(T -> R))
       ProcView.of(self, proc)
     end
 
