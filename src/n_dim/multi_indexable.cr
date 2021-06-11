@@ -19,19 +19,19 @@ module Lattice
 
     # Returns the length of the `{{@type}}` in each dimension.
     # For a `coord` to specify an element of the `{{@type}}` it must satisfy `coord[i] < shape[i]` for each `i`.
-    abstract def shape : Array(Int32)
+    abstract def shape : Array
 
     # Copies the elements in `region` to a new `{{@type}}`, assuming that `region` is in canonical form and in-bounds for this `{{@type}}`.
     # For full specification of canonical form see `RegionHelpers` documentation. TODO: make this actually happen
-    abstract def unsafe_fetch_region(region)
+    abstract def unsafe_fetch_region(region : CanonicalRegion)
 
     # Retrieves the element specified by `coord`, assuming that `coord` is in canonical form and in-bounds for this `{{@type}}`.
     # For full specification of canonical form see `RegionHelpers` documentation. TODO: make this actually happen
-    abstract def unsafe_fetch_element(coord) : T
+    abstract def unsafe_fetch_element(coord : Coord) : T
 
     # Stuff that we can implement without knowledge of internals
 
-    protected def shape_internal : Array(Int32)
+    protected def shape_internal : Shape
       # NOTE: Some implementations might not have a well defined @shape, but
       # instead generate it with a function. We leave shape_internal to be
       # overridden with @shape for a small performance boost if the implementer
@@ -70,14 +70,14 @@ module Lattice
 
     # Returns a random element from the `{{@type}}`. Note that this might not return
     # distinct elements if the random number generator returns the same coordinate twice.
-    def sample(n, random = Random::DEFAULT)
+    def sample(n, random = Random::DEFAULT) : Enumerable(T)
       raise ArgumentError.new("Can't sample negative number of elements") if n < 0
 
       Array(T).new(n) { sample(random) }
     end
 
     # Returns a random element from the `{{@type}}`.
-    def sample(random = Random::DEFAULT)
+    def sample(random = Random::DEFAULT) : T
       raise IndexError.new("Can't sample empty collection") if empty?
       unsafe_fetch_element(shape_internal.map { |dim| random.rand(dim) })
     end
@@ -119,25 +119,9 @@ module Lattice
       unsafe_get_region(RegionHelpers.trim_region(region, shape))
     end
 
-    # Because Range is an Enumerable, we must take care of this case before redirecting to Enumerable
-    def [](region : Range)
-      get_region([region])
-    end
-
     # Copies the elements in `region` to a new `{{@type}}`, and throws an error if `region` is out-of-bounds for this `{{@type}}`.
     def [](region : Indexable)
       get_region(region)
-    end
-
-    # Tuple-accepting overload of `#{{name}}`.
-    # NOTE: cannot be (easily) generated in the macro since it requires syntax `[tuple]` rather than `[](tuple)`
-    def [](*region)
-      get_region(region)
-    end
-
-    # Because Range is an Enumerable, we must take care of this case before redirecting to Enumerable
-    def []?(region : Range)
-      self.[]?([region])
     end
 
     # Copies the elements in `region` to a new `{{@type}}`, or returns false if `region` is out-of-bounds for this `{{@type}}`.
@@ -145,28 +129,21 @@ module Lattice
       if RegionHelpers.has_region?(region, shape_internal)
         get_region(region)
       end
-
       false
     end
 
-    # Tuple-accepting overload of `#{{name}}`.
-    # NOTE: cannot be (easily) generated in the macro since it requires syntax `[tuple]` rather than `[](tuple)`
-    def []?(*region)
-      self.[]?(region)
-    end
-
     {% begin %}
-      {% enumerable_functions = %w(get get_element get_region has_coord? has_region?) %}
+      {% enumerable_functions = %w(get get_element get_region [] []? has_coord? has_region?) %}
       {% for name in enumerable_functions %}
           # Tuple-accepting overload of `#{{name}}`.
           def {{name.id}}(*tuple)
-            {{name.id}}(tuple)
+            self.{{name.id}}(tuple)
           end
       {% end %}
     {% end %}
 
     # Iterators ====================================================================
-    def each_coord : CoordIterator
+    def each_coord : Iterator(Coord)
       LexIterator.of(shape)
     end
 
@@ -174,15 +151,21 @@ module Lattice
       ElemIterator.of(self, iter: iter)
     end
 
-    def each_with_coord(iter = LexIterator) : Iterator(Tuple(T, Array(Int32)))
+    def each_with_coord(iter = LexIterator) : Iterator(Tuple(T, Coord))
       ElemAndCoordIterator.of(self, iter: iter)
+    end
+
+    def map_with_coord(&block : (T, Coord -> R)) : MultiIndexable(R) forall R
+      NArray.build(shape_internal) do |coord, i|
+        yield unsafe_fetch_element(coord), coord
+      end 
     end
 
     # A method to get all elements in this `{{@type}}` when order is irrelevant.
     # Recommended that implementers override this method to take advantage of
     # the storage scheme the implementation uses
     def fast : Iterator(T)
-      ElemIterator.new(self)
+      ElemIterator.of(self)
     end
 
     # # TODO: Each methods should exist that allow:
@@ -194,18 +177,19 @@ module Lattice
       ChunkIterator.new(self, chunk_shape)
     end
 
-    def slices(axis = 0)
+    def slices(axis = 0) : Enumerable
       each_slice.to_a
     end
 
     {% for name in %w(each each_coord each_with_coord each_slice fast) %}
-      def {{name.id}}(&block)
+      # Block accepting form of {{name}}.
+      def {{name.id}}(&block) : Nil
         {{name.id}}.each {|arg| yield arg}
       end
     {% end %}
 
     {% for transform in %w(reshape permute reverse) %}
-      def {{transform.id}}(*args)
+      def {{transform.id}}(*args) : MultiIndexable(T)
         view.{{transform.id}}(*args).to_narr
       end
     {% end %}
@@ -230,20 +214,20 @@ module Lattice
       return true
     end
 
-    def view(region : Enumerable? = nil)
+    def view(region : Indexable? = nil) : View(T)
       # TODO: Try to infer T from B?
       View.of(self, region)
     end
 
-    def view(*region)
+    def view(*region) : View(T)
       view(region)
     end
 
-    def process(&block : (T -> R)) forall R
+    def process(&block : (T -> R)) : ProcView(T, R) forall R
       process(block)
     end
 
-    def process(proc : Proc(T -> R))
+    def process(proc : Proc(T -> R)) : ProcView(T, R) forall R
       ProcView.of(self, proc)
     end
 
@@ -253,6 +237,7 @@ module Lattice
       if shape_internal != other.shape_internal
         raise DimensionError.new("Cannot perform elementwise operation {{name.id}}: shapes #{other.shape_internal} of other and #{shape_internal} of self do not match")
       end
+      
       map_with_coord do |elem, coord|
         elem == other.unsafe_fetch_element(coord)
       end
@@ -260,11 +245,9 @@ module Lattice
 
     def hash(hasher)
       hasher = shape_internal.hash(hasher)
-
       each do |el|
         hasher = elem.hash(hasher)
       end
-      
       hasher
     end
 
@@ -288,7 +271,7 @@ module Lattice
         def {{name.id}}(other)
           map &.{{name.id}} other
         end
-      {% end %} 
+      {% end %}
 
       {% for name in %w(- + ~) %}
         def {{name.id}}

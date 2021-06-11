@@ -3,6 +3,10 @@ require "json"
 require "../n_dim/*"
 require "../exceptions/*"
 require "./buffer_utils.cr"
+require "../type_aliases.cr"
+
+alias IndexType = Int32
+alias Shape = Array(IndexType)
 
 module Lattice
   # An `{{@type}}` is a multidimensional array for any arbitrary type.
@@ -41,9 +45,9 @@ module Lattice
         dim
       end
 
-      @axis_strides = NArray.axis_strides(@shape)
-
       num_elements = shape.product.to_i32
+      @axis_strides = NArray.axis_strides(@shape)
+      
       @buffer = Slice(T).new(num_elements) { |i| yield i }
     end
 
@@ -188,7 +192,7 @@ module Lattice
       return self.unsafe_fetch_region(region)
     end    
 
-    fit([1, 2, 3], align: {1 => 5}, pad_with: nil)
+    # fit([1, 2, 3], align: {1 => 5}, pad_with: nil)
     
     def fit(new_shape, *, align : Hash(Int32, NArray::Alignment | Int32)? = nil, pad_with value = nil)
       if new_shape.size != @shape.size
@@ -260,7 +264,7 @@ module Lattice
     end
 
     def size : Int32
-      return @shape.product
+      return @buffer.size
     end
 
     # Creates a deep copy of this {{@type}};
@@ -398,7 +402,6 @@ module Lattice
       end
     end
 
-
     # Iterator overrides for buffer-based speedups
     
     # The default "each" with no iterator type passed is lexicographic.
@@ -411,8 +414,9 @@ module Lattice
       @buffer.each
     end
 
-    def each_with_coord(iter : CoordIterator = IndexedLexIterator)
-      BufferedRegionIterator.new(self, )
+    # TODO????
+    def each_with_coord(iter : CoordIterator.class = IndexedLexIterator)
+      BufferedRegionIterator.new(self, iter: iter)
     end
 
     def each_with_index(&block : T, Int32 ->)

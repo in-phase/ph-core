@@ -30,7 +30,7 @@ module Lattice
         self.new(first, last, step, size)
       end
 
-      def initialize(shape, region : Array(RegionHelpers::SteppedRange)? = nil, reverse : Bool = false)
+      def initialize(shape, region : Array(SteppedRange)? = nil, reverse : Bool = false)
         @first, @last, @step, @size = CoordIterator.iteration_params(shape, region)
         @empty = (@size == 0)
         reset

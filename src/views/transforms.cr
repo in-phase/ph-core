@@ -170,7 +170,7 @@ module Lattice
 
   struct RegionTransform < CoordTransform
     # each of these has size = dimensions
-    @region : Array(RegionHelpers::SteppedRange)
+    @region : Array(SteppedRange)
     @buffer : Array(Int32)
 
     def initialize(@region)
@@ -197,7 +197,7 @@ module Lattice
       @buffer
     end
 
-    protected def local_region_to_srcframe(region) : Array(RegionHelpers::SteppedRange)
+    protected def local_region_to_srcframe(region) : Array(SteppedRange)
       @region.map_with_index { |range, dim| range.compose(region[dim]) }
     end
   end
