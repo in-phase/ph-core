@@ -1,64 +1,8 @@
-# require "../type_aliases.cr"
-require "../stepped_range.cr"
-
 module Lattice
-  # A set of methods to manage region specifiers.
-  module RegionHelpers
-
-  Region -> collection of Coords
-  module 
-    extend self
-
-    # coord
-    # region == NRang
-    
-    coooord reegion
-    T chuuunk
-
-    nrange
-    
-    regan
-
-    get_chunk(region)
-
-    get_chunk(region)
-
-    region, chunk
-
-    
-
-
+  module RegionUtil
     # alias RangeSpecifier = Int32 | Range(Int32?, Int32? | Range(Int32?, Int32))
 
-    # TODO: define "canonical form" of coord/region/index somewhere visible and easy to access.
-
     # For a given axis length `size`, a "canonical index" `idx` is `0 <= idx < size`.
-    # For a given axis length `size`, a "canonical range" `range` obeys the following:
-    # - Stored as a `SteppedRange` object
-    # - `range.begin` and `range.end` are canonical indices for an axis of length `size`
-    # - `range.size >= 0` and represents the number of elements that would be iterated through
-    # - `range.begin + (range.size * range.step) == range.end`. In particular this means:
-    #    -
-    # - If empty (no elements spanned), then all of `range.size, range.step, range.begin, range.end` are 0.
-
-    # For a given shape, a "canonical region"
-    # -
-
-    def has_index?(index, size)
-      index >= -size && index < size
-    end
-
-    # Checks if `index` is a valid index along `axis` for an array-like object with dimensions specified by `shape`.
-    def has_index?(index, shape, axis)
-      has_index?(index, shape[axis])
-    end
-
-    # Checks if `coord` is a valid coordinate for an array-like object with dimensions specified by `shape`.
-    # A coord is a list (Enumerable) of integers specifying an index along each axis in `shape`.
-    def has_coord?(coord, shape)
-      return false if coord.size != shape.size
-      coord.to_a.map_with_index { |index, axis| has_index?(index, shape, axis) }.all?
-    end
 
     # Checks if `region` is a valid region specifier for an array-like object with dimensions specified by `shape`.
     # A region specifier (RS) is a list of integers and ranges specifying an index, or set of indices, along
@@ -70,37 +14,6 @@ module Lattice
         return false
       end
       true
-    end
-
-    # Returns the canonical (positive) form of `index` along a particular `axis` of `shape`.
-    # Throws an `IndexError` if `index` is out of range of `shape` along this axis.
-    def canonicalize_index(index, shape, axis)
-      canonicalize_index(index, shape[axis])
-    end
-
-    def canonicalize_index(index, size)
-      if !has_index?(index, size)
-        raise IndexError.new("Could not canonicalize index: #{index} is not a valid index for an axis of length #{size}.")
-      end
-      canonicalize_index_unsafe(index, size)
-    end
-
-    # Performs a conversion as in `#canonicalize_index`, but does not guarantee the result is actually a canonical index.
-    # This may be useful if additional manipulations must be performed on the result before use, but it is strongly advised
-    # that the index be validated before or after this method is called.
-    protected def canonicalize_index_unsafe(index, size : Int32)
-      if index < 0
-        return size + index
-      else
-        return index
-      end
-    end
-
-    # Converts a `coord` into canonical form, such that each index in `coord` is positive.
-    # Throws an `IndexError` if at least one index specified in `coord` is out of range for the
-    # corresponding axis of `shape`.
-    def canonicalize_coord(coord, shape) : Array(Int32)
-      coord.to_a.map_with_index { |index, axis| canonicalize_index(index, shape, axis).to_i32 }
     end
 
     def canonicalize_range(range, shape, axis) : SteppedRange
@@ -174,12 +87,6 @@ module Lattice
       end
     end
 
-    def region_from_coord(coord) : Array(SteppedRange)
-      coord.map do |idx|
-        SteppedRange.new(idx)
-      end
-    end
-
     def translate_shape(region_shape, coord, parent_shape) : Array(SteppedRange)
       top_left = canonicalize_coord(coord, parent_shape)
       top_left.map_with_index do |start, i|
@@ -192,7 +99,5 @@ module Lattice
         SteppedRange.new(range, Int32::MAX).trim(shape[i])
       end
     end
-
-    
   end
 end

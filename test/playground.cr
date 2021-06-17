@@ -49,41 +49,41 @@
 # end
 
 # def test(a : Int) : Int
-#     a
+# #     a
+# # end
+
+# # pp Test(Int32).new(1)
+# # pp test(2)
+
+# # require "../src/lattice"
+
+# # include Lattice
+
+# # narr = NArray.build([5, 3]) {|c,i| i}
+# # puts narr[2..3]
+
+# require "benchmark"
+
+# def test(region : Enumerable, last)
+#     return last
 # end
 
-# pp Test(Int32).new(1)
-# pp test(2)
+# def use_macro(*args : *U) forall U
+#     {% begin %}
+#         test([{% for i in 0...(U.size - 1) %}args[{{i}}] {% if i < U.size - 2 %}, {% end %}{% end %}], args.last)
+#     {% end %}
+# end
 
-# require "../src/lattice"
+# def use_runtime(*args)
+#     test(args[...-1].to_a, args.last)
+# end
 
-# include Lattice
+# Benchmark.ips do |x|
+#     x.report("using macro") do
+#         use_macro(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+#     end
 
-# narr = NArray.build([5, 3]) {|c,i| i}
-# puts narr[2..3]
-
-require "benchmark"
-
-def test(region : Enumerable, last)
-    return last
-end
-
-def use_macro(*args : *U) forall U
-    {% begin %}
-        test([{% for i in 0...(U.size - 1) %}args[{{i}}] {% if i < U.size - 2 %}, {% end %}{% end %}], args.last)
-    {% end %}
-end
-
-def use_runtime(*args)
-    test(args[...-1].to_a, args.last)
-end
-
-Benchmark.ips do |x|
-    x.report("using macro") do
-        use_macro(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
-    end
-
-    x.report("using runtime") do
-        use_runtime(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
-    end
-end
+#     x.report("using runtime") do
+#         use_runtime(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+#     end
+# end

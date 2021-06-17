@@ -2,6 +2,15 @@ require "./n_dim/region_helpers"
 
 module Lattice
 
+    # For a given axis length `size`, a "canonical range" `range` obeys the following:
+    # - Stored as a `SteppedRange` object
+    # - `range.begin` and `range.end` are canonical indices for an axis of length `size`
+    # - `range.size >= 0` and represents the number of elements that would be iterated through
+    # - `range.begin + (range.size * range.step) == range.end`. In particular this means:
+    #    -
+    # - If empty (no elements spanned), then all of `range.size, range.step, range.begin, range.end` are 0.
+
+
     # Stores similar information to a StepIterator, which (as of Crystal 0.36) have issues of uncertain types and may change behaviour in the future.
     # To avoid compatibility issues we define our own struct here.
     struct SteppedRange
