@@ -21,9 +21,7 @@ module Lattice::MultiIndexable
 
       property brackets : Array(Tuple(String, String))
 
-      @[YAML::Field(converter: YAML::ArrayConverter(
-          Lattice::MultiIndexable::Formatter::Settings::ColorConverter
-      ))]
+      @[YAML::Field(converter: YAML::ArrayConverter(Lattice::MultiIndexable::Formatter::Settings::ColorConverter))]
       property colors : Array(Colorize::ColorRGB | Symbol)
 
       @[YAML::Field(key: "collapse_brackets_after")]
@@ -41,12 +39,12 @@ module Lattice::MultiIndexable
       # TODO: document properly once this is set in stone
       # tries to read from LATTICE_CONFIG_DIR - if the file isn't there,
       # reads from XDG_CONFIG_DIR/lattice. if still not there, tries ~/.config
-      def self.user_settings() : self?
+      def self.user_settings : self?
         return nil if @@disable_user_settings
         return @@cached_user_settings if @@cached_user_settings
 
         if dir = ENV["LATTICE_CONFIG_DIR"]?
-            path = (Path[dir] / USER_CONFIG_FILENAME).expand(home: true)
+          path = (Path[dir] / USER_CONFIG_FILENAME).expand(home: true)
 
           if File.exists?(path)
             return @@cached_user_settings = from_yaml(File.read(path))
@@ -84,23 +82,23 @@ module Lattice::MultiIndexable
       class ColorConverter
         # NOTE: I tried generating this with macros, but nothing was
         # as effective as just hardcoding it.
-        COLOR_MAP = {"default" => :default,
-                     "black" => :black,
-                     "red" => :red,
-                     "green" => :green,
-                     "yellow" => :yellow,
-                     "blue" => :blue,
-                     "magenta" => :magenta,
-                     "cyan" => :cyan,
-                     "light_gray" => :light_gray,
-                     "dark_gray" => :dark_gray,
-                     "light_red" => :light_red,
-                     "light_green" => :light_green,
-                     "light_yellow" => :light_yellow,
-                     "light_blue" => :light_blue,
+        COLOR_MAP = {"default"       => :default,
+                     "black"         => :black,
+                     "red"           => :red,
+                     "green"         => :green,
+                     "yellow"        => :yellow,
+                     "blue"          => :blue,
+                     "magenta"       => :magenta,
+                     "cyan"          => :cyan,
+                     "light_gray"    => :light_gray,
+                     "dark_gray"     => :dark_gray,
+                     "light_red"     => :light_red,
+                     "light_green"   => :light_green,
+                     "light_yellow"  => :light_yellow,
+                     "light_blue"    => :light_blue,
                      "light_magenta" => :light_magenta,
-                     "light_cyan" => :light_cyan,
-                     "white" => :white}
+                     "light_cyan"    => :light_cyan,
+                     "white"         => :white}
 
         def self.from_yaml(ctx : YAML::ParseContext, node : YAML::Nodes::Node) : Symbol | Colorize::ColorRGB
           unless node.is_a?(YAML::Nodes::Scalar)
@@ -120,9 +118,9 @@ module Lattice::MultiIndexable
           end
 
           node.raise <<-MSG
-            Expected #{(COLOR_MAP.keys.map &.inspect).join(", ")}, \
-            or an RGB hex string, not #{node.value.inspect}. \
-            #{"Recall that '#' starts a comment in YAML, and should be \
+            Expected #{(COLOR_MAP.keys.map &.inspect).join(", ")}, 
+            or an RGB hex string, not #{node.value.inspect}. 
+            #{"Recall that '#' starts a comment in YAML, and should be 
             omitted from your color codes." if node.value.empty?}
           MSG
 

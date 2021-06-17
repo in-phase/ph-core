@@ -1,32 +1,28 @@
 require "yaml"
 require "json"
 
-
 alias Any = YAML::Serializable | JSON::Serializable | Int32 | String
 
 class Wrapper(T)
-
-    # We shall never speak of this method
-    def sample : T?
-        {% if T.name == "Int32" %}
-            return 3
-        {% end %}
-        {% if T.name == "String" %}
-            return "hi"
-        {% end %}
-        {% if T.name == "Float64" %}
-            return 0f64
-        {% end %}
-    end
+  # We shall never speak of this method
+  def sample : T?
+    {% if T.name == "Int32" %}
+      return 3
+    {% end %}
+    {% if T.name == "String" %}
+      return "hi"
+    {% end %}
+    {% if T.name == "Float64" %}
+      return 0f64
+    {% end %}
+  end
 end
 
 class MixedArray(T)
+  # https://github.com/crystal-lang/crystal/issues/4039
+  # ^ the issue we ran into earlier (unable to infer type of @data inside a macro). TL;DR it's known and they don't consider it a bug.
 
-    # https://github.com/crystal-lang/crystal/issues/4039
-    # ^ the issue we ran into earlier (unable to infer type of @data inside a macro). TL;DR it's known and they don't consider it a bug.
-
-
-    macro extract(marr, *symbols)
+  macro extract(marr, *symbols)
 
         # This sorta works - but using "sample" still feels iffy
         {% begin %}
@@ -38,8 +34,8 @@ class MixedArray(T)
         {% end %}
     end
 
-    # possible to make these on construction time? This may or may not help: https://github.com/crystal-lang/crystal/issues/6028
-    macro method_missing(call)
+  # possible to make these on construction time? This may or may not help: https://github.com/crystal-lang/crystal/issues/6028
+  macro method_missing(call)
         def {{call.name}}
 
             \{% for i in (0...T.size) %} 
@@ -53,12 +49,12 @@ class MixedArray(T)
         end
     end
 
-    # For syntactic symmetry with extract, which can't be an instance method
-    def self.join(a, b)
-        a.join(b)
-    end
+  # For syntactic symmetry with extract, which can't be an instance method
+  def self.join(a, b)
+    a.join(b)
+  end
 
-    macro new(args)
+  macro new(args)
 
         def initialize
         end
@@ -70,15 +66,15 @@ class MixedArray(T)
         end
     end
 
-    def join(other : B) forall B
-        {%begin %}
+  def join(other : B) forall B
+    {% begin %}
             {% if !(B < MixedArray) %}
                 {{raise "Can only join another MixedArray"}}
             {% end %}
-        {% end%}
+        {% end %}
 
-        # incredibly, it seems they forgive line breaks and trailing commas here!
-        {% begin %}
+    # incredibly, it seems they forgive line breaks and trailing commas here!
+    {% begin %}
             MixedArray({
                 {% for i in (0...T.size) %} 
                     {{T.keys[i]}}: {{T[T.keys[i]]}} , 
@@ -87,12 +83,9 @@ class MixedArray(T)
                     {{B.type_vars[0].keys[i]}}: {{B.type_vars[0][B.type_vars[0].keys[i]]}} , 
                 {% end %}    
             }).new
-        {% end %} 
-    end
-
+        {% end %}
+  end
 end
-
-
 
 # puts String < JSON::Serializable # => false. Same for YAML
 # puts String < Any # => true
@@ -109,6 +102,6 @@ joined = one.join(two)
 
 puts joined
 
-#puts one.name
-#puts one.birthday
+# puts one.name
+# puts one.birthday
 puts MixedArray.extract(joined, "age", :birthday) # StringLiterals and SymbolLiterals work

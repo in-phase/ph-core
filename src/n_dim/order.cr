@@ -1,8 +1,7 @@
 module Lattice
-
   # struct MyOrder
 
-  #   getter iter_type : MultiIndexable::RegionIterator.class
+  #   getter iter_type : MultiIndexable::ElemAndCoordIterator.class
 
   #   # Converts a coord in this order to a coord in Lex.
   #   @converter = Proc(Array(Int32), Array(Int32))
@@ -16,8 +15,7 @@ module Lattice
   #   def convert(other : MyOrder)
   #   end
   # end
-  
-  
+
   # According to the link below, these shorthands are used in lieu of
   # lexicographic, colexicographic, and their reverse forms.
   # https://en.wikiversity.org/wiki/Lexicographic_and_colexicographic_order
@@ -32,7 +30,7 @@ module Lattice
       o == REV_LEX || o == REV_COLEX
     end
 
-    def self.colex? (o)
+    def self.colex?(o)
       o == COLEX || o == REV_COLEX
     end
 
@@ -43,14 +41,14 @@ module Lattice
     # return FASTEST as the composition.
     def self.compose(o1 : Order, o2 : Order) : Order
       return FASTEST if o1 == FASTEST || o2 == FASTEST
-      
+
       if reverse?(o1) ^ reverse?(o2)
         if colex?(o1) ^ colex?(o2)
           return REV_COLEX
         else
           return REV_LEX
         end
-      else 
+      else
         if colex?(o1) ^ colex?(o2)
           return COLEX
         else

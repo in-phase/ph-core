@@ -32,13 +32,13 @@ narr = NArray.build([3, 3]) { |c, i| i }
 
 # Cursed compositions
 
-#.view(2..0, 0..-2) # .transpose.view(.., 0...1).transpose
+# .view(2..0, 0..-2) # .transpose.view(.., 0...1).transpose
 narr = NArray.build([3, 3]) { |c, i| i }
-whoa = View.of(narr) 
+whoa = View.of(narr)
 whoa[0, 0] = 5
 
 processed = whoa.process do |el|
-    el ** 2
+  el ** 2
 end
 
 puts processed, "\n\n"

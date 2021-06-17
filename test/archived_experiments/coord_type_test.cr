@@ -52,8 +52,6 @@ matrix[1, 2] # this should work
 # matrix.get [1, 2, 3] # this should runtime error
 # matrix[1, 2, 3] # this should give a compile error
 
-
-
 # Notes for Matrix:
 # extend NArray
 # basic compiler errors on construction, getters if dimensions > 2
@@ -61,4 +59,3 @@ matrix[1, 2] # this should work
 # convenience methods using 2d language get_row, get_column, rows
 # go through NArray and see if things don't make sense for 2d
 # optimizers (esp re. things with buffer strides)
-

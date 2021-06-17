@@ -1,6 +1,12 @@
 require "yaml"
 require "json"
 require "../n_dim/*"
+require "../exceptions/*"
+require "./buffer_utils.cr"
+require "../type_aliases.cr"
+
+alias IndexType = Int32
+alias Shape = Array(IndexType)
 
 module Lattice
   # An `{{@type}}` is a multidimensional array for any arbitrary type.
@@ -39,9 +45,9 @@ module Lattice
         dim
       end
 
-      @axis_strides = NArray.axis_strides(@shape)
-
       num_elements = shape.product.to_i32
+      @axis_strides = NArray.axis_strides(@shape)
+      
       @buffer = Slice(T).new(num_elements) { |i| yield i }
     end
 
@@ -91,8 +97,9 @@ module Lattice
     #  [4]]
     # ```
     def self.build(shape, &block : Array(Int32), Int32 -> T)
+      coord_iter = IndexedLexIterator.new(shape)
       {{@type}}.new(shape) do |idx|
-        yield index_to_coord(idx, shape), idx
+        yield *(coord_iter.unsafe_next_with_index)
       end
     end
 
@@ -161,17 +168,55 @@ module Lattice
     # core
     # pad(0, {0 => {2, 2}, 1 => {3, 4}, -1 => {0, 5}})
     def pad(value, amounts : Hash(Int32, Tuple(Int32, Int32)))
+      # figure out the resulting shape and alignment
+      # pad(0, {0 => {2, 2}, 1 => {3, 4}, -1 => {0, 5}})
+      # [5, 5, 5] -> [4 + 5, 7 + 5, 5 + 5]
+      # amounts.transform_values { |value| value[0] }
+      fit()
     end
 
-    def fit(shape, pad_with value, align : Hash(Int32, NArray::Alignment | Int32))
+    # This version requires you are only <= on each axis; cannot pad
+    def fit(new_shape, *, align : Hash(Int32, NArray::Alignment | Int32))
+      # If the new shape is larger (at all), you need to have provided a pad_with value
+      @shape.each_with_index do |size, idx|
+        if size > new_shape[idx]
+
+        end
+      end
+
+      # move this to where applicable
+      raise "Can't fit array: provided shape is larger that shape of self. Provide a `pad_with` argument if padding is desired."
+
+      # if only shrinking: value is not needed, can just take a region
+      # compute region based on align
+      return self.unsafe_fetch_region(region)
+    end    
+
+    # fit([1, 2, 3], align: {1 => 5}, pad_with: nil)
+    
+    def fit(new_shape, *, align : Hash(Int32, NArray::Alignment | Int32)? = nil, pad_with value = nil)
+      if new_shape.size != @shape.size
+        raise "Cannot not fit a #{@shape.size} dimensional {{@type}} into a #{new_shape.size} dimensional shape. Consider calling `reshape` if you wish to change dimensionality."
+      end
+      # otherwise: 
     end
 
     def pad!
     end
 
     def fit!
+      # implement for real
     end
-    
+
+    # def fit
+    #   clone_but_cast_to().fit!
+    # end
+
+    # protected fit_buffer()
+    # end
+
+    # def self.fit(narr : NArray(T), ..., value : U) : NArray(T | U) forall U
+
     # Requires that shape is equal to coord + self.shape in each dimension
     protected def unsafe_pad(new_shape, value, coord)
       padded = NArray.fill(new_shape, value.as(T))
@@ -219,7 +264,7 @@ module Lattice
     end
 
     def size : Int32
-      return @shape.product
+      return @buffer.size
     end
 
     # Creates a deep copy of this {{@type}};
@@ -278,65 +323,24 @@ module Lattice
       equals?(other) { |x, y| x == y }
     end
 
-    # Convert from n-dimensional indexing to a buffer location.
-    def coord_to_index(coord) : Int32
-      coord = RegionHelpers.canonicalize_coord(coord, @shape)
-      {{@type}}.coord_to_index_fast(coord, @shape, @axis_strides)
-    end
-
-    # TODO: Talk about what this should be named
-    def self.coord_to_index(coord, shape) : Int32
-      coord = RegionHelpers.canonicalize_coord(coord, shape)
-      steps = axis_strides(shape)
-      {{@type}}.coord_to_index_fast(coord, shape, steps)
-    end
-
-    # Assumes coord is canonical
-    def self.coord_to_index_fast(coord, shape, axis_strides) : Int32
-      begin
-        index = 0
-        coord.each_with_index do |elem, idx|
-          index += elem * axis_strides[idx]
-        end
-        index
-      rescue exception
-        raise IndexError.new("Cannot convert coordinate to index: the given index is out of bounds for this {{@type}} along at least one dimension.")
-      end
-    end
-
-    # Convert from a buffer location to an n-dimensional coord
-    def index_to_coord(index) : Array(Int32)
-      {{@type}}.index_to_coord(index, @shape)
-    end
-
-    # OPTIMIZE: This could (maybe) be improved with use of `axis_strides`
-    def self.index_to_coord(index, shape) : Array(Int32)
-      if index > shape.product
-        raise IndexError.new("Cannot convert index to coordinate: the given index is out of bounds for this {{@type}} along at least one dimension.")
-      end
-      coord = Array(Int32).new(shape.size, 0)
-      shape.reverse.each_with_index do |length, dim|
-        coord[dim] = index % length
-        index //= length
-      end
-      coord.reverse
-    end
-
-    # Copies the elements in `region` to a new `{{type}}`, assuming that `region` is in canonical form and in-bounds for this `{{type}}`.
+    # Copies the elements in `region` to a new `{{@type}}`, assuming that `region` is in canonical form and in-bounds for this `{{@type}}`.
     # For full specification of canonical form see `RegionHelpers` documentation. TODO: make this actually happen
     def unsafe_fetch_region(region)
       shape = RegionHelpers.measure_canonical_region(region)
 
       # TODO optimize this! Any way to avoid double iteration?
-      buffer_arr = [] of T
-      narray_each_in_canonical_region(region) do |elem, idx, src_idx|
-        buffer_arr << elem
-      end
+      # buffer_arr = [] of T
+      # narray_each_in_canonical_region(region) do |elem, idx, src_idx|
+      #   buffer_arr << elem
+      # end
 
-      {{@type}}.new(shape) { |i| buffer_arr[i] }
+      # typeof(self).new(shape) { |i| buffer_arr[i] }
+      
+      iter = BufferedRegionIterator.new(self, region)
+      typeof(self).new(shape) { iter.unsafe_next_value }
     end
 
-    # Retrieves the element specified by `coord`, assuming that `coord` is in canonical form and in-bounds for this `{{type}}`.
+    # Retrieves the element specified by `coord`, assuming that `coord` is in canonical form and in-bounds for this `{{@type}}`.
     # For full specification of canonical form see `RegionHelpers` documentation. TODO: make this actually happen
     def unsafe_fetch_element(coord) : T
       @buffer.unsafe_fetch(NArray.coord_to_index_fast(coord, @shape, @axis_strides))
@@ -361,7 +365,7 @@ module Lattice
       step = new_shape.product
 
       new_buffer = @buffer[index * step, step]
-      {{@type}}.new(new_shape, new_buffer.clone)
+      typeof(self).new(new_shape, new_buffer.clone)
     end
 
     # Copies the elements from a MultiIndexable `src` into `region`, assuming that `region` is in canonical form and in-bounds for this `{{type}}`
@@ -381,6 +385,10 @@ module Lattice
       end
     end
 
+    def unsafe_set_element(coord : Enumerable, value : T)
+      @buffer[coord_to_index_fast(coord)] = value
+    end
+
     # replaces all values in a boolean mask with a given value
     def []=(bool_mask : NArray(Bool), value : T)
       if bool_mask.shape != @shape
@@ -394,11 +402,22 @@ module Lattice
       end
     end
 
-    # def each(&block : T ->)
-    #   each_with_index do |elem|
-    #     yield elem
-    #   end
-    # end
+    # Iterator overrides for buffer-based speedups
+    
+    # The default "each" with no iterator type passed is lexicographic.
+    # For other orders, default to MultiIndexable's implementation.
+    def each
+      @buffer.each
+    end
+
+    def fast
+      @buffer.each
+    end
+
+    # TODO????
+    def each_with_coord(iter : CoordIterator.class = IndexedLexIterator)
+      BufferedRegionIterator.new(self, iter: iter)
+    end
 
     def each_with_index(&block : T, Int32 ->)
       @buffer.each_with_index do |elem, idx|
@@ -459,7 +478,6 @@ module Lattice
 
     # TODO: Document
     def narray_each_in_canonical_region(region, axis = 0, read_index = 0, write_index = [0], &block : T, Int32, Int32 ->)
-
       current_range = region[axis]
 
       # Base case - yield the scalars in a subspace
@@ -484,20 +502,6 @@ module Lattice
           block.call(a, b, c)
         end
       end
-    end
-
-    # Given an array of step sizes in each coordinate axis, returns the offset in the buffer
-    # that a step of that size represents.
-    # The buffer index of a multidimensional coordinate, x, is equal to x dotted with axis_strides
-    def self.axis_strides(shape)
-      ret = shape.clone
-      ret[-1] = 1
-
-      ((ret.size - 2)..0).step(-1) do |idx|
-        ret[idx] = ret[idx + 1] * shape[idx + 1]
-      end
-
-      ret
     end
 
     # Given a list of `{{@type}}`s, returns the smallest shape array in which any one of those `{{@type}}s` can be contained.
@@ -529,7 +533,6 @@ module Lattice
       first = narrs.to_a.pop
       first.compatible?(narrs, axis: axis)
     end
-    
 
     def <<(other : self) : self
       push(other)
@@ -539,8 +542,8 @@ module Lattice
     def push(*others : self) : self
       raise DimensionError.new("Cannot concatenate these arrays along axis #{axis}: shapes do not match") if !compatible?(*others, axis: axis)
 
-      concat_size = size + others.sum {|narr| narr.size}
-      
+      concat_size = size + others.sum { |narr| narr.size }
+
       full_ptr = Pointer(T).malloc(concat_size)
       full_ptr.move_from(@buffer.to_unsafe, size)
       ptr = full_ptr + size
@@ -555,11 +558,10 @@ module Lattice
         ptr += narr.size
       end
 
-      @shape[0] += others.sum{|narr| narr.shape[0]}
+      @shape[0] += others.sum { |narr| narr.shape[0] }
       @buffer = Slice.new(full_ptr, concat_size)
       self
     end
-
 
     def concatenate(*others, axis = 0) : self
       self.new *(narrs[0].concatenate_to_slice(*narrs, axis: axis))
@@ -579,16 +581,16 @@ module Lattice
     protected def concatenate_to_slice(*narrs, axis = 0) : Tuple(Array(Int32), Slice(T))
       raise DimensionError.new("Cannot concatenate these arrays along axis #{axis}: shapes do not match") if !self.compatible?(*narrs, axis: axis)
 
-      concat_size = narrs.sum {|narr| narr.size}
+      concat_size = narrs.sum { |narr| narr.size }
       concat_shape = @shape.dup
-      concat_shape[axis] = narrs.sum { |narr| narr.shape[axis]}
+      concat_shape[axis] = narrs.sum { |narr| narr.shape[axis] }
 
       partial_chunk_size = @axis_strides[axis]
-      chunk_sizes = narrs.map {|narr| narr.shape[axis] * partial_chunk_size }
+      chunk_sizes = narrs.map { |narr| narr.shape[axis] * partial_chunk_size }
       num_chunks = concat_shape[...axis].product
 
       values = Array(T).new(initial_capacity: concat_size)
-      iters = narrs.map {|narr| narr.each }
+      iters = narrs.map { |narr| narr.each }
 
       num_chunks.times do
         iters.each_with_index do |narr_iter, i|
@@ -599,7 +601,6 @@ module Lattice
       end
       {concat_shape, Slice.new(values.to_unsafe, values.size)}
     end
-
 
     # TODO: Update documentation. I (seth) rewrote this function to make it validate the shape fully.
     # documentation doesn't currently reflect that
@@ -669,7 +670,7 @@ module Lattice
     end
 
     def self.new(pull : JSON::PullParser)
-        {% begin %}
+      {% begin %}
         shape = [] of Int32
         elements = [] of {{ @type.type_vars[0] }}
 
@@ -766,70 +767,69 @@ module Lattice
     end
 
     # TODO: compare this iterator, generic MultiIndexable iterator, and old direct each
-    class BufferedLexRegionIterator(A,T) < RegionIterator(A,T)
+    #     class BufferedLexRegionIterator(A,T) < ElemAndCoordIterator(A,T)
 
-      @buffer_index : Int32
-      @buffer_step : Array(Int32)
+    #       @buffer_index : Int32
+    #       @buffer_step : Array(Int32)
 
-      def initialize(@narr : A, region = nil, reverse = false)
-        super
-        @buffer_step = @narr.axis_strides
-        @buffer_index = @buffer_step.map_with_index {|e, i| e * @first[i]}.sum
-        @buffer_index = setup_buffer_index(@buffer_index, @buffer_step, @step)
-      end
+    #       def initialize(@narr : A, region = nil, reverse = false)
+    #         super
+    #         @buffer_step = @narr.axis_strides
+    #         @buffer_index = @buffer_step.map_with_index {|e, i| e * @first[i]}.sum
+    #         @buffer_index = setup_buffer_index(@buffer_index, @buffer_step, @step)
+    #       end
 
-      def setup_coord(coord, step)
-        coord[-1] -= step[-1]
-      end
+    #       def setup_coord(coord, step)
+    #         coord[-1] -= step[-1]
+    #       end
 
-      def setup_buffer_index(buffer_index, buffer_step, step)
-        buffer_index -= buffer_step[-1] * step[-1]
-        buffer_index
-      end
+    #       def setup_buffer_index(buffer_index, buffer_step, step)
+    #         buffer_index -= buffer_step[-1] * step[-1]
+    #         buffer_index
+    #       end
 
-      def unsafe_next
-        (@coord.size - 1).downto(0) do |i| # ## least sig .. most sig
-          if @coord[i] == @last[i]
-            @buffer_index -= (@coord[i] - @first[i]) * @buffer_step[i]
-            @coord[i] = @first[i]
-            return stop if i == 0 # most sig
-          else
-            @coord[i] += @step[i]
-            @buffer_index += @buffer_step[i] * @step[i]
-            break
-          end
-        end
-        {@narr.buffer.unsafe_fetch(@buffer_index), @coord}
-      end
-    end
+    #       def unsafe_next
+    #         (@coord.size - 1).downto(0) do |i| # ## least sig .. most sig
+    #           if @coord[i] == @last[i]
+    #             @buffer_index -= (@coord[i] - @first[i]) * @buffer_step[i]
+    #             @coord[i] = @first[i]
+    #             return stop if i == 0 # most sig
+    #           else
+    #             @coord[i] += @step[i]
+    #             @buffer_index += @buffer_step[i] * @step[i]
+    #             break
+    #           end
+    #         end
+    #         {@narr.buffer.unsafe_fetch(@buffer_index), @coord}
+    #       end
+    #     end
 
+    #     class BufferedColexRegionIterator(A,T) < BufferedLexRegionIterator(A,T)
 
-    class BufferedColexRegionIterator(A,T) < BufferedLexRegionIterator(A,T)
+    #       def setup_coord(coord, step)
+    #         coord[0] -= step[0]
+    #       end
 
-      def setup_coord(coord, step)
-        coord[0] -= step[0]
-      end
+    #       def setup_buffer_index(buffer_index, buffer_step, step)
+    #         buffer_index -= buffer_step[0] * step[0]
+    #         buffer_index
+    #       end
 
-      def setup_buffer_index(buffer_index, buffer_step, step)
-        buffer_index -= buffer_step[0] * step[0]
-        buffer_index
-      end
+    #       def unsafe_next
+    #         0.upto(@coord.size - 1) do |i| # ## least sig .. most sig
+    #           if @coord[i] == @last[i]
+    #             @buffer_index -= (@coord[i] - @first[i]) * @buffer_step[i]
+    #             @coord[i] = @first[i]
+    #             return stop if i == @coord.size - 1 # most sig
+    #           else
+    #             @coord[i] += @step[i]
+    #             @buffer_index += @buffer_step[i] * @step[i]
+    #             break
+    #           end
+    #         end
+    #         {@narr.buffer.unsafe_fetch(@buffer_index), @coord}
+    #       end
 
-      def unsafe_next
-        0.upto(@coord.size - 1) do |i| # ## least sig .. most sig
-          if @coord[i] == @last[i]
-            @buffer_index -= (@coord[i] - @first[i]) * @buffer_step[i]
-            @coord[i] = @first[i]
-            return stop if i == @coord.size - 1 # most sig
-          else
-            @coord[i] += @step[i]
-            @buffer_index += @buffer_step[i] * @step[i]
-            break
-          end
-        end
-        {@narr.buffer.unsafe_fetch(@buffer_index), @coord}
-      end
-
-    end
+    #     end
   end
 end

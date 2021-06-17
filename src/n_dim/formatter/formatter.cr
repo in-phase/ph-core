@@ -16,6 +16,7 @@ module Lattice
 
       @settings : Settings
       @io : IO
+      @iter : ElemIterator(T)
 
       @shape : Array(Int32)
       @col = 0
@@ -42,7 +43,9 @@ module Lattice
 
       def initialize(narr : MultiIndexable(T), @io, @settings)
         @depth = 0
-        @iter = FormatIterator(MultiIndexable(T), T).new(narr)
+        @iter = ElemIterator.of(narr, iter: LexIterator)
+
+        # FormatIterator(MultiIndexable(T), T).new(narr)
         @shape = narr.shape
       end
 
@@ -56,7 +59,7 @@ module Lattice
             yield Flags::ELEM, idx
           end
 
-          @iter.skip(depth, size - max_count)
+          @iter.coord_iter.skip(depth, size - max_count)
           yield Flags::SKIP, -1
 
           right.times do |idx|
@@ -107,7 +110,7 @@ module Lattice
         else
           capped_iterator(depth, max_columns) do |flag|
             unless flag == Flags::SKIP
-              elem_length = @iter.unsafe_next_value.inspect.size
+              elem_length = @iter.unsafe_next.inspect.size
               max_length = {max_length, elem_length}.max
             end
           end
@@ -126,7 +129,7 @@ module Lattice
           end
         else
           @shape[depth].times do |i|
-            @io << @iter.unsafe_next_value
+            @io << @iter.unsafe_next
             @io << ", " unless i == @shape[depth] - 1
           end
         end
@@ -161,7 +164,7 @@ module Lattice
             if flag == Flags::SKIP
               @io << "..., "
             else
-              str = @iter.unsafe_next_value.inspect
+              str = @iter.unsafe_next.inspect
               # str = str.rjust(@cutoff_length, ' ')[0...@cutoff_length]
               str = str.rjust(@justify_length, ' ')
               @io << str
@@ -200,31 +203,6 @@ module Lattice
           newline(-1)
         end
         color_print(brackets[1] % idx, height)
-      end
-
-      class FormatIterator(A, T) < LexRegionIterator(A, T)
-        def skip(axis, amount) : Nil
-          @coord[axis] += amount + 1
-        end
-
-        def unsafe_next
-          (@coord.size - 1).downto(0) do |i| # ## least sig .. most sig
-            if @coord[i] == @last[i]
-              # dimension change
-              @coord[i] = @first[i]
-              return stop if i == 0 # most sig
-            else
-              @coord[i] += @step[i]
-              break
-            end
-          end
-
-          {@narr.unsafe_fetch_element(@coord), @coord}
-        end
-
-        def unsafe_next_value
-          self.next.unsafe_as(Tuple(T, Array(Int32)))[0]
-        end
       end
     end
 
