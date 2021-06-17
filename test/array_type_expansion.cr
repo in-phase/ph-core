@@ -27,23 +27,42 @@
 
 # puts narr.view.reverse.permute
 
-class Array(T)
-    getter buffer : Pointer(T)
-    getter capacity : Int32
+# class Array(T)
+#     getter buffer : Pointer(T)
+#     getter capacity : Int32
 
-    def clone_but_change_type(new_type)
-        Array.new(size) do |idx|
-            self.[idx].unsafe_as(T | new_type)
-        end
-    end
+#     def clone_but_change_type(klass)
+#         union_id = [Array.mock_type(T), Array.mock_type(klass)][0].crystal_type_id.to_u64
 
+#         Array.new(size) do |idx|
+#             {union_id, self.[idx]}.unsafe_as(T | klass)
+#         end
+#     end
 
-    def cast_to(new_type)
-        Array.new(size) do |idx|
-            self.[idx].unsafe_as(new_type)
-        end
-    end
-end
+#     def self.mock_type(klass : U.class) : U forall U
+#         case klass
+#         when Int
+#             0.unsafe_as(klass)
+#         else
+#             klass.allocate
+#         end
+#     end
+# end
+
+# record A,
+#     integer : Int32
+
+# record B
+
+# val = [A.new(1)]
+# pp val
+
+# val2 = val.clone_but_change_type(B)
+# val2 << B.new
+# puts typeof(val2)
+# pp val2
+
+# puts ["test"] + [1]
 
 
 # data = [3, 5, "Hi"]
@@ -81,17 +100,28 @@ end
 
 # If it has a type id, there are 8 bytes preceeding?
 
-struct MyStruct
-end
+# puts "plain integer"
+# val = 0xabababab
+# print_binary(pointerof(val), 12)
 
-val = MyStruct.new
-print_binary(pointerof(val), 20)
-puts val.crystal_type_id
+# puts "Array access with hardcoded int16"
+# val2 = [val, 0i16][0] # val.unsafe_as(Int32 | Int16)
+# print_binary(pointerof(val2), 12)
 
+# puts "unsafe_as Int32|Int16"
+# val3 = val.unsafe_as(Int32 | Int16)
+# print_binary(pointerof(val3), 12)
 
-mystr = MyStruct.new
-print_binary(pointerof(mystr), 20)
-puts val.crystal_type_id.to_s(base: 16)
+# puts "array access with fake instance"
+# val4 = [val, String.allocate][0]
+# print_binary(pointerof(val4), 12)
+
+# puts "synthetic value"
+# typeid = val4.crystal_type_id
+# val5 = {typeid.to_u64, val}
+# print_binary(pointerof(val5), 12)
+# puts val4.crystal_type_id
+# puts String | Int32
 
 # uval = 0x9987u16
 # val = 0xffeeu16
@@ -173,3 +203,38 @@ puts val.crystal_type_id.to_s(base: 16)
 #   # `shift` to let Array be used as a queue/deque.
  
 # #  00000001 00000000 00000000 00000000 00000010 00000000 00000000 00000000 00000011 00000000 00000000 00000000
+
+# int = [10i32, 20i32, 30i32]
+# str = ["hi", "hello", "goodbye"]
+
+# int_ptr = int.to_unsafe
+# str_ptr = str.to_unsafe
+
+# buffer = Pointer(Int32 | String).malloc(6)
+# buffer.copy_from(int_ptr, 3)
+# (buffer + 3).copy_from(str_ptr, 3)
+
+# puts Int32 < (Int32 | String)
+
+class Array(T)
+    def clone_with_other(klass : U.class) : Array(T | U) forall U
+        Array(T | U).build(size) do |buffer|
+            buffer.copy_from(@buffer, size)
+            size
+        end
+    end
+
+    def downcast(klass : U.class) : Array(U) forall U
+        Array(U).build(size * 8) do |buffer|
+            buffer.copy_from(@buffer.unsafe_as(Pointer(U)), size)
+            size * 8
+        end
+    end
+end
+
+arr = [1, 2]
+puts arr = arr.clone_with_other(String)
+# arr << "hi"
+# puts arr
+
+puts arr.downcast(Int32)
