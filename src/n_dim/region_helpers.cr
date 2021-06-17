@@ -4,7 +4,29 @@ require "../stepped_range.cr"
 module Lattice
   # A set of methods to manage region specifiers.
   module RegionHelpers
+
+  Region -> collection of Coords
+  module 
     extend self
+
+    # coord
+    # region == NRang
+    
+    coooord reegion
+    T chuuunk
+
+    nrange
+    
+    regan
+
+    get_chunk(region)
+
+    get_chunk(region)
+
+    region, chunk
+
+    
+
 
     # alias RangeSpecifier = Int32 | Range(Int32?, Int32? | Range(Int32?, Int32))
 

@@ -189,7 +189,7 @@ module Lattice
 
       # if only shrinking: value is not needed, can just take a region
       # compute region based on align
-      return self.unsafe_fetch_region(region)
+      return self.unsafe_fetch_chunk(region)
     end    
 
     # fit([1, 2, 3], align: {1 => 5}, pad_with: nil)
@@ -220,7 +220,7 @@ module Lattice
     # Requires that shape is equal to coord + self.shape in each dimension
     protected def unsafe_pad(new_shape, value, coord)
       padded = NArray.fill(new_shape, value.as(T))
-      padded.unsafe_set_region(RegionHelpers.translate_shape(@shape, coord), self)
+      padded.unsafe_set_chunk(RegionHelpers.translate_shape(@shape, coord), self)
       padded
     end
 
@@ -325,7 +325,7 @@ module Lattice
 
     # Copies the elements in `region` to a new `{{@type}}`, assuming that `region` is in canonical form and in-bounds for this `{{@type}}`.
     # For full specification of canonical form see `RegionHelpers` documentation. TODO: make this actually happen
-    def unsafe_fetch_region(region)
+    def unsafe_fetch_chunk(region)
       shape = RegionHelpers.measure_canonical_region(region)
 
       # TODO optimize this! Any way to avoid double iteration?
@@ -370,7 +370,7 @@ module Lattice
 
     # Copies the elements from a MultiIndexable `src` into `region`, assuming that `region` is in canonical form and in-bounds for this `{{type}}`
     # and the shape of `region` matches the shape of `src`.
-    def unsafe_set_region(region : Enumerable, src : MultiIndexable(T))
+    def unsafe_set_chunk(region : Enumerable, src : MultiIndexable(T))
       narray_each_in_canonical_region(region) do |elem, other_idx, this_idx|
         # @buffer[this_idx] = src.buffer[other_idx]
         # TODO: see if this is the best way! (Want it to be generalizable to MultiIndexable...)
@@ -379,7 +379,7 @@ module Lattice
     end
 
     # Sets each element in `region` to `value`, assuming that `region` is in canonical form and in-bounds for this `{{type}}`
-    def unsafe_set_region(region : Enumerable, value : T)
+    def unsafe_set_chunk(region : Enumerable, value : T)
       narray_each_in_canonical_region(region) do |elem, idx, buffer_idx|
         @buffer[buffer_idx] = value
       end

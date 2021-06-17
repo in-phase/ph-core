@@ -27,7 +27,7 @@ module Lattice
     # Copies the elements from a MultiIndexable `src` into `region`, assuming that `region` is in canonical form and in-bounds for this `{{@type}}`
     # and the shape of `region` matches the shape of `src`.
     # For full specification of canonical form see `RegionHelpers` documentation. TODO: make this actually happen
-    def unsafe_set_region(region : CanonicalRegion,  src : MultiIndexable(T))
+    def unsafe_set_chunk(region : CanonicalRegion,  src : MultiIndexable(T))
       LexIterator.new(shape_internal, region).each do |coord|
         unsafe_set_element(coord, unsafe_fetch_element(coord))
       end
@@ -35,7 +35,7 @@ module Lattice
     
     # Sets each element in `region` to `value`, assuming that `region` is in canonical form and in-bounds for this `{{@type}}`
     # For full specification of canonical form see `RegionHelpers` documentation. TODO: make this actually happen
-    def unsafe_set_region(region : CanonicalRegion, value : T)
+    def unsafe_set_chunk(region : CanonicalRegion, value : T)
       LexIterator.new(shape_internal, region).each do |coord|
         unsafe_set_element(coord, value)
       end
@@ -50,7 +50,7 @@ module Lattice
     # NOTE: changed name from 'value' to 'src' - approve?
     # Copies the elements from a MultiIndexable `src` into `region`.
     # Raises an error if `region` is out-of-bounds for this `{{@type}}` or if the shape of `region` does not match `src.shape`
-    def set_region(region : Indexable, src : MultiIndexable)
+    def set_chunk(region : Indexable, src : MultiIndexable)
       canonical_region = RegionHelpers.canonicalize_region(region, shape_internal)
       if !RegionHelpers.compatible_shapes(src.shape_internal, RegionHelpers.measure_canonical_region(canonical_region))
         raise DimensionError.new("Cannot substitute #{typeof(src)}: the given #{typeof(src)} has shape #{src.shape_internal}, but region #{region} has shape #{RegionHelpers.measure_canonical_region(canonical_region)}.")
@@ -63,22 +63,22 @@ module Lattice
 
     # Sets each element in `region` to `value`.
     # Raises an error if `region` is out-of-bounds for this `{{@type}}`.
-    def set_region(region : Indexable, value)
-      unsafe_set_region(RegionHelpers.canonicalize_region(region, shape_internal), value.as(T))
+    def set_chunk(region : Indexable, value)
+      unsafe_set_chunk(RegionHelpers.canonicalize_region(region, shape_internal), value.as(T))
     end
 
     def set_available(region : Indexable, value)
-      unsafe_set_region(RegionHelpers.trim_region(region, shape))
+      unsafe_set_chunk(RegionHelpers.trim_region(region, shape))
     end
 
-    # See `#set_region(region : Enumerable, value)`
+    # See `#set_chunk(region : Enumerable, value)`
     def []=(region : Indexable, value)
-      set_region(region, value)
+      set_chunk(region, value)
     end
 
     # These two should go last
     def []=(*args)
-      set_region(args[...-1].to_a, args.last)
+      set_chunk(args[...-1].to_a, args.last)
     end
 
     # In implementation phase:

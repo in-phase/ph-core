@@ -22,7 +22,7 @@ module Lattice
           when Stop
             return stop
           else
-            {@src.unsafe_fetch_region(region), region}
+            {@src.unsafe_fetch_chunk(region), region}
           end
         end
 
@@ -31,7 +31,7 @@ module Lattice
           when Stop
             return stop
           else
-            @src.unsafe_fetch_region(region)
+            @src.unsafe_fetch_chunk(region)
           end
         end
 

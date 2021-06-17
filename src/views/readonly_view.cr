@@ -88,7 +88,7 @@ module Lattice
       clone.reverse!
     end
 
-    def unsafe_fetch_region(region) : self
+    def unsafe_fetch_chunk(region) : self
       view(region)
     end
 

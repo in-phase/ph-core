@@ -23,7 +23,7 @@ module Lattice
 
     # Copies the elements in `region` to a new `{{@type}}`, assuming that `region` is in canonical form and in-bounds for this `{{@type}}`.
     # For full specification of canonical form see `RegionHelpers` documentation. TODO: make this actually happen
-    abstract def unsafe_fetch_region(region : CanonicalRegion)
+    abstract def unsafe_fetch_chunk(region : CanonicalRegion)
 
     # Retrieves the element specified by `coord`, assuming that `coord` is in canonical form and in-bounds for this `{{@type}}`.
     # For full specification of canonical form see `RegionHelpers` documentation. TODO: make this actually happen
@@ -98,8 +98,8 @@ module Lattice
     end
 
     # Copies the elements in `region` to a new `{{@type}}`, and throws an error if `region` is out-of-bounds for this `{{@type}}`.
-    def get_region(region : Indexable)
-      unsafe_fetch_region RegionHelpers.canonicalize_region(region, shape_internal)
+    def get_chunk(region : Indexable)
+      unsafe_fetch_chunk RegionHelpers.canonicalize_region(region, shape_internal)
     end
 
     # Retrieves the element specified by `coord`, and throws an error if `coord` is out-of-bounds for this `{{@type}}`.
@@ -111,29 +111,29 @@ module Lattice
       get_element(coord)
     end
 
-    def get_region(coord : Indexable, region_shape : Indexable)
-      get_region(RegionHelpers.translate_shape(region_shape, coord))
+    def get_chunk(coord : Indexable, region_shape : Indexable)
+      get_chunk(RegionHelpers.translate_shape(region_shape, coord))
     end
 
     def get_available(region : Indexable)
-      unsafe_get_region(RegionHelpers.trim_region(region, shape))
+      unsafe_get_chunk(RegionHelpers.trim_region(region, shape))
     end
 
     # Copies the elements in `region` to a new `{{@type}}`, and throws an error if `region` is out-of-bounds for this `{{@type}}`.
     def [](region : Indexable)
-      get_region(region)
+      get_chunk(region)
     end
 
     # Copies the elements in `region` to a new `{{@type}}`, or returns false if `region` is out-of-bounds for this `{{@type}}`.
     def []?(region : Indexable) : self?
       if RegionHelpers.has_region?(region, shape_internal)
-        get_region(region)
+        get_chunk(region)
       end
       false
     end
 
     {% begin %}
-      {% enumerable_functions = %w(get get_element get_region [] []? has_coord? has_region?) %}
+      {% enumerable_functions = %w(get get_element get_chunk [] []? has_coord? has_region?) %}
       {% for name in enumerable_functions %}
           # Tuple-accepting overload of `#{{name}}`.
           def {{name.id}}(*tuple)

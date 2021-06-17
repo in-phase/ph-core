@@ -4,10 +4,10 @@ end
 module MultiWritable(T)
   def []=(index, value : T)
     puts index, value
-    unsafe_set_region(value)
+    unsafe_set_chunk(value)
   end
 
-  abstract def unsafe_set_region(value : T)
+  abstract def unsafe_set_chunk(value : T)
 end
 
 class NArray(T)
@@ -20,7 +20,7 @@ class NArray(T)
     View(NArray(T), T).new(self)
   end
 
-  def unsafe_set_region(value)
+  def unsafe_set_chunk(value)
     @data << value
   end
 
@@ -66,9 +66,9 @@ class View(B, T)
     View(B, typeof(src.first)).new(src)
   end
 
-  def unsafe_set_region(value : T)
+  def unsafe_set_chunk(value : T)
     ensure_writable
-    @src.unsafe_set_region(value)
+    @src.unsafe_set_chunk(value)
   end
 
   def self.new(src : B)
@@ -93,7 +93,7 @@ class ProcessedView(B, T, R)
   include ViewObj(B, T, R)
   include MultiIndexable(R)
 
-  # def unsafe_set_region(value)
+  # def unsafe_set_chunk(value)
   #     puts "Why am I here"
   # end
 
