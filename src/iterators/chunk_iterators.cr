@@ -166,9 +166,9 @@ module Lattice
       end
 
       protected def compute_region(coord)
-        region = RegionHelpers.translate_shape(@chunk_shape, coord, @src_shape)
+        region = RegionUtil.translate_shape(@chunk_shape, coord, @src_shape)
         unless @fringe_behaviour == FringeBehaviour::DISCARD
-            region = RegionHelpers.trim_region(region, @src_shape)
+            region = RegionUtil.trim_region(region, @src_shape)
         end
         return region
       end

@@ -114,7 +114,7 @@ puts "New orders in buffered:         #{buffered_colex},
 
 puts "\nIterating a region:\n\n"
 
-region = RegionHelpers.canonicalize_region([3..15, 15..-3..3, 5..2..10, 5..10], shape)
+region = RegionUtil.canonicalize_region([3..15, 15..-3..3, 5..2..10, 5..10], shape)
 
 puts "Each in canonical region"
 

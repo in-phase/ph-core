@@ -59,7 +59,7 @@ module ReadUtils(T)
   include MultiIndexable(T)
 
   def unsafe_fetch_chunk(region)
-    shape = RegionHelpers.measure_canonical_region(region)
+    shape = RegionUtil.measure_canonical_region(region)
     iter = each_in_canonical_region(region)
 
     buffer = Slice(T).new(shape.product) do |idx|

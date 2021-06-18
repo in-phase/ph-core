@@ -49,7 +49,7 @@ module Lattice
         # This method is supposed to capture numeric objects. We avoid specifying type
         # explicitly so we can have the most interoperability.
         def self.new(index : Int, bound)
-          SteppedRange.new(RegionHelpers.canonicalize_index(index, bound))
+          SteppedRange.new(CoordUtil.canonicalize_index(index, bound))
         end
   
         protected def initialize(@begin, @end, @step)
@@ -117,9 +117,9 @@ module Lattice
         protected def self.canonicalize(start, stop, exclusive, bound, step = nil) : SteppedRange
           if !step
             # Infer endpoints normally, and determine iteration direction
-            start = start ? RegionHelpers.canonicalize_index(start, bound) : 0
+            start = start ? CoordUtil.canonicalize_index(start, bound) : 0
             if stop
-              temp_stop = RegionHelpers.canonicalize_index_unsafe(stop, bound)
+              temp_stop = CoordUtil.canonicalize_index_unsafe(stop, bound)
               step = (temp_stop - start >= 0) ? 1 : -1
             else
               temp_stop = bound - 1
@@ -127,8 +127,8 @@ module Lattice
             end
           else
             # Infer endpoints by step direction; and confirm step is compatible with existing endpoints
-            start = start ? RegionHelpers.canonicalize_index(start, bound) : (step > 0 ? 0 : bound - 1)
-            temp_stop = stop ? RegionHelpers.canonicalize_index_unsafe(stop, bound) : (step > 0 ? bound - 1 : 0)
+            start = start ? CoordUtil.canonicalize_index(start, bound) : (step > 0 ? 0 : bound - 1)
+            temp_stop = stop ? CoordUtil.canonicalize_index_unsafe(stop, bound) : (step > 0 ? bound - 1 : 0)
             if temp_stop - start != 0 && (temp_stop - start).sign != step.sign
               raise IndexError.new("Could not canonicalize range: Conflict between implicit direction of #{Range.new(start, stop, exclusive)} and provided step #{step}")
             end

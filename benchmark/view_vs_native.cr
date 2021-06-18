@@ -4,7 +4,7 @@ require "../src/lattice"
 include Lattice
 shape = [20, 20, 400]
 narr = NArray.fill(shape, 1)
-region = RegionHelpers.canonicalize_region([1.., 1..], shape)
+region = RegionUtil.canonicalize_region([1.., 1..], shape)
 samples = 40
 
 sums = [] of Int32

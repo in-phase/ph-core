@@ -6,8 +6,8 @@ arr = NArray.build([2, 3, 2, 3]) { |coord, index| index }
 small_arr = NArray.build([5, 5]) { |coord, index| index }
 
 region = [2..1, ..]
-canonical = RegionHelpers.canonicalize_region(region, [5, 5])
-canonical[1] = RegionHelpers::SteppedRange.new(1..2..4, 5)
+canonical = RegionUtil.canonicalize_region(region, [5, 5])
+canonical[1] = SteppedRange.new(1..2..4, 5)
 puts canonical
 
 puts "The NArray:"

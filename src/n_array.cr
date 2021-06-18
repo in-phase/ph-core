@@ -222,7 +222,7 @@ module Lattice
     # Requires that shape is equal to coord + self.shape in each dimension
     protected def unsafe_pad(new_shape, value, coord)
       padded = NArray.fill(new_shape, value.as(T))
-      padded.unsafe_set_chunk(RegionHelpers.translate_shape(@shape, coord), self)
+      padded.unsafe_set_chunk(RegionUtil.translate_shape(@shape, coord), self)
       padded
     end
 
@@ -294,7 +294,7 @@ module Lattice
       each_in_region(region) do |elem, idx, buffer_idx|
         mapping << buffer_idx
       end
-      shape = RegionHelpers.measure_region(region, @shape)
+      shape = RegionUtil.measure_region(region, @shape)
       step = @axis_strides[axis]
 
       slices = (0...@shape[axis]).map do |slice_number|
@@ -328,7 +328,7 @@ module Lattice
     # Copies the elements in `region` to a new `{{@type}}`, assuming that `region` is in canonical form and in-bounds for this `{{@type}}`.
     # For full specification of canonical form see `RegionHelpers` documentation. TODO: make this actually happen
     def unsafe_fetch_chunk(region)
-      shape = RegionHelpers.measure_canonical_region(region)
+      shape = RegionUtil.measure_canonical_region(region)
 
       # TODO optimize this! Any way to avoid double iteration?
       # buffer_arr = [] of T
@@ -356,7 +356,7 @@ module Lattice
     # TODO: Either make the type restriction here go away (it was getting called when indexing
     # with a single range), or remove this method entirely in favor of read only views
     def [](index : Int32) : self
-      index = RegionHelpers.canonicalize_index(index, @shape, axis = 0)
+      index = CoordUtil.canonicalize_index(index, @shape, axis = 0)
 
       if dimensions == 1
         new_shape = [1]
@@ -473,7 +473,7 @@ module Lattice
     # end
 
     def each_in_region(region, &block : T, Int32, Int32 ->)
-      region = RegionHelpers.canonicalize_region(region, @shape)
+      region = RegionUtil.canonicalize_region(region, @shape)
 
       narray_each_in_canonical_region(region, &block)
     end

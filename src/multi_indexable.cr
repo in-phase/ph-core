@@ -89,22 +89,22 @@ module Lattice
 
     # Checks that `coord` is in-bounds for this `{{@type}}`.
     def has_coord?(coord : Indexable) : Bool
-      RegionHelpers.has_coord?(coord, shape_internal)
+      CoordUtil.has_coord?(coord, shape_internal)
     end
 
     # Checks that `region` is in-bounds for this `{{@type}}`.
     def has_region?(region : Indexable) : Bool
-      RegionHelpers.has_region?(region, shape_internal)
+      RegionUtil.has_region?(region, shape_internal)
     end
 
     # Copies the elements in `region` to a new `{{@type}}`, and throws an error if `region` is out-of-bounds for this `{{@type}}`.
     def get_chunk(region : Indexable)
-      unsafe_fetch_chunk RegionHelpers.canonicalize_region(region, shape_internal)
+      unsafe_fetch_chunk RegionUtil.canonicalize_region(region, shape_internal)
     end
 
     # Retrieves the element specified by `coord`, and throws an error if `coord` is out-of-bounds for this `{{@type}}`.
     def get_element(coord : Indexable) : T
-      unsafe_fetch_element RegionHelpers.canonicalize_coord(coord, shape_internal)
+      unsafe_fetch_element CoordUtil.canonicalize_coord(coord, shape_internal)
     end
 
     def get(coord) : T
@@ -112,11 +112,11 @@ module Lattice
     end
 
     def get_chunk(coord : Indexable, region_shape : Indexable)
-      get_chunk(RegionHelpers.translate_shape(region_shape, coord))
+      get_chunk(RegionUtil.translate_shape(region_shape, coord))
     end
 
     def get_available(region : Indexable)
-      unsafe_get_chunk(RegionHelpers.trim_region(region, shape))
+      unsafe_get_chunk(RegionUtil.trim_region(region, shape))
     end
 
     # Copies the elements in `region` to a new `{{@type}}`, and throws an error if `region` is out-of-bounds for this `{{@type}}`.
@@ -126,7 +126,7 @@ module Lattice
 
     # Copies the elements in `region` to a new `{{@type}}`, or returns false if `region` is out-of-bounds for this `{{@type}}`.
     def []?(region : Indexable) : self?
-      if RegionHelpers.has_region?(region, shape_internal)
+      if RegionUtil.has_region?(region, shape_internal)
         get_chunk(region)
       end
       false

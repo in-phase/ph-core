@@ -29,13 +29,13 @@ module Lattice
 
       # Convert from n-dimensional indexing to a buffer location.
       def coord_to_index(coord) : Int32
-        coord = RegionHelpers.canonicalize_coord(coord, @shape)
+        coord = CoordUtil.canonicalize_coord(coord, @shape)
         {{@type}}.coord_to_index_fast(coord, @shape, @axis_strides)
       end
 
       # TODO: Talk about what this should be named
       def self.coord_to_index(coord, shape) : Int32
-        coord = RegionHelpers.canonicalize_coord(coord, shape)
+        coord = CoordUtil.canonicalize_coord(coord, shape)
         steps = axis_strides(shape)
         {{@type}}.coord_to_index_fast(coord, shape, steps)
       end

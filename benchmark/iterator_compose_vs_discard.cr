@@ -48,7 +48,7 @@ alias Wrap = ElemIterator
 
 shape = [50, 50, 50]
 narr = NArray.build(shape) { |c, i| i }
-region = RegionHelpers.canonicalize_region([..], shape)
+region = RegionUtil.canonicalize_region([..], shape)
 
 size = shape.product
 

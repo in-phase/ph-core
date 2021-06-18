@@ -44,16 +44,16 @@ module Lattice
     # Sets the element specified by `coord` to `value`.
     # Raises an error if `coord` is out-of-bounds for this `{{@type}}`.
     def set_element(coord : Indexable, value)
-      unsafe_set_element(RegionHelpers.canonicalize_coord(coord, shape_internal), value.as(T))
+      unsafe_set_element(CoordUtil.canonicalize_coord(coord, shape_internal), value.as(T))
     end
 
     # NOTE: changed name from 'value' to 'src' - approve?
     # Copies the elements from a MultiIndexable `src` into `region`.
     # Raises an error if `region` is out-of-bounds for this `{{@type}}` or if the shape of `region` does not match `src.shape`
     def set_chunk(region : Indexable, src : MultiIndexable)
-      canonical_region = RegionHelpers.canonicalize_region(region, shape_internal)
-      if !RegionHelpers.compatible_shapes(src.shape_internal, RegionHelpers.measure_canonical_region(canonical_region))
-        raise DimensionError.new("Cannot substitute #{typeof(src)}: the given #{typeof(src)} has shape #{src.shape_internal}, but region #{region} has shape #{RegionHelpers.measure_canonical_region(canonical_region)}.")
+      canonical_region = RegionUtil.canonicalize_region(region, shape_internal)
+      if !RegionUtil.compatible_shapes(src.shape_internal, RegionUtil.measure_canonical_region(canonical_region))
+        raise DimensionError.new("Cannot substitute #{typeof(src)}: the given #{typeof(src)} has shape #{src.shape_internal}, but region #{region} has shape #{RegionUtil.measure_canonical_region(canonical_region)}.")
       end
 
       LexIterator.new(shape_internal, canonical_region).each do |coord|
@@ -64,11 +64,11 @@ module Lattice
     # Sets each element in `region` to `value`.
     # Raises an error if `region` is out-of-bounds for this `{{@type}}`.
     def set_chunk(region : Indexable, value)
-      unsafe_set_chunk(RegionHelpers.canonicalize_region(region, shape_internal), value.as(T))
+      unsafe_set_chunk(RegionUtil.canonicalize_region(region, shape_internal), value.as(T))
     end
 
     def set_available(region : Indexable, value)
-      unsafe_set_chunk(RegionHelpers.trim_region(region, shape))
+      unsafe_set_chunk(RegionUtil.trim_region(region, shape))
     end
 
     # See `#set_chunk(region : Enumerable, value)`
