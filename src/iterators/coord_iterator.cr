@@ -1,9 +1,6 @@
 module Lattice
   abstract class CoordIterator
-    include Iterator(Array(Int32))
-
-    MOST_SIG  =  0
-    LEAST_SIG = -1
+    include Iterator(Coord)
 
     getter coord : Array(Int32) = [] of Int32
 
@@ -11,14 +8,20 @@ module Lattice
     @last : Array(Int32)
     @step : Array(Int32)
 
+    # Informs the iterator to not update the coord, i.e. if the iterator 
+    # is empty or when returning the first item
+    @hold_coord : Bool = true
     @empty : Bool = false
     getter size : Int32
 
-    abstract def next_if_nonempty
+    abstract def advance_coord
 
     # Set up any incrementing variables (such as @coord) here prior to iteration.
-    # See: LexIterator.reset for inspiration
-    abstract def reset : self
+    def reset : self
+      @coord = @first.dup
+      @hold_coord = true 
+      self
+    end
 
     def self.from_canonical(first, last, step, size = nil)
       if !size
@@ -27,7 +30,7 @@ module Lattice
       self.new(first, last, step, size)
     end
 
-    def initialize(shape, region : Array(SteppedRange)? = nil, reverse : Bool = false)
+    def initialize(shape : Indexable, region : Array(SteppedRange)? = nil, reverse : Bool = false)
       @first, @last, @step, @size = CoordIterator.iteration_params(shape, region)
       @empty = (@size == 0)
       reset
@@ -40,8 +43,13 @@ module Lattice
     end
 
     def next : (Array(Int32) | Stop)
-      return stop if @empty
-      next_if_nonempty
+      if @hold_coord
+        return stop if @empty 
+        # if the iterator is nonempty, we only hold for the first coord
+        @hold_coord = false 
+        return @coord
+      end
+      advance_coord
     end
 
     # TODO: constrain, figure out what +1 means and if it should depend on step, generally test heavily
@@ -59,11 +67,6 @@ module Lattice
       typeof(self).new(@last, @first, @step.map &.-, @size)
     end
 
-    def setup_coord(decrement_axis)
-      @coord = @first.dup
-      @coord[decrement_axis] -= @step[decrement_axis]
-    end
-
     protected def self.measure(firsts, lasts, steps) : Int32
       size = 1
       steps.each_with_index do |step, i|
@@ -73,7 +76,7 @@ module Lattice
     end
 
     # Explicit return is necessary for initialization of instance vars
-    def self.iteration_params(shape, region) : Tuple(Array(Int32), Array(Int32), Array(Int32), Int32)
+    protected def self.iteration_params(shape, region) : Tuple(Array(Int32), Array(Int32), Array(Int32), Int32)
       if shape.size == 0
         raise DimensionError.new("Failed to create {{@type.id}}: cannot iterate over empty shape \"[]\"")
       end

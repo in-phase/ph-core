@@ -80,6 +80,11 @@ module Lattice
           super(shape, region, reverse)
         end
 
+        def reset : self
+          @buffer_index = @buffer_step.map_with_index { |e, i| e * @first[i] }.sum
+          super
+        end
+
         def unsafe_next_with_index
           {self.next.unsafe_as(Array(Int32)), @buffer_index}
         end
@@ -92,21 +97,10 @@ module Lattice
           self.next
           @buffer_index
         end
-
-        def setup_buffer_index(decrement_axis)
-          @buffer_index = @buffer_step.map_with_index { |e, i| e * @first[i] }.sum
-          @buffer_index -= @buffer_step[decrement_axis] * @step[decrement_axis]
-        end
       end
 
       class IndexedLexIterator < IndexedCoordIterator
-        def reset : self
-          setup_coord(CoordIterator::LEAST_SIG)
-          setup_buffer_index(CoordIterator::LEAST_SIG)
-          self
-        end
-
-        def next_if_nonempty
+        def advance_coord
           (@coord.size - 1).downto(0) do |i| # ## least sig .. most sig
             if @coord[i] == @last[i]
               @buffer_index -= (@coord[i] - @first[i]) * @buffer_step[i]
@@ -123,13 +117,7 @@ module Lattice
       end
 
       class IndexedColexIterator < IndexedCoordIterator
-        def reset : self
-          setup_coord(CoordIterator::MOST_SIG)
-          setup_buffer_index(CoordIterator::MOST_SIG)
-          self
-        end
-
-        def next_if_nonempty
+        def advance_coord
           0.upto(@coord.size - 1) do |i| # ## least sig .. most sig
             if @coord[i] == @last[i]
               @buffer_index -= (@coord[i] - @first[i]) * @buffer_step[i]

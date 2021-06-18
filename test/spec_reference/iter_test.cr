@@ -56,4 +56,4 @@ all_iter_types(NArray::BufferedECIterator, NArray::IndexedColexIterator, small_a
 
 puts "RegionIterators"
 
-all_iter_types(MultiIndexable::ElemAndCoordIterator, MultiIndexable::ColexIterator, small_arr, canonical)
+all_iter_types(ElemAndCoordIterator, ColexIterator, small_arr, canonical)

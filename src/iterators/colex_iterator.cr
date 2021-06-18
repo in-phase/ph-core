@@ -2,12 +2,8 @@ require "./coord_iterator"
 
 module Lattice
   class ColexIterator < CoordIterator
-    def reset : self
-      setup_coord(CoordIterator::MOST_SIG)
-      self
-    end
 
-    def next_if_nonempty
+    def advance_coord
       @coord.each_index do |i| # ## least sig .. most sig
         if @coord[i] == @last[i]
           @coord[i] = @first[i]
