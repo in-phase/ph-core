@@ -4,16 +4,19 @@ include Lattice
 
 arr = NArray.build([2, 3, 2, 3]) { |coord, index| index }
 small_arr = NArray.build([5, 5]) { |coord, index| index }
+huge_arr = NArray.build([100, 100]) { |_, index| index }
 
 region = [2..1, ..]
 canonical = RegionUtil.canonicalize_region(region, [5, 5])
 canonical[1] = SteppedRange.new(1..2..4, 5)
 puts canonical
 
+# puts LexIterator(Int32).new([4,5])
+
 puts "The NArray:"
 puts small_arr
-puts "The region:"
-puts small_arr[canonical] # => [[11,13], [6,8]]
+# puts "The region:"
+# puts small_arr[canonical] # => [[11,13], [6,8]]
 
 # puts "Baseline:"
 # small_arr.narray_each_in_canonical_region(canonical) { |elem, idx, idx2| puts elem }

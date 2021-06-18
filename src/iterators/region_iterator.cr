@@ -6,7 +6,7 @@ module Lattice
 
     @src_shape : Array(Int32)
     @chunk_shape : Array(Int32)
-    @coord_iter : CoordIterator
+    @coord_iter : CoordIterator(Int32)
 
     @fringe_behaviour : FringeBehaviour
 

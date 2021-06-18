@@ -9,17 +9,17 @@ module Lattice
 
   # Stores similar information to a StepIterator, which (as of Crystal 0.36) have issues of uncertain types and may change behaviour in the future.
   # To avoid compatibility issues we define our own struct here.
-  struct SteppedRange
-    getter size : Int32
-    getter step : Int32
-    getter begin : Int32
-    getter end : Int32
+  struct SteppedRange(T)
+    getter size : T
+    getter step : T
+    getter begin : T
+    getter end : T
 
     def self.empty
       SteppedRange.new
     end
 
-    def self.new(range : Range, step : Int, bound : Int)
+    def self.new(range : Range, step, bound)
       canonicalize(range.begin, range.end, range.excludes_end?, bound, step)
     end
 
@@ -48,8 +48,8 @@ module Lattice
       SteppedRange.new(CoordUtil.canonicalize_index(index, bound))
     end
 
-    protected def initialize(@begin, @end, @step)
-      @size = ((@end - @begin) // @step).abs.to_i32 + 1
+    protected def initialize(@begin : T, @end : T, @step : T)
+      @size = ((@end - @begin) // @step).abs + 1
     end
 
     protected def initialize
@@ -110,7 +110,7 @@ module Lattice
       self
     end
 
-    protected def self.canonicalize(start, stop, exclusive, bound, step = nil) : SteppedRange
+    protected def self.canonicalize(start : T?, stop : T?, exclusive : Bool, bound : T, step : T? = nil) : SteppedRange(T) forall T
       if !step
         # Infer endpoints normally, and determine iteration direction
         start = start ? CoordUtil.canonicalize_index(start, bound) : 0
@@ -119,7 +119,14 @@ module Lattice
           step = (temp_stop - start >= 0) ? 1 : -1
         else
           temp_stop = bound - 1
-          step = 1
+          # what if T == UInt8?
+          # then step will be upcasted to Int32 i think (wait this might not be true)
+          # oh weird
+          # that might be ok though?
+          # what's important is that start and stop are T
+          # because the iterators and stuff just start there and add steps
+          # true true
+          step = T.zero + 1 # if this doesn't work... call 911
         end
       else
         # Infer endpoints by step direction; and confirm step is compatible with existing endpoints

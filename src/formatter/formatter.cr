@@ -56,7 +56,7 @@ module Lattice
             yield Flags::ELEM, idx
           end
 
-          @iter.coord_iter.skip(depth, size - max_count)
+          @iter.coord_iter.unsafe_skip(depth, size - max_count)
           yield Flags::SKIP, -1
 
           right.times do |idx|

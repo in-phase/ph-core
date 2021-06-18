@@ -4,7 +4,7 @@ module Lattice
   class ElemAndCoordIterator(T)
     include Iterator(Tuple(T, Array(Int32)))
 
-    getter coord_iter : CoordIterator
+    getter coord_iter : CoordIterator(Int32)
 
     def self.of(src, region = nil, reverse = false, iter : CoordIterator.class = LexIterator)
       new(src, iter.new(src.shape, region, reverse))

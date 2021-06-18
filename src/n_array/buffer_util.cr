@@ -67,7 +67,7 @@ module Lattice
         coord.reverse
       end
 
-      abstract class IndexedCoordIterator < CoordIterator
+      abstract class IndexedCoordIterator < CoordIterator(Int32)
         @buffer_index : Int32 = 0 # Initialized beforehand to placate the compiler
         @buffer_step : Array(Int32)
 

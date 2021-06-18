@@ -1,8 +1,7 @@
 require "./coord_iterator"
 
 module Lattice
-  class LexIterator < CoordIterator
-
+  class LexIterator(T) < CoordIterator(T)
     def advance_coord
       (@coord.size - 1).downto(0) do |i| # ## least sig .. most sig
         if @coord[i] == @last[i]

@@ -1,7 +1,7 @@
 require "./coord_iterator"
 
 module Lattice
-  class ColexIterator < CoordIterator
+  class ColexIterator(T) < CoordIterator(T)
 
     def advance_coord
       @coord.each_index do |i| # ## least sig .. most sig
