@@ -1,5 +1,3 @@
-require "./readonly_view"
-
 module Lattice
   class View(S, R) < ReadonlyView(S, R)
     include MultiWritable(R)

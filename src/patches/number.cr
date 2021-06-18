@@ -1,5 +1,3 @@
-require "../n_dim/multi_indexable"
-
 # this patch makes it possible to operate elementwise on a Number and an NArray (in that order)
 # e.g.
 # ``` 5 + NArray.new([1,2,3]) #=> [6,7,8] ```

@@ -41,10 +41,9 @@ iterate(nontile, shape, strides: [2])
 iterate(nontile, shape, strides: [3])
 iterate(nontile, shape, strides: [4])
 
-
-narr = NArray.build([2,2,2]) {|c,i| i}
+narr = NArray.build([2, 2, 2]) { |c, i| i }
 puts narr
-narr.each_slice(1).each {|chunk| puts chunk}
+narr.each_slice(1).each { |chunk| puts chunk }
 
 # Documentation notes:
 # DISCARD:

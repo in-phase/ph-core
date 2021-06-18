@@ -1,35 +1,24 @@
-
-
-
-
 # def compare(type, size)
 
 #     # crystal built-in method to allocate and initialize to 0
 #     Slice(type).new(size)
 
-    
-
 #     pointer = Pointer(T).malloc(size)
 
 # end
 
+# def zeros(size)
 
-
-
-# def zeros(size) 
-    
 # end
 
 # @[Link("libc")]
 # lib LibC
-#     fun 
+#     fun
 # end
 
 # puts malloc(5)
 
 # require "benchmark"
-
-
 
 # Benchmark.ips do |x|
 #     x.report("Slice constructor (with zero)") do
@@ -39,7 +28,6 @@
 #     x.report("Slice constructor (no passed value)") do
 #         Slice(Int32).new(1_000_000)
 #     end
-
 
 # class Test(T)
 #     @var : Int

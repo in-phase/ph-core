@@ -15,15 +15,15 @@
 
 # puts ElemIterator.new(narr, reverse: true, colex: true).each { |i| puts i }
 
-    #   def next_if_nonempty
-    #     (@coord.size - 1).downto(0) do |i| # ## least sig .. most sig
-    #       @coord[i] += @step[i]
-    #       break unless @coord[i] * @step[i].sign > @last[i] * @step[i].sign
-    #       @coord[i] = @first[i]
-    #       return stop if i == 0 # most sig
-    #     end
-    #     @coord
-    #   end
+#   def next_if_nonempty
+#     (@coord.size - 1).downto(0) do |i| # ## least sig .. most sig
+#       @coord[i] += @step[i]
+#       break unless @coord[i] * @step[i].sign > @last[i] * @step[i].sign
+#       @coord[i] = @first[i]
+#       return stop if i == 0 # most sig
+#     end
+#     @coord
+#   end
 
 # puts narr.view.reverse.permute
 
@@ -64,7 +64,6 @@
 
 # puts ["test"] + [1]
 
-
 # data = [3, 5, "Hi"]
 
 # puts typeof(data)
@@ -83,12 +82,12 @@
 require "colorize"
 
 def print_binary(pointer, byte_count)
-    bytes = Bytes.new(pointer.unsafe_as(Pointer(UInt8)), byte_count)
-    puts bytes.map { |byte| byte.to_s(16).rjust(8, ' ') }.join(" ")
-    puts bytes.map { |byte| byte.to_s(10).rjust(8, ' ') }.join(" ")
-    puts bytes.map { |byte| byte.to_s(2).rjust(8, '0') }.join(" ")
-    puts bytes.map_with_index { |_, idx| idx.to_s.rjust(8, ' ') }.join(" ").colorize(:red)
-    puts
+  bytes = Bytes.new(pointer.unsafe_as(Pointer(UInt8)), byte_count)
+  puts bytes.map { |byte| byte.to_s(16).rjust(8, ' ') }.join(" ")
+  puts bytes.map { |byte| byte.to_s(10).rjust(8, ' ') }.join(" ")
+  puts bytes.map { |byte| byte.to_s(2).rjust(8, '0') }.join(" ")
+  puts bytes.map_with_index { |_, idx| idx.to_s.rjust(8, ' ') }.join(" ").colorize(:red)
+  puts
 end
 
 # 1u8 # 0000001
@@ -133,16 +132,13 @@ end
 # puts val.crystal_type_id
 
 # puts UInt16.crystal_type_id
-#puts 1u8.unsafe_as(UInt8 | String)
+# puts 1u8.unsafe_as(UInt8 | String)
 
 # puts (Array(Int32 | String).new(5) do |idx|
 #     1.unsafe_as(Int32 | String)
 # end)
 
-
 # puts [1,2,3].clone_but_change_type(String)
-
-
 
 # val = 1u8
 # print_binary(pointerof(val), 8)
@@ -175,8 +171,7 @@ end
 # # puts (UInt64 | UInt32).crystal_type_id
 # # puts (Class<UInt64 | UInt32>).crystal_type_id
 
-
-# # 1                                   2                                   3 
+# # 1                                   2                                   3
 # # 10000000 00000000 00000000 00000000 10000000 00000000 00000000 00000000 11000000 00000000 00000000 00000000
 # # 10000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 11010000 10101100 00000000 00000000
 # # 00000000 00000000 00000000 00000001
@@ -201,7 +196,7 @@ end
 #   # because of aligning to 8 bytes (at least in 64 bits), and that's
 #   # why we chose to include this value, because with it we can optimize
 #   # `shift` to let Array be used as a queue/deque.
- 
+
 # #  00000001 00000000 00000000 00000000 00000010 00000000 00000000 00000000 00000011 00000000 00000000 00000000
 
 # int = [10i32, 20i32, 30i32]
@@ -217,19 +212,19 @@ end
 # puts Int32 < (Int32 | String)
 
 class Array(T)
-    def clone_with_other(klass : U.class) : Array(T | U) forall U
-        Array(T | U).build(size) do |buffer|
-            buffer.copy_from(@buffer, size)
-            size
-        end
+  def clone_with_other(klass : U.class) : Array(T | U) forall U
+    Array(T | U).build(size) do |buffer|
+      buffer.copy_from(@buffer, size)
+      size
     end
+  end
 
-    def downcast(klass : U.class) : Array(U) forall U
-        Array(U).build(size * 8) do |buffer|
-            buffer.copy_from(@buffer.unsafe_as(Pointer(U)), size)
-            size * 8
-        end
+  def downcast(klass : U.class) : Array(U) forall U
+    Array(U).build(size * 8) do |buffer|
+      buffer.copy_from(@buffer.unsafe_as(Pointer(U)), size)
+      size * 8
     end
+  end
 end
 
 arr = [1, 2]

@@ -1,7 +1,3 @@
-require "./region_helpers"
-require "./order"
-require "./iterators/*"
-
 module Lattice
   # Assumptions:
   # - length along every axis is finite and positive, and each element is positively indexed
@@ -158,7 +154,7 @@ module Lattice
     def map_with_coord(&block : (T, Coord -> R)) : MultiIndexable(R) forall R
       NArray.build(shape_internal) do |coord, i|
         yield unsafe_fetch_element(coord), coord
-      end 
+      end
     end
 
     # A method to get all elements in this `{{@type}}` when order is irrelevant.
@@ -237,7 +233,7 @@ module Lattice
       if shape_internal != other.shape_internal
         raise DimensionError.new("Cannot perform elementwise operation {{name.id}}: shapes #{other.shape_internal} of other and #{shape_internal} of self do not match")
       end
-      
+
       map_with_coord do |elem, coord|
         elem == other.unsafe_fetch_element(coord)
       end

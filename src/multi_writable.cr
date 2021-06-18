@@ -1,7 +1,3 @@
-require "./region_helpers"
-require "./order"
-require "./iterators/*"
-
 module Lattice
   module MultiWritable(T)
     # TODO: discuss: should mutators explicitly return the object itself, for chaining purposes?
@@ -27,12 +23,12 @@ module Lattice
     # Copies the elements from a MultiIndexable `src` into `region`, assuming that `region` is in canonical form and in-bounds for this `{{@type}}`
     # and the shape of `region` matches the shape of `src`.
     # For full specification of canonical form see `RegionHelpers` documentation. TODO: make this actually happen
-    def unsafe_set_chunk(region : CanonicalRegion,  src : MultiIndexable(T))
+    def unsafe_set_chunk(region : CanonicalRegion, src : MultiIndexable(T))
       LexIterator.new(shape_internal, region).each do |coord|
         unsafe_set_element(coord, unsafe_fetch_element(coord))
       end
     end
-    
+
     # Sets each element in `region` to `value`, assuming that `region` is in canonical form and in-bounds for this `{{@type}}`
     # For full specification of canonical form see `RegionHelpers` documentation. TODO: make this actually happen
     def unsafe_set_chunk(region : CanonicalRegion, value : T)
@@ -40,7 +36,7 @@ module Lattice
         unsafe_set_element(coord, value)
       end
     end
-    
+
     # Sets the element specified by `coord` to `value`.
     # Raises an error if `coord` is out-of-bounds for this `{{@type}}`.
     def set_element(coord : Indexable, value)

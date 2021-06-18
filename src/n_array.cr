@@ -1,12 +1,8 @@
-require "yaml"
 require "json"
-require "../n_dim/*"
-require "../exceptions/*"
-require "./buffer_utils.cr"
-require "../type_aliases.cr"
+require "yaml"
 
-alias IndexType = Int32
-alias Shape = Array(IndexType)
+# alias IndexType = Int32
+# alias Shape = Array(IndexType)
 
 module Lattice
   # An `{{@type}}` is a multidimensional array for any arbitrary type.
@@ -17,7 +13,7 @@ module Lattice
   class NArray(T)
     include MultiIndexable(T)
     include MultiWritable(T)
-    
+
     include BufferUtil
 
     # Stores the elements of an `{{@type}}` in lexicographic (row-major) order.
@@ -48,8 +44,8 @@ module Lattice
       end
 
       num_elements = shape.product.to_i32
-      @axis_strides = NArray.axis_strides(@shape)
-      
+      @axis_strides = BufferUtil.axis_strides(@shape)
+
       @buffer = Slice(T).new(num_elements) { |i| yield i }
     end
 
@@ -63,7 +59,7 @@ module Lattice
       end
 
       @shape = shape.dup
-      @axis_strides = NArray.axis_strides(@shape)
+      @axis_strides = BufferUtil.axis_strides(@shape)
     end
 
     # Constructs an `{{@type}}` using a user-provided *shape* (see `shape`) and a callback.
@@ -182,7 +178,6 @@ module Lattice
       # If the new shape is larger (at all), you need to have provided a pad_with value
       @shape.each_with_index do |size, idx|
         if size > new_shape[idx]
-
         end
       end
 
@@ -192,15 +187,15 @@ module Lattice
       # if only shrinking: value is not needed, can just take a region
       # compute region based on align
       return self.unsafe_fetch_chunk(region)
-    end    
+    end
 
     # fit([1, 2, 3], align: {1 => 5}, pad_with: nil)
-    
+
     def fit(new_shape, *, align : Hash(Int32, NArray::Alignment | Int32)? = nil, pad_with value = nil)
       if new_shape.size != @shape.size
         raise "Cannot not fit a #{@shape.size} dimensional {{@type}} into a #{new_shape.size} dimensional shape. Consider calling `reshape` if you wish to change dimensionality."
       end
-      # otherwise: 
+      # otherwise:
     end
 
     def pad!
@@ -337,15 +332,15 @@ module Lattice
       # end
 
       # typeof(self).new(shape) { |i| buffer_arr[i] }
-      
-      iter = BufferedRegionIterator.new(self, region)
+
+      iter = BufferedECIterator.new(self, region)
       typeof(self).new(shape) { iter.unsafe_next_value }
     end
 
     # Retrieves the element specified by `coord`, assuming that `coord` is in canonical form and in-bounds for this `{{@type}}`.
     # For full specification of canonical form see `RegionHelpers` documentation. TODO: make this actually happen
     def unsafe_fetch_element(coord) : T
-      @buffer.unsafe_fetch(NArray.coord_to_index_fast(coord, @shape, @axis_strides))
+      @buffer.unsafe_fetch(BufferUtil.coord_to_index_fast(coord, @shape, @axis_strides))
     end
 
     # Takes a single index into the {{@type}}, returning a slice of the largest dimension possible.
@@ -405,7 +400,7 @@ module Lattice
     end
 
     # Iterator overrides for buffer-based speedups
-    
+
     # The default "each" with no iterator type passed is lexicographic.
     # For other orders, default to MultiIndexable's implementation.
     def each
@@ -418,7 +413,7 @@ module Lattice
 
     # TODO????
     def each_with_coord(iter : CoordIterator.class = IndexedLexIterator)
-      BufferedRegionIterator.new(self, iter: iter)
+      BufferedECIterator.new(self, iter: iter)
     end
 
     def each_with_index(&block : T, Int32 ->)

@@ -1,11 +1,3 @@
-# needed only for RegionTransform
-require "../n_dim/region_helpers"
-
-View < ReadOnlyView
-
-View::CoordTransform
-View::ComposedTransform
-
 module Lattice
   # probably done
   abstract struct CoordTransform

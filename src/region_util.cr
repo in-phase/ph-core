@@ -1,5 +1,7 @@
 module Lattice
   module RegionUtil
+    extend self
+
     # alias RangeSpecifier = Int32 | Range(Int32?, Int32? | Range(Int32?, Int32))
 
     # For a given axis length `size`, a "canonical index" `idx` is `0 <= idx < size`.
@@ -81,14 +83,14 @@ module Lattice
       true
     end
 
-    def full_region(shape) : Array(SteppedRange)
+    def full_region(shape : Shape) : CanonicalRegion
       shape.map do |dim|
         SteppedRange.new(0, dim - 1, 1)
       end
     end
 
-    def translate_shape(region_shape, coord, parent_shape) : Array(SteppedRange)
-      top_left = canonicalize_coord(coord, parent_shape)
+    def translate_shape(region_shape : Shape, coord : Coord, parent_shape : Shape) : CanonicalRegion
+      top_left = CoordUtil.canonicalize_coord(coord, parent_shape)
       top_left.map_with_index do |start, i|
         SteppedRange.new_canonical(start, start + region_shape[i] - 1, 1)
       end

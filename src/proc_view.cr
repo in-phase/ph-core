@@ -1,5 +1,3 @@
-require "./readonly_view"
-
 module Lattice
   class ProcView(S, T, R) < ReadonlyView(S, R)
     @proc : Proc(T, R)

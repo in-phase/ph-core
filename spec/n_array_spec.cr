@@ -29,7 +29,7 @@ describe Lattice::NArray do
         end
 
         narr.buffer.each_with_index do |elem, index|
-          coord = NArray.index_to_coord(index, shape)
+          coord = NArray::BufferUtil.index_to_coord(index, shape)
           elem.should eq coord.product
         end
       end

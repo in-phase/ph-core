@@ -2,13 +2,9 @@
 # (in lexicographic/row major/C order).
 # This suggests the concept of a singular "index" representing each element, alongside the multidimensional coordinate.
 
-require "../n_dim/iterators/*"
-require "../n_dim/iterators/region_iterators.cr"
-
 module Lattice
   class NArray(T)
     module BufferUtil
-
       # TODO: decide
       # move coord_to_index/index_to_coord here? at least static versions?
       # move out of NArray? To own namespace?
@@ -71,7 +67,7 @@ module Lattice
         coord.reverse
       end
 
-      abstract class IndexedCoordIterator < MultiIndexable::CoordIterator
+      abstract class IndexedCoordIterator < CoordIterator
         @buffer_index : Int32 = 0 # Initialized beforehand to placate the compiler
         @buffer_step : Array(Int32)
 
@@ -80,7 +76,7 @@ module Lattice
             raise DimensionError.new("Failed to create {{@type.id}}: cannot iterate over empty shape \"[]\"")
           end
 
-          @buffer_step = NArray.axis_strides(shape)
+          @buffer_step = BufferUtil.axis_strides(shape)
           super(shape, region, reverse)
         end
 
@@ -104,7 +100,6 @@ module Lattice
       end
 
       class IndexedLexIterator < IndexedCoordIterator
-        
         def reset : self
           setup_coord(CoordIterator::LEAST_SIG)
           setup_buffer_index(CoordIterator::LEAST_SIG)
@@ -150,10 +145,9 @@ module Lattice
         end
       end
 
-      class BufferedRegionIterator(T) < MultiIndexable::ElemAndCoordIterator(T)    
-        
+      class BufferedECIterator(T) < ElemAndCoordIterator(T)
         def self.new(src, region = nil, reverse = false, iter : CoordIterator.class = IndexedLexIterator) : self
-          raise "BufferedRegionIterators must use IndexedCoordIterators" unless iter < IndexedCoordIterator
+          raise "BufferedECIterators must use IndexedCoordIterators" unless iter < IndexedCoordIterator
           new(src, iter.new(src.shape, region, reverse))
         end
 

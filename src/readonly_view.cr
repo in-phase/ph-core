@@ -1,8 +1,3 @@
-require "../n_dim/*"
-require "./transforms"
-require "./proc_view"
-require "../n_array"
-
 module Lattice
   class ReadonlyView(S, R)
     include MultiIndexable(R)

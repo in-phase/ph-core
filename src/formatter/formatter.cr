@@ -1,9 +1,6 @@
 require "colorize"
 require "yaml"
 
-require "../iterators/*"
-require "./settings"
-
 # when you first print an narray, it loads whatever it should find from file, and then saves it in a static variable on FormatterSettings
 module Lattice
   module MultiIndexable
