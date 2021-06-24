@@ -66,7 +66,7 @@ module Lattice
 
     # Returns a random element from the `{{@type}}`. Note that this might not return
     # distinct elements if the random number generator returns the same coordinate twice.
-    def sample(n, random = Random::DEFAULT) : Enumerable(T)
+    def sample(n : Int, random = Random::DEFAULT) : Enumerable(T)
       raise ArgumentError.new("Can't sample negative number of elements") if n < 0
 
       Array(T).new(n) { sample(random) }
