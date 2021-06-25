@@ -6,11 +6,13 @@ include Lattice
 # arr = NArray.build([2, 3, 2, 3]) { |coord, index| index }
 # small_arr = NArray.build([3, 3]) { |coord, index| index }
 
+VALID_REGIONS = [[0..2], [0...3, ..], [.., 3], [2..1, 0..2..2]]
 test_buffer = Slice[1, 2, 3, 'a', 'b', 'c', 1f64, 2f64, 3f64]
-r_narr = RONArray.new([3,3], test_buffer)
+side_length = 3
+r_narr = RONArray.new([side_length] * 2, test_buffer)
 
 Spec.before_each do
-    r_narr = RONArray.new([3,3], test_buffer)
+    r_narr = RONArray.new([side_length] * 2, test_buffer)
 end
 
 describe Lattice::MultiIndexable do
@@ -142,9 +144,48 @@ describe Lattice::MultiIndexable do
     end
 
     describe "#has_coord?" do 
+        it "returns true for a coordinate within the shape" do
+            (0...side_length).each do |x|
+                (0...side_length).each do |y|
+                    r_narr.has_coord?([x, y]).should be_true
+                    r_narr.has_coord?(x, y).should be_true
+                end
+            end
+        end
+
+        it "returns false for a coordinate outside the shape" do
+            (0...(side_length + 2)).each do |x|
+                (0...(side_length + 2)).each do |y|
+                    next if x < side_length || y < side_length
+
+                    r_narr.has_coord?([x, y]).should be_false
+                    r_narr.has_coord?(x, y).should be_false
+                end
+            end
+        end
+
+        it "raises an error when the coordinate is of the wrong dimension" do
+            expect_raises DimensionError do
+                r_narr.has_coord?([0])
+            end
+
+            expect_raises DimensionError do
+                r_narr.has_coord?(0)
+            end
+        end
     end
 
     describe "#has_region?" do 
+        it "returns true for valid regions" do
+            VALID_REGIONS.each do |region|
+                unless r_narr.has_region?(region)
+                    fail(r_narr.shape.join("x") " MultiIndexable should include #{region.to_s}, but has_region? was false")
+                end
+            end
+        end
+
+        pending "returns false for invalid regions" do
+        end
     end
 
     describe "#get_element" do 
