@@ -11,9 +11,4 @@ module Lattice
   alias Coord = Indexable
 
   alias Shape = Indexable
-
-  # Should only be used as a return type or to restrict the parameters of
-  # functions intended to take very limited inputs (e.g. functions in abstract
-  # classes where the user shouldn't have to do cleanup)
-  alias CanonicalRegion = Indexable(SteppedRange)
 end

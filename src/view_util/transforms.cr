@@ -167,7 +167,8 @@ module Lattice
 
   struct RegionTransform < CoordTransform
     # each of these has size = dimensions
-    @region : Array(SteppedRange)
+    # TODO: Try to make this accept a generic coordinate type
+    getter region : IndexRegion(Int32)
     @buffer : Array(Int32)
 
     def initialize(@region)
@@ -179,6 +180,8 @@ module Lattice
       case t
       when self
         # compose regions
+        # TODO: check order??!?!?!
+        @region.unsafe_fetch_region(t.region)
       when ReverseTransform
       else
         return super
@@ -186,16 +189,7 @@ module Lattice
     end
 
     def apply(coord : Array(Int32)) : Array(Int32)
-      local_coord_to_srcframe(coord)
-    end
-
-    protected def local_coord_to_srcframe(coord) : Array(Int32)
-      @region.each_with_index { |range, dim| @buffer[dim] = range.local_to_absolute(coord[dim]) }
-      @buffer
-    end
-
-    protected def local_region_to_srcframe(region) : Array(SteppedRange)
-      @region.map_with_index { |range, dim| range.compose(region[dim]) }
+      @region.unsafe_fetch_element(coord)
     end
   end
 

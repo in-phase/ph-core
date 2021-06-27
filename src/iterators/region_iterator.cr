@@ -1,8 +1,6 @@
-require "./coord_iterator"
-
 module Lattice
   class RegionIterator
-    include Iterator(Array(SteppedRange))
+    include Iterator(IndexRegion)
 
     @src_shape : Array(Int32)
     @chunk_shape : Array(Int32)
@@ -29,7 +27,7 @@ module Lattice
       new(src_shape, chunk_shape, coord_iter, fringe_behaviour)
     end
 
-    def initialize(@src_shape, @chunk_shape, @coord_iter, @fringe_behaviour)
+    protected def initialize(@src_shape, @chunk_shape, @coord_iter, @fringe_behaviour)
     end
 
     # protected def initialize(@src_shape, @chunk_shape, first, last, strides, @fringe_behaviour)
@@ -92,9 +90,9 @@ module Lattice
     end
 
     protected def compute_region(coord)
-      region = RegionUtil.translate_shape(@chunk_shape, coord, @src_shape)
+      region = IndexRegion.new(chunk_shape).translate!(coord)
       unless @fringe_behaviour == FringeBehaviour::DISCARD
-        region = RegionUtil.trim_region(region, @src_shape)
+        region.trim!(@src_shape)
       end
       return region
     end

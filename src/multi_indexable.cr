@@ -90,12 +90,17 @@ module Lattice
 
     # Checks that `region` is in-bounds for this `{{@type}}`.
     def has_region?(region : Indexable) : Bool
-      RegionUtil.has_region?(region, shape_internal)
+      begin
+        IndexRegion.new(region, shape_internal)
+        return true
+      rescue ex : IndexError
+        return false
+      end
     end
 
     # Copies the elements in `region` to a new `{{@type}}`, and throws an error if `region` is out-of-bounds for this `{{@type}}`.
     def get_chunk(region : Indexable)
-      unsafe_fetch_chunk RegionUtil.canonicalize_region(region, shape_internal)
+      unsafe_fetch_chunk IndexRegion.new(region, shape_internal) #RegionUtil.canonicalize_region(region, shape_internal)
     end
 
     # Retrieves the element specified by `coord`, and throws an error if `coord` is out-of-bounds for this `{{@type}}`.
@@ -108,7 +113,7 @@ module Lattice
     end
 
     def get_chunk(coord : Indexable, region_shape : Indexable)
-      get_chunk(RegionUtil.translate_shape(region_shape, coord))
+      get_chunk(IndexRegion.new(region_shape).translate!(coord)) #RegionUtil.translate_shape(region_shape, coord))
     end
 
     def get_available(region : Indexable)

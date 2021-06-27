@@ -1,5 +1,5 @@
 module Lattice
-  module RegionUtil
+  module RegionUtilNOT
     extend self
 
     # alias RangeSpecifier = Int32 | Range(Int32?, Int32? | Range(Int32?, Int32))

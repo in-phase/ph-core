@@ -2,7 +2,7 @@ require "./spec_helper"
 
 include Lattice
 
-describe SteppedRange do
+pending "SteppedRange" do
     describe ".new" do
       pending "computes size" do
       end

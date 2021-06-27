@@ -9,7 +9,7 @@ module Lattice
 
   # Stores similar information to a StepIterator, which (as of Crystal 0.36) have issues of uncertain types and may change behaviour in the future.
   # To avoid compatibility issues we define our own struct here.
-  struct SteppedRange(T)
+  struct SteppedRangeNOT(T)
     getter size : T
     getter step : T
     getter begin : T

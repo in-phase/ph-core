@@ -6,14 +6,16 @@ require "./exceptions/*"
 
 require "./type_aliases.cr"
 require "./coord_util.cr"
-require "./region_util.cr"
-require "./stepped_range.cr"
+# require "./region_util.cr"
+# require "./stepped_range.cr"
+require "./index_region.cr"
 
 require "./multi_indexable.cr"
 require "./multi_writable.cr"
 
-require "./iterators/region_iterator.cr"
+require "./iterators/general_coord_iterator.cr"
 require "./iterators/coord_iterator.cr"
+require "./iterators/region_iterator.cr"
 require "./iterators/chunk_iterator.cr"
 require "./iterators/*"
 

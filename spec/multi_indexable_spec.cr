@@ -179,7 +179,7 @@ describe Lattice::MultiIndexable do
         it "returns true for valid regions" do
             VALID_REGIONS.each do |region|
                 unless r_narr.has_region?(region)
-                    fail(r_narr.shape.join("x") " MultiIndexable should include #{region.to_s}, but has_region? was false")
+                    fail(r_narr.shape.join("x") + " MultiIndexable should include #{region.to_s}, but has_region? was false")
                 end
             end
         end

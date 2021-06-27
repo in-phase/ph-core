@@ -3,7 +3,9 @@ require "./region_iterator"
 module Lattice
   class ChunkAndRegionIterator(T)
     # VerboseChunkIterator ?
-    include Iterator(Tuple(MultiIndexable(T), Array(SteppedRange)))
+    # TODO: IndexRegion(Int32) is a needless restriction - find a way to 
+    # allow generic coordiate types in the future
+    include Iterator(Tuple(MultiIndexable(T), IndexRegion(Int32)))
 
     @region_spec_iter : RegionIterator
     @src : MultiIndexable(T)
