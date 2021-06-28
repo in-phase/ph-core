@@ -6,13 +6,47 @@ include Lattice
 # arr = NArray.build([2, 3, 2, 3]) { |coord, index| index }
 # small_arr = NArray.build([3, 3]) { |coord, index| index }
 
-VALID_REGIONS = [[0..2], [0...3, ..], [.., 3], [2..1, 0..2..2]]
+# These categorizations only apply to r_narr, but help simplify testing
+# of region-accepting functions (because there are so many cases)
+VALID_REGIONS = [[0..2], [0...3, ..], [-3..-1, 1], [.., 2], [2..1, 0..2..2], [0, 2...2], [] of Int32, [] of Range(Nil, Nil)]
+INVALID_REGIONS = [[0..8], [1, 1, 1], [-1...-10]]
+
 test_buffer = Slice[1, 2, 3, 'a', 'b', 'c', 1f64, 2f64, 3f64]
 side_length = 3
 r_narr = RONArray.new([side_length] * 2, test_buffer)
 
 Spec.before_each do
     r_narr = RONArray.new([side_length] * 2, test_buffer)
+end
+
+# get and get_element are aliases, so this prevents testing redundancy.
+macro test_get_element(method)
+    it "returns the correct element for all valid coordinates" do
+        (0...side_length).each do |row|
+            (0...side_length).each do |col|
+                buffer_index = row * side_length + col
+                expected_elem = test_buffer[buffer_index]
+                r_narr.{{method.id}}(row, col)
+                r_narr.{{method.id}}([row, col])
+            end
+        end
+    end
+
+    it "raises for for invalid coordinates" do
+        (0...(side_length + 2)).each do |row|
+            (0...(side_length + 2)).each do |col|
+                next if row < side_length && col < side_length
+
+                expect_raises IndexError do
+                    r_narr.{{method.id}}(row, col)
+                end
+
+                expect_raises IndexError do
+                    r_narr.{{method.id}}([row, col])
+                end
+            end
+        end
+    end
 end
 
 describe Lattice::MultiIndexable do
@@ -109,6 +143,29 @@ describe Lattice::MultiIndexable do
             end
         end
 
+        it "returns each element in similar proportion (note: this test is probabilistic, and there is a small chance it fails under normal operation)", tags: ["slow", "probabilistic"] do
+            # Note: This shape needs to be hardcoded because it assumes 6 distinct elements (5 dof).
+            shape = [1, 2, 3]
+            size = shape.product
+            buffer = Slice.new(size) { |idx| idx }
+            narr = RONArray.new(shape, buffer)
+            
+            expected_occurrences = 1000
+            tolerance = 100
+            sample_count = size * expected_occurrences
+            frequencies = narr.sample(sample_count).tally
+
+            # Using chi-square to determine that there is >95% chance of this sampling
+            # occuring, assuming that the sample function is working properly
+            chi_sq = frequencies.sum do |_, observed|
+                (observed - expected_occurrences)**2 / expected_occurrences
+            end
+
+            # when dof=5, we expect a chi-square 
+            # chi_sq.should 
+            puts chi_sq
+        end
+
         it "returns the only element in a one-element MultiIndexable" do
             narr = RONArray.new([1], Slice['a']).sample(100).each do |el|
                 el.should eq 'a'
@@ -164,19 +221,14 @@ describe Lattice::MultiIndexable do
             end
         end
 
-        it "raises an error when the coordinate is of the wrong dimension" do
-            expect_raises DimensionError do
-                r_narr.has_coord?([0])
-            end
-
-            expect_raises DimensionError do
-                r_narr.has_coord?(0)
-            end
+        it "returns false when the coordinate is of the wrong dimension" do
+            r_narr.has_coord?([0]).should be_false
+            r_narr.has_coord?(0).should be_false
         end
     end
 
     describe "#has_region?" do 
-        it "returns true for valid regions" do
+        it "returns true for valid literal regions" do
             VALID_REGIONS.each do |region|
                 unless r_narr.has_region?(region)
                     fail(r_narr.shape.join("x") + " MultiIndexable should include #{region.to_s}, but has_region? was false")
@@ -184,14 +236,28 @@ describe Lattice::MultiIndexable do
             end
         end
 
-        pending "returns false for invalid regions" do
+        it "returns false for invalid regions" do
+            INVALID_REGIONS.each do |region|
+                if r_narr.has_region?(region)
+                    fail(r_narr.shape.join("x") + " MultiIndexable should not include #{region.to_s}, but has_region? was true")
+                end
+            end
+        end
+
+        pending "returns true for valid IndexRegions" do
+        end
+
+        pending "returns false for invalid IndexRegions" do
         end
     end
 
+
     describe "#get_element" do 
+        test_get_element(:get_element)
     end
 
     describe "#get" do 
+        test_get_element(:get)
     end
 
     describe "#get_chunk" do 
@@ -210,6 +276,15 @@ describe Lattice::MultiIndexable do
     end
 
     describe "#each" do 
+        it "yields all elements in lexicographic order by default" do
+            elem_iter = test_buffer.each
+
+            r_narr.each do |el|
+                el.should eq elem_iter.next
+            end
+
+            elem_iter.empty?.should be_true
+        end
     end
 
     describe "#each_with_coord" do 
