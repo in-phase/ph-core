@@ -58,12 +58,12 @@ end
 module ReadUtils(T)
   include MultiIndexable(T)
 
-  def unsafe_fetch_chunk(region)
-    shape = RegionUtil.measure_canonical_region(region)
-    iter = each_in_canonical_region(region)
+  def unsafe_fetch_chunk(idx_region : IndexRegion)
+    shape = idx_region.shape # RegionUtil.measure_canonical_region(region)
+    iter = ElemIterator.new(self, idx_region)
 
     buffer = Slice(T).new(shape.product) do |idx|
-      iter.next.as(Tuple(T, Array(Int32)))[0]
+      iter.next.as(T)
     end
 
     {{@type}}.new(shape, buffer)

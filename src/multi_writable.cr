@@ -23,16 +23,16 @@ module Lattice
     # Copies the elements from a MultiIndexable `src` into `region`, assuming that `region` is in canonical form and in-bounds for this `{{@type}}`
     # and the shape of `region` matches the shape of `src`.
     # For full specification of canonical form see `RegionHelpers` documentation. TODO: make this actually happen
-    def unsafe_set_chunk(region : CanonicalRegion, src : MultiIndexable(T))
-      LexIterator.new(shape_internal, region).each do |coord|
+    def unsafe_set_chunk(region : IndexRegion, src : MultiIndexable(T))
+      region.each do |coord|
         unsafe_set_element(coord, unsafe_fetch_element(coord))
       end
     end
 
     # Sets each element in `region` to `value`, assuming that `region` is in canonical form and in-bounds for this `{{@type}}`
     # For full specification of canonical form see `RegionHelpers` documentation. TODO: make this actually happen
-    def unsafe_set_chunk(region : CanonicalRegion, value : T)
-      LexIterator.new(shape_internal, region).each do |coord|
+    def unsafe_set_chunk(region : IndexRegion, value : T)
+      region.each do |coord|
         unsafe_set_element(coord, value)
       end
     end
@@ -46,13 +46,14 @@ module Lattice
     # NOTE: changed name from 'value' to 'src' - approve?
     # Copies the elements from a MultiIndexable `src` into `region`.
     # Raises an error if `region` is out-of-bounds for this `{{@type}}` or if the shape of `region` does not match `src.shape`
-    def set_chunk(region : Indexable, src : MultiIndexable)
-      canonical_region = RegionUtil.canonicalize_region(region, shape_internal)
-      if !RegionUtil.compatible_shapes(src.shape_internal, RegionUtil.measure_canonical_region(canonical_region))
-        raise DimensionError.new("Cannot substitute #{typeof(src)}: the given #{typeof(src)} has shape #{src.shape_internal}, but region #{region} has shape #{RegionUtil.measure_canonical_region(canonical_region)}.")
+    def set_chunk(region_literal : Indexable, src : MultiIndexable)
+      idx_region = IndexRegion.new(region_literal, shape_internal)
+
+      if !ShapeUtil.compatible_shapes?(src.shape_internal, idx_region.shape)
+        raise DimensionError.new("Cannot substitute #{typeof(src)}: the given #{typeof(src)} has shape #{src.shape_internal}, but region #{idx_region} has shape #{idx_region.shape}.")
       end
 
-      LexIterator.new(shape_internal, canonical_region).each do |coord|
+      idx_region.each do |coord|
         unsafe_set_element(coord, unsafe_fetch_element(coord).as(T))
       end
     end
@@ -60,11 +61,11 @@ module Lattice
     # Sets each element in `region` to `value`.
     # Raises an error if `region` is out-of-bounds for this `{{@type}}`.
     def set_chunk(region : Indexable, value)
-      unsafe_set_chunk(RegionUtil.canonicalize_region(region, shape_internal), value.as(T))
+      unsafe_set_chunk(IndexRegion.new(region_literal, shape_internal), value.as(T))
     end
 
     def set_available(region : Indexable, value)
-      unsafe_set_chunk(RegionUtil.trim_region(region, shape))
+      unsafe_set_chunk(IndexRegion.new(region, trim_to: shape))
     end
 
     # See `#set_chunk(region : Enumerable, value)`

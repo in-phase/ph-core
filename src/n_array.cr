@@ -95,7 +95,7 @@ module Lattice
     #  [4]]
     # ```
     def self.build(shape, &block : Array(Int32), Int32 -> T)
-      coord_iter = IndexedLexIterator.new(shape)
+      coord_iter = IndexedLexIterator.cover(shape)
       {{@type}}.new(shape) do |idx|
         yield *(coord_iter.unsafe_next_with_index)
       end

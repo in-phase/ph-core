@@ -25,7 +25,7 @@ puts "Small shape (#{shape})"
 
 Benchmark.ips do |x|
     x.report("regular iterator") do
-        LexIterator.new(shape)
+        lse(shape)
     end
     
     x.report("checked iterator") do

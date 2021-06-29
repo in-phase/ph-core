@@ -19,7 +19,7 @@ module Lattice
 
     # Copies the elements in `region` to a new `{{@type}}`, assuming that `region` is in canonical form and in-bounds for this `{{@type}}`.
     # For full specification of canonical form see `RegionHelpers` documentation. TODO: make this actually happen
-    abstract def unsafe_fetch_chunk(region : CanonicalRegion)
+    abstract def unsafe_fetch_chunk(region : IndexRegion)
 
     # Retrieves the element specified by `coord`, assuming that `coord` is in canonical form and in-bounds for this `{{@type}}`.
     # For full specification of canonical form see `RegionHelpers` documentation. TODO: make this actually happen
@@ -100,7 +100,7 @@ module Lattice
 
     # Copies the elements in `region` to a new `{{@type}}`, and throws an error if `region` is out-of-bounds for this `{{@type}}`.
     def get_chunk(region : Indexable)
-      unsafe_fetch_chunk IndexRegion.new(region, shape_internal) #RegionUtil.canonicalize_region(region, shape_internal)
+      unsafe_fetch_chunk IndexRegion.new(region, shape_internal)
     end
 
     # Retrieves the element specified by `coord`, and throws an error if `coord` is out-of-bounds for this `{{@type}}`.
@@ -113,11 +113,11 @@ module Lattice
     end
 
     def get_chunk(coord : Indexable, region_shape : Indexable)
-      get_chunk(IndexRegion.new(region_shape).translate!(coord)) #RegionUtil.translate_shape(region_shape, coord))
+      get_chunk(IndexRegion.new(region_shape).translate!(coord))
     end
 
     def get_available(region : Indexable)
-      unsafe_get_chunk(RegionUtil.trim_region(region, shape))
+      unsafe_get_chunk(IndexRegion.new(region, trim_to: shape))
     end
 
     # Copies the elements in `region` to a new `{{@type}}`, and throws an error if `region` is out-of-bounds for this `{{@type}}`.
@@ -127,7 +127,7 @@ module Lattice
 
     # Copies the elements in `region` to a new `{{@type}}`, or returns false if `region` is out-of-bounds for this `{{@type}}`.
     def []?(region : Indexable) : self?
-      if RegionUtil.has_region?(region, shape_internal)
+      if has_region?(region)
         get_chunk(region)
       end
       false

@@ -9,7 +9,7 @@ module Lattice
     struct IndexRegion(T)
         # DISCUSS: should it be a MultiIndexable?
         # should .each give an iterator over dimensions, or over coords?
-        # include MultiIndexable(Array(T))
+        include MultiIndexable(Array(T))
 
         # :nodoc:
         getter start : Array(T)
@@ -43,7 +43,7 @@ module Lattice
 
         # 
         def self.new(region : IndexRegion(T), bound_shape)
-            if fits_in?(bound_shape)
+            if region.fits_in?(bound_shape)
                 return region.clone 
             end
             raise IndexError.new("Region #{region} does not fit inside #{bound_shape}")
@@ -100,7 +100,7 @@ module Lattice
         end
 
         # ============= Methods required by MultiIndexable ===========================
-        def shape 
+        def shape : Array(T)
             @shape.dup
         end
 
@@ -196,6 +196,10 @@ module Lattice
             coord.zip(@start, @step).map do |idx, start, step|
                 start + idx * step
             end
+        end
+
+        def each(iter = LexIterator) : Iterator(T)
+            LexIterator.new(self)
         end
 
         # =========== Range Canonicalization Helper Methods ====================
