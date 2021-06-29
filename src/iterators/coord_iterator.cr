@@ -16,7 +16,7 @@ module Lattice
       new(IndexRegion.cover(shape))
     end
 
-    def initialize(region : IndexRegion, reverse : Bool = false)
+    protected def initialize(region : IndexRegion, reverse : Bool = false)
       # TODO: When crystal 1.1.0 comes out, move the @coord initializer up to `getter coord = [] of T`.
       # this is a known bug
       @coord = [] of T
@@ -26,7 +26,7 @@ module Lattice
       reverse! if reverse
     end
 
-    def initialize(@first, @last, @step, @size)
+    protected def initialize(@first, @last, @step, @size)
       # TODO: When crystal 1.1.0 comes out, move the @coord initializer up to `getter coord = [] of T`.
       # this is a known bug
       @coord = [] of T

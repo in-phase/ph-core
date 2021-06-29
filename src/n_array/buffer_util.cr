@@ -71,17 +71,17 @@ module Lattice
         @buffer_index : Int32 = 0 # Initialized beforehand to placate the compiler
         @buffer_step : Array(Int32)
 
-        protected def initialize(shape : Shape, region : IndexRegion, reverse : Bool = false)
+        def self.cover(shape)
+          new(IndexRegion.cover(shape), shape)
+        end
+
+        protected def initialize(region : IndexRegion, shape : Shape, reverse : Bool = false)
           if region.dimensions == 0
             raise DimensionError.new("Failed to create {{@type.id}}: cannot iterate over empty shape \"[]\"")
           end
 
-          @buffer_step = BufferUtil.axis_strides()
+          @buffer_step = BufferUtil.axis_strides(shape)
           super(region, reverse)
-        end
-
-        protected def initialize(region : IndexRegion, reverse : Bool = false)
-          {% raise "bad" %}
         end
 
         def reset : self

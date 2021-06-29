@@ -6,7 +6,15 @@ module Lattice
 
     getter coord_iter : CoordIterator(Int32)
 
-    def self.of(src, region = nil, reverse = false, iter : CoordIterator.class = LexIterator)
+
+    def self.of(src, region = nil, reverse = false, iter : CoordIterator)
+      if iter.nil?
+          if region.nil?
+            iter = LexIterator.cover(src.shape)
+          else
+            iter = LexIterator.new(region)
+          end
+      end
       new(src, iter.new(src.shape, region, reverse))
     end
 
@@ -17,6 +25,8 @@ module Lattice
         new(src, LexIterator.new(src.shape, region, reverse))
       end
     end
+
+    ElemAndCoordIterator.new(src, IndexedLexIterator.new(region, shape))
 
     def self.new(src, region = nil, reverse = false, iter : CoordIterator.class = LexIterator)
       new(src, iter.new(src.shape, region, reverse))

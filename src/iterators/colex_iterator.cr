@@ -3,6 +3,10 @@ require "./coord_iterator"
 module Lattice
   class ColexIterator(T) < CoordIterator(T)
 
+    def initialize(region : IndexRegion, reverse : Bool = false)
+      super
+    end
+
     def advance_coord
       @coord.each_index do |i| # ## least sig .. most sig
         if @coord[i] == @last[i]

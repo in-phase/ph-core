@@ -1,24 +1,24 @@
 require "big"
 
 module Lattice
-  module GeneralCoordIterator(T)
+    abstract class GeneralCoordIterator(T)
     include Iterator(Coord)
 
+    getter coord : Array(T)
+    @first : Array(T)
+    @step : Array(T)
 
-    macro included
-      getter coord : Array(T)
-      @first : Array(T)
-      @step : Array(T)
+    # def initialize(region):
+    #   canonicalize_stuff
+      # - negative to positive 
+      # - inferred endpoints: forgive  (throw error on inferred start)
+      # - -------------exclusivity <=  ONLY HANDLE THIS
 
-      # Informs the iterator to not update the coord, i.e. if the iterator 
-      # is empty or when returning the first item
-      @hold_coord : Bool = true
-      @empty : Bool = false
-    end
 
-    @coord
-    
-    abstract def coord : Array(T)
+    # Informs the iterator to not update the coord, i.e. if the iterator 
+    # is empty or when returning the first item
+    @hold_coord : Bool = true
+    @empty : Bool = false
 
     abstract def advance_coord
     
