@@ -8,7 +8,7 @@ include Lattice
 
 # These categorizations only apply to r_narr, but help simplify testing
 # of region-accepting functions (because there are so many cases)
-VALID_REGIONS = [[0..2], [0...3, ..], [-3..-1, 1], [.., 2], [2..1, 0..2..2], [0, 2...2], [] of Int32, [] of Range(Nil, Nil)]
+VALID_REGIONS = [[0..2], [0...3, ..], [-3..-1, 1], [.., 2], [2..1, 0..2..2], [0, 2...2], [] of Int32, [] of Range(Nil, Nil), [2.., 0]]
 INVALID_REGIONS = [[0..8], [1, 1, 1], [-1...-10]]
 
 test_buffer = Slice[1, 2, 3, 'a', 'b', 'c', 1f64, 2f64, 3f64]
@@ -26,8 +26,16 @@ macro test_get_element(method)
             (0...side_length).each do |col|
                 buffer_index = row * side_length + col
                 expected_elem = test_buffer[buffer_index]
-                r_narr.{{method.id}}(row, col)
-                r_narr.{{method.id}}([row, col])
+                
+                actual = r_narr.{{method.id}}(row, col)
+                if actual != expected_elem
+                    fail("Tuple accepting verision failed: narr.{{method.id}}(#{row}, #{col}) should have been #{expected_elem}, but was #{actual}")
+                end
+                
+                actual = r_narr.{{method.id}}([row, col])
+                if actual != expected_elem
+                    fail("Indexable accepting verision failed: narr.{{method.id}}([#{row}, #{col}]) should have been #{expected_elem}, but was #{actual}")
+                end
             end
         end
     end
@@ -46,6 +54,29 @@ macro test_get_element(method)
                 end
             end
         end
+    end
+end
+
+# get_chunk and [] are aliases, so this prevents testing redundancy.
+macro test_get_chunk(method)
+    it "returns a chunk for each valid region" do
+        VALID_REGIONS.each do |region|
+            # Really, all we can test for sensibly is that it doesn't
+            # raise.
+            r_narr.{{method.id}}(region)
+        end
+    end
+
+    pending "returns a chunk for each valid indexregion" do
+
+    end
+
+    it "returns the correct output" do
+        chunk = r_narr.{{method.id}}([0..1, 1])
+        puts chunk.buffer
+    end
+
+    pending "test this more exhaustively" do
     end
 end
 
@@ -128,22 +159,6 @@ describe Lattice::MultiIndexable do
         end
 
         it "returns each element in similar proportion (note: this test is probabilistic, and there is a small chance it fails under normal operation)", tags: ["slow", "probabilistic"] do
-            shape = [1, 2, 3]
-            size = shape.product
-            buffer = Slice.new(size) { |idx| idx }
-            narr = RONArray.new(shape, buffer)
-            
-            expected_occurrences = 1000
-            tolerance = 100
-            sample_count = size * expected_occurrences
-
-            tally = narr.sample(sample_count).tally
-            tally.each do |_, count|
-                count.should be_close(expected_occurrences, delta: tolerance)
-            end
-        end
-
-        it "returns each element in similar proportion (note: this test is probabilistic, and there is a small chance it fails under normal operation)", tags: ["slow", "probabilistic"] do
             # Note: This shape needs to be hardcoded because it assumes 6 distinct elements (5 dof).
             shape = [1, 2, 3]
             size = shape.product
@@ -161,9 +176,8 @@ describe Lattice::MultiIndexable do
                 (observed - expected_occurrences)**2 / expected_occurrences
             end
 
-            # when dof=5, we expect a chi-square 
-            # chi_sq.should 
-            puts chi_sq
+            # when dof=5, we expect a chi-square less than 11.07 in the case described above
+            (chi_sq < 11.07).should be_true
         end
 
         it "returns the only element in a one-element MultiIndexable" do
@@ -260,13 +274,15 @@ describe Lattice::MultiIndexable do
         test_get_element(:get)
     end
 
-    describe "#get_chunk" do 
+    describe "#get_chunk" do
+        test_get_chunk(:get_chunk)
     end
 
     describe "#get_available" do 
     end
 
-    describe "#[]" do 
+    describe "#[]" do
+        test_get_chunk(:[])
     end
 
     describe "#[]?" do 
