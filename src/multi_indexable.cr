@@ -156,9 +156,16 @@ module Lattice
       ElemAndCoordIterator.of(self, iter: iter)
     end
 
-    def map_with_coord(&block : (T, Coord -> R)) : MultiIndexable(R) forall R
+    def map_with_coord(&block) # : (T, U -> R)) : MultiIndexable(R) forall R,U
       NArray.build(shape_internal) do |coord, i|
         yield unsafe_fetch_element(coord), coord
+      end
+    end
+
+    # By default, gives an NArray
+    def map(&block : (T -> R)) : MultiIndexable(R) forall R
+      map_with_coord do |el, coord|
+        yield el
       end
     end
 
@@ -224,11 +231,11 @@ module Lattice
       view(region)
     end
 
-    def process(&block : (T -> R)) : ProcView(T, R) forall R
+    def process(&block : (T -> R)) : ProcView(self, T, R) forall R
       process(block)
     end
 
-    def process(proc : Proc(T -> R)) : ProcView(T, R) forall R
+    def process(proc : Proc(T, R)) : ProcView(self, T, R) forall R
       ProcView.of(self, proc)
     end
 
@@ -262,9 +269,16 @@ module Lattice
           if shape_internal != other.shape_internal
             raise DimensionError.new("Cannot perform elementwise operation {{name.id}}: shapes #{other.shape_internal} of other and #{shape_internal} of self do not match") 
           end
+
+
           map_with_coord do |elem, coord|
             elem.{{name.id}} other.unsafe_fetch_element(coord).as(U)
           end
+
+          # NArray.build(shape_internal) do |coord, i|
+          #   unsafe_fetch_element(coord).{{name.id}} other.unsafe_fetch_element(coord).as(U)
+          # end
+
         end
 
         # Invokes `#{{name.id}}(other)` on each element in `self`, returning an
