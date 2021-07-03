@@ -4,7 +4,7 @@ require "yaml"
 # when you first print an narray, it loads whatever it should find from file, and then saves it in a static variable on FormatterSettings
 module Lattice
   module MultiIndexable
-    class Formatter(T)
+    class Formatter(E, I)
       private enum Flags
         ELEM
         SKIP
@@ -13,15 +13,15 @@ module Lattice
 
       @settings : Settings
       @io : IO
-      @iter : ElemIterator(T)
+      @iter : ElemIterator(E,I)
 
-      @shape : Array(Int32)
+      @shape : Array(I)
       @col = 0
       @current_indentation = 0
       @cutoff_length = 8
       @justify_length = 8
 
-      def self.print(narr : MultiIndexable(T), io : IO = STDOUT, settings = nil)
+      def self.print(narr : MultiIndexable(E), io : IO = STDOUT, settings = nil)
         settings ||= Settings.new
 
         display_shape = narr.shape.map_with_index do |dim, i|
@@ -30,17 +30,17 @@ module Lattice
         end
 
         io << "#{display_shape.join('x')} #{"element " if narr.shape.size == 1} #{narr.class}\n"
-        Formatter.new(narr, io, settings).print
+        Formatter(E, typeof(narr.shape[0])).new(narr, io, settings).print
       end
 
-      def self.print_literal(narr : MultiIndexable(T), io = STDOUT)
-        fmt = Formatter.new(narr, io, Settings.new)
+      def self.print_literal(narr : MultiIndexable(E), io = STDOUT)
+        fmt = Formatter(E, typeof(narr.shape[0])).new(narr, io, Settings.new)
         fmt.print_literal
       end
 
-      def initialize(narr : MultiIndexable(T), @io, @settings)
+      def initialize(narr : MultiIndexable(E), @io, @settings)
         @depth = 0
-        @iter = ElemIterator.of(narr, iter: LexIterator)
+        @iter = ElemIterator.of(narr, LexIterator.cover(narr.shape))
 
         # FormatIterator(MultiIndexable(T), T).new(narr)
         @shape = narr.shape

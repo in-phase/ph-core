@@ -1,16 +1,17 @@
 module Lattice
-  class RegionIterator
+  class RegionIterator(I)
     include Iterator(IndexRegion)
 
-    @src_shape : Array(Int32)
-    @chunk_shape : Array(Int32)
-    @coord_iter : CoordIterator(Int32)
+    @src_shape : Array(I)
+    @chunk_shape : Array(I)
+    @coord_iter : CoordIterator(I)
 
     @fringe_behaviour : FringeBehaviour
 
     # getter size : Int32
 
-    def self.new(src_shape : Array(Int32), chunk_shape, strides = nil, iter : CoordIterator.class = LexIterator, fringe_behaviour : FringeBehaviour = FringeBehaviour::DISCARD)
+    # TODO: iter inputs, etc
+    def self.new(src_shape : Indexable(I), chunk_shape, strides = nil, iter : CoordIterator.class = LexIterator, fringe_behaviour : FringeBehaviour = FringeBehaviour::DISCARD)
       # convert strides into an iterable region
       strides ||= chunk_shape
       if strides.any? { |x| x <= 0 }
@@ -18,7 +19,7 @@ module Lattice
       end
       last = self.compute_lasts(src_shape, chunk_shape, strides, fringe_behaviour)
 
-      coord_iter = iter.from_canonical(Array(Int32).new(src_shape.size, 0), last, strides)
+      coord_iter = iter.from_canonical(Array(I).new(src_shape.size, 0), last, strides)
 
       new(src_shape, chunk_shape, coord_iter, fringe_behaviour)
     end
@@ -90,7 +91,7 @@ module Lattice
     end
 
     protected def compute_region(coord)
-      region = IndexRegion.new(chunk_shape).translate!(coord)
+      region = IndexRegion.cover(chunk_shape).translate!(coord)
       unless @fringe_behaviour == FringeBehaviour::DISCARD
         region.trim!(@src_shape)
       end

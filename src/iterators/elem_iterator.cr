@@ -1,45 +1,46 @@
 require "./elem_coord_iterator"
 
 module Lattice
-  class ElemIterator(T)
-    include Iterator(T)
+  class ElemIterator(E, I)
+    include Iterator(E)
 
-    getter region_iter : ElemAndCoordIterator(T)
+    getter ec_iter : ElemAndCoordIterator(E, I)
 
-    def self.of(src, region = nil, reverse = false, iter : CoordIterator.class = LexIterator) : self
-      new(src, region, reverse, iter)
+    def self.of(src, iter : CoordIterator)
+      new(src, iter)
     end
 
-    def self.new(src, region = nil, reverse = false, colex = false) : self
-      if colex
-        iter = ColexIterator.new(src.shape, region, reverse)
+    def self.of(src, region = nil)
+      if region.nil?
+        iter = LexIterator.cover(src.shape)
       else
-        iter = LexIterator.new(src.shape, region, reverse)
+        iter = LexIterator.new(region)
       end
+      
+      new(src, iter)
+    end
+
+    def self.new(src, iter : CoordIterator)
       new(ElemAndCoordIterator.new(src, iter))
     end
 
-    def self.new(src, region = nil, reverse = false, iter : CoordIterator.class = LexIterator) : self
-      new(ElemAndCoordIterator.new(src, region, reverse, iter))
-    end
-
-    protected def initialize(@region_iter : ElemAndCoordIterator(T))
+    protected def initialize(@ec_iter : ElemAndCoordIterator(E, I))
     end
 
     def next
-      @region_iter.next_value
+      @ec_iter.next_value
     end
 
     def unsafe_next
-      @region_iter.unsafe_next_value
+      @ec_iter.unsafe_next_value
     end
 
     def reset
-      @region_iter.reset
+      @ec_iter.reset
     end
 
     def coord_iter
-      @region_iter.coord_iter
+      @ec_iter.coord_iter
     end
   end
 end

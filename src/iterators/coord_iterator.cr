@@ -16,14 +16,13 @@ module Lattice
       new(IndexRegion.cover(shape))
     end
 
-    protected def initialize(region : IndexRegion, reverse : Bool = false)
+    protected def initialize(region : IndexRegion)
       # TODO: When crystal 1.1.0 comes out, move the @coord initializer up to `getter coord = [] of T`.
       # this is a known bug
       @coord = [] of T
       @first, @step, @last, @size = region.start, region.step, region.stop, BigInt.new(region.size)
       @empty = (@size == 0)
       reset
-      reverse! if reverse
     end
 
     protected def initialize(@first, @last, @step, @size)

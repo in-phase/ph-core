@@ -1,38 +1,32 @@
 require "./coord_iterator"
 
 module Lattice
-  class ElemAndCoordIterator(T)
-    include Iterator(Tuple(T, Array(Int32)))
+  class ElemAndCoordIterator(E, I)
+    include Iterator(Tuple(E, Array(I)))
 
-    getter coord_iter : CoordIterator(Int32)
+    getter coord_iter : CoordIterator(I)
 
+    # discussed on signal: have an overload where iter is a mandatory named param
 
-    def self.of(src, region = nil, reverse = false, iter : CoordIterator)
-      if iter.nil?
-          if region.nil?
-            iter = LexIterator.cover(src.shape)
-          else
-            iter = LexIterator.new(region)
-          end
-      end
-      new(src, iter.new(src.shape, region, reverse))
+    def self.of(src, iter : CoordIterator)
+      new(src, iter)
     end
 
-    def self.new(src, region = nil, reverse = false, colex = false) : self
-      if colex
-        new(src, ColexIterator.new(src.shape, region, reverse))
+    def self.of(src, region = nil)
+      if region.nil?
+        iter = LexIterator.cover(src.shape)
       else
-        new(src, LexIterator.new(src.shape, region, reverse))
+        iter = LexIterator.new(region)
       end
+      
+      new(src, iter)
     end
 
-    ElemAndCoordIterator.new(src, IndexedLexIterator.new(region, shape))
-
-    def self.new(src, region = nil, reverse = false, iter : CoordIterator.class = LexIterator)
-      new(src, iter.new(src.shape, region, reverse))
+    def self.new(src, iter : CoordIterator)
+      new(src, iter)
     end
 
-    protected def initialize(@src : MultiIndexable(T), @coord_iter : CoordIterator)
+    protected def initialize(@src : MultiIndexable(E), @coord_iter : CoordIterator(I))
     end
 
     def reset
@@ -49,14 +43,14 @@ module Lattice
       {get_element(coord), coord}
     end
 
-    def next_value : (T | Iterator::Stop)
+    def next_value : (E | Iterator::Stop)
       coord = @coord_iter.next
       return stop if coord.is_a?(Iterator::Stop)
       get_element(coord)
     end
 
-    def unsafe_next_value : T
-      coord = @coord_iter.next.unsafe_as(Array(Int32))
+    def unsafe_next_value : E
+      coord = @coord_iter.next.unsafe_as(Array(I))
       get_element(coord)
     end
   end

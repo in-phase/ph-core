@@ -2,7 +2,7 @@ require "colorize"
 require "yaml"
 
 module Lattice::MultiIndexable
-  class Formatter(T)
+  class Formatter(E, I)
     class Settings
       include YAML::Serializable
 

@@ -75,13 +75,13 @@ module Lattice
           new(IndexRegion.cover(shape), shape)
         end
 
-        protected def initialize(region : IndexRegion, shape : Shape, reverse : Bool = false)
+        protected def initialize(region : IndexRegion, shape : Shape)
           if region.dimensions == 0
             raise DimensionError.new("Failed to create {{@type.id}}: cannot iterate over empty shape \"[]\"")
           end
 
           @buffer_step = BufferUtil.axis_strides(shape)
-          super(region, reverse)
+          super(region)
         end
 
         def reset : self
@@ -137,7 +137,8 @@ module Lattice
         end
       end
 
-      class BufferedECIterator(T) < ElemAndCoordIterator(T)
+      # TODO: Make generic coord
+      class BufferedECIterator(T) < ElemAndCoordIterator(T, Int32)
         def self.new(src, region = nil, reverse = false, iter : CoordIterator.class = IndexedLexIterator) : self
           raise "BufferedECIterators must use IndexedCoordIterators" unless iter < IndexedCoordIterator
           new(src, iter.new(src.shape, region, reverse))

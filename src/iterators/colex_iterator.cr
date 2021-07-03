@@ -3,8 +3,12 @@ require "./coord_iterator"
 module Lattice
   class ColexIterator(T) < CoordIterator(T)
 
-    def initialize(region : IndexRegion, reverse : Bool = false)
+    def initialize(region : IndexRegion)
       super
+    end
+
+    def initialize(region_literal)
+      super(IndexRegion(T).new(region_literal))
     end
 
     def advance_coord

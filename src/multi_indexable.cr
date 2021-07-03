@@ -149,12 +149,18 @@ module Lattice
     end
 
     def each(iter = LexIterator) : Iterator(T)
+      puts "Hi, I'm being called"
       ElemIterator.of(self, iter: iter)
     end
 
     def each_with_coord(iter = LexIterator) : Iterator(Tuple(T, Coord))
       ElemAndCoordIterator.of(self, iter: iter)
     end
+
+    # when you're doing macro stuff, you want to be able to know the coordinate type
+    # NArray(T) : include MultiIndexable(T, Int32) - the user can't see that there's a coord type parameter
+    # having the coord type might allow us to do more stuff automatically (so not hardcoding coord types in lex)
+    # coordinate is a type param of multiInd
 
     def map_with_coord(&block) # : (T, U -> R)) : MultiIndexable(R) forall R,U
       NArray.build(shape_internal) do |coord, i|
