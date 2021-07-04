@@ -42,5 +42,13 @@ module Lattice
     def coord_iter
       @ec_iter.coord_iter
     end
+
+    def reverse
+      new(@src, @ec_iter.reverse)
+    end
+
+    def reverse!
+      @ec_iter.reverse!
+    end
   end
 end

@@ -22,11 +22,7 @@ module Lattice
       new(src, iter)
     end
 
-    def self.new(src, iter : CoordIterator)
-      new(src, iter)
-    end
-
-    protected def initialize(@src : MultiIndexable(E), @coord_iter : CoordIterator(I))
+    def initialize(@src : MultiIndexable(E), @coord_iter : CoordIterator(I))
     end
 
     def reset
@@ -52,6 +48,14 @@ module Lattice
     def unsafe_next_value : E
       coord = @coord_iter.next.unsafe_as(Array(I))
       get_element(coord)
+    end
+
+    def reverse
+      typeof(self).new(@src, @coord_iter.reverse)
+    end
+
+    def reverse!
+      @coord_iter.reverse!
     end
   end
 end

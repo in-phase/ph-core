@@ -5,24 +5,12 @@ module Lattice
     @last : Array(T)
     getter size : BigInt
 
-    def self.from_canonical(first, last, step, size = nil)
-      if !size
-        size = measure(first, last, step)
-      end
-      self.new(first, last, step, size)
-    end
-
     def self.cover(shape : Shape)
       new(IndexRegion.cover(shape))
     end
 
-    protected def initialize(region : IndexRegion)
-      # TODO: When crystal 1.1.0 comes out, move the @coord initializer up to `getter coord = [] of T`.
-      # this is a known bug
-      @coord = [] of T
-      @first, @step, @last, @size = region.start, region.step, region.stop, BigInt.new(region.size)
-      @empty = (@size == 0)
-      reset
+    protected def initialize(region : IndexRegion(T))
+      initialize(region.start, region.stop, region.step, BigInt.new(region.size))
     end
 
     protected def initialize(@first, @last, @step, @size)
@@ -40,7 +28,7 @@ module Lattice
     end
 
     def reverse
-      typeof(self).new(@last, @first, @step.map &.-, @size)
+      clone.reverse!
     end
 
     protected def self.measure(firsts, lasts, steps) : BigInt

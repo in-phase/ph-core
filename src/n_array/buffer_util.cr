@@ -79,9 +79,12 @@ module Lattice
           if region.dimensions == 0
             raise DimensionError.new("Failed to create {{@type.id}}: cannot iterate over empty shape \"[]\"")
           end
-
           @buffer_step = BufferUtil.axis_strides(shape)
           super(region)
+        end
+
+        protected def initialize(@first, @last, @step, @size, @buffer_step)
+          super(@first, @last, @step, @size)
         end
 
         def reset : self
@@ -104,6 +107,7 @@ module Lattice
       end
 
       class IndexedLexIterator < IndexedCoordIterator
+        def_clone
         def advance_coord
           (@coord.size - 1).downto(0) do |i| # ## least sig .. most sig
             if @coord[i] == @last[i]
@@ -121,6 +125,7 @@ module Lattice
       end
 
       class IndexedColexIterator < IndexedCoordIterator
+        def_clone
         def advance_coord
           0.upto(@coord.size - 1) do |i| # ## least sig .. most sig
             if @coord[i] == @last[i]
@@ -139,9 +144,24 @@ module Lattice
 
       # TODO: Make generic coord
       class BufferedECIterator(T) < ElemAndCoordIterator(T, Int32)
-        def self.new(src, region = nil, reverse = false, iter : CoordIterator.class = IndexedLexIterator) : self
-          raise "BufferedECIterators must use IndexedCoordIterators" unless iter < IndexedCoordIterator
-          new(src, iter.new(src.shape, region, reverse))
+        
+        # This is needed here to prevent the method below (def self.of(src, region = nil)) from taking priority
+        def self.of(src, iter : CoordIterator)
+          new(src, iter)
+        end
+
+        # Overridden to replace default iterator type
+        def self.of(src, region = nil)
+          if region.nil?
+            iter = IndexedLexIterator.cover(src.shape)
+          else
+            iter = IndexedLexIterator.new(region, src.shape)
+          end
+          new(src, iter)
+        end
+
+        protected def initialize(@src : MultiIndexable(T), @coord_iter : CoordIterator(Int32))
+          raise "BufferedECIterators must use IndexedCoordIterators" unless @coord_iter.is_a?(IndexedCoordIterator)
         end
 
         protected def get_element(coord = nil)

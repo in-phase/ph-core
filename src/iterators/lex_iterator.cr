@@ -2,7 +2,7 @@ require "./coord_iterator"
 
 module Lattice
   class LexIterator(T) < CoordIterator(T)
-    
+    def_clone
     def initialize(region : IndexRegion(T))
       super
     end

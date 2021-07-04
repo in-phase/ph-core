@@ -2,8 +2,8 @@ require "./coord_iterator"
 
 module Lattice
   class ColexIterator(T) < CoordIterator(T)
-
-    def initialize(region : IndexRegion)
+    def_clone
+    def initialize(region : IndexRegion(T))
       super
     end
 
