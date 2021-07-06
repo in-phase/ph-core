@@ -141,9 +141,7 @@ module Lattice
 
     # ========================== Other =====================================
 
-    def clone : IndexRegion(T)
-      IndexRegion(T).new(@start.clone, @step.clone, @stop.clone, @shape.clone)
-    end
+    def_clone
 
     # TODO: check dimensions
     def fits_in?(bound_shape) : Bool
@@ -165,8 +163,17 @@ module Lattice
         @start[axis], @step[axis], @stop[axis], @shape[axis] =
           self.trim_axis(container_size, @start[axis], @step[axis], @stop[axis], @shape[axis])
       end
-
       self
+    end
+
+    def reverse! : IndexRegion(T)
+      @start, @stop = @stop, @start
+      @step = @step.map &.-
+      self
+    end
+
+    def reverse : IndexRegion(T)
+      clone.reverse!
     end
 
     def trim(bound_shape) : IndexRegion(T)
@@ -218,7 +225,7 @@ module Lattice
       range_literal.each do |int|
         next if int.nil?
         if int < 0
-          raise "Negative indices have no meaning when a bounding shape is not provided."
+          raise IndexError.new("Negative indices have no meaning when a bounding shape is not provided.")
         end
       end
     end
