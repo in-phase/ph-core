@@ -323,17 +323,8 @@ module Lattice
     # Copies the elements in `region` to a new `{{@type}}`, assuming that `region` is in canonical form and in-bounds for this `{{@type}}`.
     # For full specification of canonical form see `RegionHelpers` documentation. TODO: make this actually happen
     def unsafe_fetch_chunk(region)
-      shape = RegionUtil.measure_canonical_region(region)
-
-      # TODO optimize this! Any way to avoid double iteration?
-      # buffer_arr = [] of T
-      # narray_each_in_canonical_region(region) do |elem, idx, src_idx|
-      #   buffer_arr << elem
-      # end
-
-      # typeof(self).new(shape) { |i| buffer_arr[i] }
-
-      iter = BufferedECIterator.new(self, region)
+      shape = region.shape
+      iter = BufferedECIterator.new(self, IndexedLexIterator.new(region, @shape))
       typeof(self).new(shape) { iter.unsafe_next_value }
     end
 
@@ -367,18 +358,18 @@ module Lattice
 
     # Copies the elements from a MultiIndexable `src` into `region`, assuming that `region` is in canonical form and in-bounds for this `{{type}}`
     # and the shape of `region` matches the shape of `src`.
-    def unsafe_set_chunk(region : Enumerable, src : MultiIndexable(T))
-      narray_each_in_canonical_region(region) do |elem, other_idx, this_idx|
-        # @buffer[this_idx] = src.buffer[other_idx]
-        # TODO: see if this is the best way! (Want it to be generalizable to MultiIndexable...)
-        @buffer[this_idx] = src.unsafe_fetch_element(src.index_to_coord(other_idx))
+    def unsafe_set_chunk(region : IndexRegion, src : MultiIndexable(T))
+      iter = IndexedLexIterator.new(region, @shape)
+      iter.each do |coord|
+        @buffer[iter.current_index] = src.unsafe_fetch_element(iter.coord)
       end
     end
 
     # Sets each element in `region` to `value`, assuming that `region` is in canonical form and in-bounds for this `{{type}}`
-    def unsafe_set_chunk(region : Enumerable, value : T)
-      narray_each_in_canonical_region(region) do |elem, idx, buffer_idx|
-        @buffer[buffer_idx] = value
+    def unsafe_set_chunk(region : IndexRegion, value : T)
+      iter = IndexedLexIterator.new(region, @shape)
+      iter.each do |coord|
+        @buffer[iter.current_index] = value
       end
     end
 
@@ -412,6 +403,7 @@ module Lattice
     end
 
     # TODO????
+    # wrong params.
     def each_with_coord(iter : CoordIterator.class = IndexedLexIterator)
       BufferedECIterator.new(self, iter: iter)
     end
@@ -422,25 +414,18 @@ module Lattice
       end
     end
 
-    # def each_with_coord(&block : T, Array(Int32), Int32 ->)
-    #   each_with_index do |elem, idx|
-    #     yield elem, index_to_coord(idx), idx
-    #   end
-    # end
-
     # def map(&block : T -> U) forall U
     #   map_with_index do |elem|
     #     yield elem
     #   end
     # end
 
-    # def map_with_index(&block : T, Int32 -> U) forall U
-    #   buffer = Slice(U).new(@shape.product) do |idx|
-    #     yield @buffer[idx], idx
-    #   end
-
-    #   NArray(U).new(@shape, buffer)
-    # end
+    def map_with_index(&block : T, Int32 -> U) forall U
+      NArray(U).build(@shape) do |coord, idx|
+          yield @buffer[idx], idx
+      end
+    end
+  
 
     # def map_with_coord(&block : T, Array(Int32), Int32 -> U) forall U
     #   map_with_index do |elem, idx|
@@ -466,40 +451,6 @@ module Lattice
     #     yield elem, index_to_coord(idx), idx
     #   end
     # end
-
-    def each_in_region(region, &block : T, Int32, Int32 ->)
-      region = RegionUtil.canonicalize_region(region, @shape)
-
-      narray_each_in_canonical_region(region, &block)
-    end
-
-    # TODO: Document
-    def narray_each_in_canonical_region(region, axis = 0, read_index = 0, write_index = [0], &block : T, Int32, Int32 ->)
-      current_range = region[axis]
-
-      # Base case - yield the scalars in a subspace
-      if axis == @shape.size - 1
-        current_range.each do |idx|
-          # yield @buffer[read_index + idx], write_index[0], read_index + idx
-          # write_index[0] += 1
-          yield @buffer.unsafe_fetch(read_index + idx), write_index.unsafe_fetch(0), read_index + idx
-          write_index[0] += 1
-        end
-        return
-      end
-
-      # Otherwise, recurse
-      buffer_step_size = @axis_strides[axis]
-      initial_read_index = read_index
-
-      current_range.each do |idx|
-        # navigate to the correct start index
-        read_index = initial_read_index + idx * buffer_step_size
-        narray_each_in_canonical_region(region, axis + 1, read_index, write_index) do |a, b, c|
-          block.call(a, b, c)
-        end
-      end
-    end
 
     # Given a list of `{{@type}}`s, returns the smallest shape array in which any one of those `{{@type}}s` can be contained.
     # TODO: Example

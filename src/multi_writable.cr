@@ -60,8 +60,8 @@ module Lattice
 
     # Sets each element in `region` to `value`.
     # Raises an error if `region` is out-of-bounds for this `{{@type}}`.
-    def set_chunk(region : Indexable, value)
-      unsafe_set_chunk(IndexRegion.new(region_literal, shape_internal), value.as(T))
+    def set_chunk(region : Indexable | IndexRegion, value)
+      unsafe_set_chunk(IndexRegion.new(region, shape_internal), value.as(T))
     end
 
     def set_available(region : Indexable, value)
@@ -69,7 +69,7 @@ module Lattice
     end
 
     # See `#set_chunk(region : Enumerable, value)`
-    def []=(region : Indexable, value)
+    def []=(region : Indexable | IndexRegion, value)
       set_chunk(region, value)
     end
 

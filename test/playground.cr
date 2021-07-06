@@ -36,10 +36,12 @@
 
 
 
+require "../src/lattice"
+include Lattice 
 
+narr = NArray.build([4,4,4]) {|c, i| i}
+region = [.., ..2..]
 
+narr[region] = 5
 
-
-class Foo(T)
-
-end
+puts narr

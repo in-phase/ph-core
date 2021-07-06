@@ -8,7 +8,7 @@ module Lattice
 
     # discussed on signal: have an overload where iter is a mandatory named param
 
-    def self.of(src, iter : CoordIterator)
+    def self.of(src, iter : CoordIterator(I))
       new(src, iter)
     end
 
@@ -18,7 +18,6 @@ module Lattice
       else
         iter = LexIterator.new(region)
       end
-      
       new(src, iter)
     end
 

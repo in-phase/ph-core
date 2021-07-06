@@ -60,7 +60,7 @@ module ReadUtils(T)
 
   def unsafe_fetch_chunk(idx_region : IndexRegion)
     shape = idx_region.shape # RegionUtil.measure_canonical_region(region)
-    iter = ElemIterator.new(self, idx_region)
+    iter = ElemIterator.of(self, idx_region)
 
     buffer = Slice(T).new(shape.product) do |idx|
       iter.next.as(T)

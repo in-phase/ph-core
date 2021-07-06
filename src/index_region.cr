@@ -32,72 +32,11 @@ module Lattice
 
     # =========================== Constructors ==============================
 
-    # Possibly?????????? Define a canonical region independent of bounds - ONLY if:
-    # - all integers are positive
-    # - all start/stops are explicit, not inferred
-    # def self.new(region_literal)
-    # end
-
-    #
-    def self.new(region : IndexRegion(T), bound_shape)
+    def self.new(region : IndexRegion, bound_shape)
       if region.fits_in?(bound_shape)
         return region.clone
       end
       raise IndexError.new("Region #{region} does not fit inside #{bound_shape}")
-    end
-
-    protected def self.ensure_nonnegative(*range_literal : Int?)
-      range_literal.each do |int|
-        next if int.nil?
-        if int < 0
-          raise "Negative indices have no meaning when a bounding shape is not provided."
-        end
-      end
-    end
-
-    protected def self.ensure_nonnegative(range_literal : Range)
-      case first = range_literal.begin
-      when Int
-        self.ensure_nonnegative(first, range_literal.end)
-      when Range
-        self.ensure_nonnegative(first.begin, range_literal.end)
-      end
-    end
-
-    protected def self.bounded?(range_literal : Int)
-      true
-    end
-
-    def self.bounded?(range_literal : Range)
-      case first = range_literal.begin
-      when Int
-        return false if range_literal.end.nil?
-      when Range
-        if first.end >= 0 && range_literal.end.nil?
-          return false
-        elsif first.begin.nil?
-          return false
-        end
-      end
-      true
-    end
-
-    # creates an indexRegion from positive, bounded literals
-    def initialize(region_literal)
-        dims = region_literal.size
-        @start = Array(T).new(dims, T.zero)
-        @step = Array(T).new(dims, T.zero)
-        @stop = Array(T).new(dims, T.zero)
-        @shape = Array(T).new(dims, T.zero)
-
-        region_literal.each_with_index do |range, i|
-            IndexRegion.ensure_nonnegative(range)
-            if !IndexRegion.bounded?(range)
-                raise "Cannot create IndexRegion without an explicit upper bound unless you provide a bounding shape"
-            end
-            
-            @start[i], @step[i], @stop[i], @shape[i] = IndexRegion.infer_range(range, T.zero)
-        end
     end
 
     # doesn't allow negative (relative) indices, and allows you to clip
@@ -123,6 +62,24 @@ module Lattice
     # Gets the region including all coordinates in the given bound_shape
     def self.cover(bound_shape : Indexable(T))
       new(bound_shape: bound_shape)
+    end
+
+    # creates an indexRegion from positive, bounded literals
+    def initialize(region_literal : Enumerable)
+        dims = region_literal.size
+        @start = Array(T).new(dims, T.zero)
+        @step = Array(T).new(dims, T.zero)
+        @stop = Array(T).new(dims, T.zero)
+        @shape = Array(T).new(dims, T.zero)
+
+        region_literal.each_with_index do |range, i|
+            IndexRegion.ensure_nonnegative(range)
+            if !IndexRegion.bounded?(range)
+                raise "Cannot create IndexRegion without an explicit upper bound unless you provide a bounding shape"
+            end
+            
+            @start[i], @step[i], @stop[i], @shape[i] = IndexRegion.infer_range(range, T.zero)
+        end
     end
 
     def initialize(@start, step = nil, *, @stop : Indexable(T))
@@ -256,6 +213,42 @@ module Lattice
     end
 
     # =========== Range Canonicalization Helper Methods ====================
+    
+    protected def self.ensure_nonnegative(*range_literal : Int?)
+      range_literal.each do |int|
+        next if int.nil?
+        if int < 0
+          raise "Negative indices have no meaning when a bounding shape is not provided."
+        end
+      end
+    end
+
+    protected def self.ensure_nonnegative(range_literal : Range)
+      case first = range_literal.begin
+      when Int
+        self.ensure_nonnegative(first, range_literal.end)
+      when Range
+        self.ensure_nonnegative(first.begin, range_literal.end)
+      end
+    end
+
+    protected def self.bounded?(range_literal : Int)
+      true
+    end
+
+    def self.bounded?(range_literal : Range)
+      case first = range_literal.begin
+      when Int
+        return false if range_literal.end.nil?
+      when Range
+        if first.end >= 0 && range_literal.end.nil?
+          return false
+        elsif first.begin.nil?
+          return false
+        end
+      end
+      true
+    end
 
     protected def self.get_size(start, stop, step)
       if stop != start && step.sign != (stop <=> start)

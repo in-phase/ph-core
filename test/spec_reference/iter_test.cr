@@ -16,6 +16,7 @@ puts "The NArray:"
 puts small_arr
 # puts "The region:"
 # puts small_arr[canonical] # => [[11,13], [6,8]]
+puts small_arr[region]
 
 # puts "Baseline:"
 # small_arr.narray_each_in_canonical_region(canonical) { |elem, idx, idx2| puts elem }
@@ -59,3 +60,5 @@ all_iter_types(NArray::BufferedECIterator, NArray::IndexedColexIterator, co_reg_
 # puts "RegionIterators"
 co_reg_iter = ColexIterator.new(region)
 all_iter_types(ElemAndCoordIterator, ColexIterator,co_reg_iter, small_arr, region)
+
+

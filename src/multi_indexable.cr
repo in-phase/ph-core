@@ -99,7 +99,7 @@ module Lattice
     end
 
     # Copies the elements in `region` to a new `{{@type}}`, and throws an error if `region` is out-of-bounds for this `{{@type}}`.
-    def get_chunk(region : Indexable)
+    def get_chunk(region : Indexable | IndexRegion)
       unsafe_fetch_chunk IndexRegion.new(region, shape_internal)
     end
 
@@ -116,17 +116,17 @@ module Lattice
       get_chunk(IndexRegion.new(region_shape).translate!(coord))
     end
 
-    def get_available(region : Indexable)
+    def get_available(region : Indexable | IndexRegion)
       unsafe_get_chunk(IndexRegion.new(region, trim_to: shape))
     end
 
     # Copies the elements in `region` to a new `{{@type}}`, and throws an error if `region` is out-of-bounds for this `{{@type}}`.
-    def [](region : Indexable)
+    def [](region : Indexable | IndexRegion)
       get_chunk(region)
     end
 
     # Copies the elements in `region` to a new `{{@type}}`, or returns false if `region` is out-of-bounds for this `{{@type}}`.
-    def []?(region : Indexable) : self?
+    def []?(region : Indexable | IndexRegion) : self?
       if has_region?(region)
         get_chunk(region)
       end
@@ -148,13 +148,20 @@ module Lattice
       LexIterator.of(shape)
     end
 
-    def each(iter = LexIterator) : Iterator(T)
-      puts "Hi, I'm being called"
-      ElemIterator.of(self, iter: iter)
+    def each : Iterator(T)
+      ElemIterator.of(self)
     end
 
-    def each_with_coord(iter = LexIterator) : Iterator(Tuple(T, Coord))
+    def each(iter : CoordIterator) : Iterator(T)
+      ElemIterator.of(self, iter)
+    end
+
+    def each_with_coord : Iterator(Tuple(T, Coord))
       ElemAndCoordIterator.of(self, iter: iter)
+    end
+
+    def each_with_coord(iter : CoordIterator) : Iterator(Tuple(T, Coord))
+      ElemAndCoordIterator.of(self, iter)
     end
 
     # when you're doing macro stuff, you want to be able to know the coordinate type
@@ -228,7 +235,7 @@ module Lattice
       return true
     end
 
-    def view(region : Indexable? = nil) : View(T)
+    def view(region : Indexable? | IndexRegion = nil) : View(T)
       # TODO: Try to infer T from B?
       View.of(self, region)
     end
