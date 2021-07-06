@@ -45,8 +45,8 @@ module Lattice
 
     # an in-place version of view(region), because view! didn't make much sense
     protected def restrict_to(region) : self
-      canonical = RegionUtil.canonicalize_region(region, @shape)
-      @shape = RegionUtil.measure_canonical_region(canonical)
+      canonical = IndexRegion.new(region, @shape)
+      @shape = canonical.shape
       @transform.compose!(RegionTransform.new(canonical))
       self
     end

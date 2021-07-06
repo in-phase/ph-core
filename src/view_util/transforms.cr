@@ -172,16 +172,15 @@ module Lattice
     @buffer : Array(Int32)
 
     def initialize(@region)
-      @buffer = @region.map { 0 }
+      @buffer = Array.new(@region.dimensions, 0)
     end
 
-    # TODO
+    # TODO: check reaaaaally carefully
     def compose(t : CoordTransform) : CoordTransform
       case t
       when self
         # compose regions
-        # TODO: check order??!?!?!
-        @region.unsafe_fetch_region(t.region)
+        @region.unsafe_fetch_chunk(t.region)
       when ReverseTransform
       else
         return super

@@ -42,6 +42,6 @@ include Lattice
 narr = NArray.build([4,4,4]) {|c, i| i}
 region = [.., ..2..]
 
-narr[region] = 5
+# narr[region] = 5
 
-puts narr
+puts narr.view[region]

@@ -235,12 +235,12 @@ module Lattice
       return true
     end
 
-    def view(region : Indexable? | IndexRegion = nil) : View(T)
+    def view(region : Indexable? | IndexRegion = nil) : View(self, T)
       # TODO: Try to infer T from B?
       View.of(self, region)
     end
 
-    def view(*region) : View(T)
+    def view(*region) : View(self, T)
       view(region)
     end
 
