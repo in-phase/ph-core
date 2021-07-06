@@ -6,8 +6,6 @@ require "./exceptions/*"
 
 require "./type_aliases.cr"
 require "./coord_util.cr"
-# require "./region_util.cr"
-# require "./stepped_range.cr"
 require "./index_region.cr"
 
 require "./multi_indexable.cr"

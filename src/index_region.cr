@@ -1,8 +1,6 @@
 require "./coord_util"
 require "./multi_indexable"
 require "./type_aliases"
-require "./stepped_range"
-require "./region_util"
 
 module Lattice
   struct IndexRegion(T)
