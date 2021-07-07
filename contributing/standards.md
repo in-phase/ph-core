@@ -33,11 +33,21 @@
 - give as much information as possible without making the non-erroring branch slower
 - make type-related errors happen at compile time (where possible) - by method signature restrictions or by macros
 - general syntax:
-    - what the code wasn't expecting ("found negative index")
-    - (if possible) what values were wrong and what they were ("coord[3] was -11")
-    - (if relevant or a common error) how to fix it ("try canonicalizing before calling this method")
+    - for functions that involve multiple steps and cannot be factored into units, state what step the problem occurred in
+        - short description of what part of the method could not be completed ("Failed to unsafe_fetch element from NArray")
+        - end the description with a colon, not a period (unless you have none of the following information available)
+    - short description of what went wrong, at the implementation level
+        - at the very least, give a quick explanation ("index was out of bounds")
+        - if possible, provide as much useful information as you can: "coord[3] was -11, but a canonicalized coordinate must only have positive entries." 
+    - (if relevant or a common error) suggest how to fix it ("try canonicalizing before calling this method")
+    - use proper grammar (capitalize sentences, use commas, end with periods)
     - all together:
-        - "Found negative index: coord[3] was -11. Try canonicalizing before calling this method."
+        - for a method with multiple steps:
+            - (allowed, but bad) "Failed to unsafe_fetch element from NArray: Index was out of bounds."
+            - (best practise) "Failed to unsafe_fetch element from NArray: coord[3] was -11, but a canonicalized coordinate must only have positive entries. Try canonicalizing before calling this method."
+        - for a well-factored method whose name describes what it does accurately:
+            - (allowed, but bad) "Index was out of bounds."
+            - (best practise) "coord[3] was -11, but a canonicalized coordinate must only have positive entries. Try canonicalizing before calling this method."
 - Do not use any pointless preamble like "Error:" before your message - crystal adds its own
 - throw the error to the user at the highest level that makes a semantic difference; catch and re-throw if necessary
     - (inform them what THEY did that caused the error; not what problem it caused downstream)

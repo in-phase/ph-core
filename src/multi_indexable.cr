@@ -51,30 +51,39 @@ module Lattice
         return first
       else
         if shape_internal.size != 1
-          raise DimensionError.new("Cannot cast to scalar: {{@type}} must have 1 dimension, but has #{dimensions}.")
+          if size == 1
+            raise DimensionError.new("Only one-dimensional MultiIndexables can be converted to scalars, but this one has #{dimensions} dimensions (shape: #{shape_internal}). Because there is only one element, you likely meant to call {{@type}}#reshape(1) first. Consider calling {{@type}}#first, instead.")
+          else
+            raise DimensionError.new("Only one-dimensional MultiIndexables can be converted to scalars, but this one has #{dimensions} dimensions (shape: #{shape_internal}).")
+          end
         else
-          raise DimensionError.new("Cannot cast to scalar: {{@type}} must have 1 element, but has #{size}.")
+          raise DimensionError.new("Only single-element MultiIndexables can be converted to scalars, but this one has #{size} elements (shape: #{shape_internal}).")
         end
       end
     end
 
     # Returns the element at position `0` along every axis.
     def first : T
-      # TODO: what happens when empty?
-      return get_element([0] * shape_internal.size)
+      if size == 0
+        raise IndexError.new("{{@type}} has zero elements (shape: #{shape_internal}).")
+      end
+
+      get_element(Array.new(shape_internal.size, 0))
     end
 
     # Returns a random element from the `{{@type}}`. Note that this might not return
     # distinct elements if the random number generator returns the same coordinate twice.
     def sample(n : Int, random = Random::DEFAULT) : Enumerable(T)
-      raise ArgumentError.new("Can't sample negative number of elements") if n < 0
-
+      if n < 0
+        raise ArgumentError.new("Can't sample a negative number of elements. (n = #{n}, which is negative)")
+      end
+      
       Array(T).new(n) { sample(random) }
     end
 
     # Returns a random element from the `{{@type}}`.
     def sample(random = Random::DEFAULT) : T
-      raise IndexError.new("Can't sample empty collection") if empty?
+      raise IndexError.new("Can't sample empty collection. (shape: #{shape_internal})") if empty?
       unsafe_fetch_element(shape_internal.map { |dim| random.rand(dim) })
     end
 
@@ -164,11 +173,6 @@ module Lattice
       ElemAndCoordIterator.of(self, iter)
     end
 
-    # when you're doing macro stuff, you want to be able to know the coordinate type
-    # NArray(T) : include MultiIndexable(T, Int32) - the user can't see that there's a coord type parameter
-    # having the coord type might allow us to do more stuff automatically (so not hardcoding coord types in lex)
-    # coordinate is a type param of multiInd
-
     def map_with_coord(&block) # : (T, U -> R)) : MultiIndexable(R) forall R,U
       NArray.build(shape_internal) do |coord, i|
         yield unsafe_fetch_element(coord), coord
@@ -256,7 +260,7 @@ module Lattice
     # Produces an NArray(Bool) (by default) describing which elements of self and other are equal.
     def eq_elem(other : MultiIndexable(U)) : MultiIndexable(Bool) forall U
       if shape_internal != other.shape_internal
-        raise DimensionError.new("Cannot perform elementwise operation {{name.id}}: shapes #{other.shape_internal} of other and #{shape_internal} of self do not match")
+        raise DimensionError.new("Cannot compute the element-wise equality between this MultiIndexable (shape: #{shape_internal}) and the one provided (shape: #{other.shape_internal}).")
       end
 
       map_with_coord do |elem, coord|
@@ -280,9 +284,12 @@ module Lattice
         # an `NArray` that contains the results.
         def {{name.id}}(other : MultiIndexable(U)) forall U
           if shape_internal != other.shape_internal
-            raise DimensionError.new("Cannot perform elementwise operation {{name.id}}: shapes #{other.shape_internal} of other and #{shape_internal} of self do not match") 
-          end
+            if scalar? || other.scalar?
+              raise DimensionError.new("The shape of this MultiIndexable (#{shape_internal}) does not match the shape of the one provided (#{other.shape_internal}), so '{{name.id}}' cannot be applied element-wise. Did you mean to call to_scalar on one of the arguments?")
+            end
 
+            raise DimensionError.new("The shape of this MultiIndexable (#{shape_internal}) does not match the shape of the one provided (#{other.shape_internal}), so '{{name.id}}' cannot be applied element-wise.")
+          end
 
           map_with_coord do |elem, coord|
             elem.{{name.id}} other.unsafe_fetch_element(coord).as(U)
