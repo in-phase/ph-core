@@ -20,14 +20,6 @@ module Lattice
     getter step : Array(Int32)
     @shape : Array(T)
 
-    # =========== Testing garbage ==========================================
-
-    # region = IndexRegion.new([1..3, 5...1, -3...-2..], [7,7,7,7])
-    # puts region
-    # puts region.unsafe_fetch_chunk(IndexRegion.new([1,1,1,1], region.shape))
-    # region.range_tuples.each {|x| puts x}
-    # puts region.in?([2,2,2,2])
-
     # =========================== Constructors ==============================
 
     def self.new(region : IndexRegion, bound_shape)
@@ -305,7 +297,7 @@ module Lattice
 
     protected def self.infer_range(index : Int, bound)
       canonical = CoordUtil.canonicalize_index_unsafe(index, bound)
-      {canonical, canonical, 1, 1}
+      {canonical, 1, canonical, 1}
     end
 
     protected def self.infer_range(bound : T, start : T?, stop : T?, exclusive : Bool, step : Int32? = nil) : Tuple(T, Int32, T, T) forall T

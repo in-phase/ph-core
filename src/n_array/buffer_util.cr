@@ -38,15 +38,13 @@ module Lattice
 
       # Assumes coord is canonical
       def self.coord_to_index_fast(coord, shape, axis_strides) : Int
-        begin
-          index = typeof(shape[0]).zero
-          coord.each_with_index do |elem, idx|
-            index += elem * axis_strides[idx]
-          end
-          index
-        rescue exception
-          raise IndexError.new("Cannot convert coordinate to index: the given index is out of bounds for this {{@type}} along at least one dimension.")
+        index = typeof(shape[0]).zero
+        coord.each_with_index do |elem, idx|
+          index += elem * axis_strides[idx]
         end
+        index
+      rescue exception
+        raise IndexError.new("Cannot convert coordinate to index: the given index is out of bounds for this {{@type}} along at least one dimension.")
       end
 
       # Convert from a buffer location to an n-dimensional coord

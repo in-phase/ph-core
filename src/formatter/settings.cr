@@ -27,18 +27,23 @@ module Lattice::MultiIndexable
       @[YAML::Field(key: "collapse_brackets_after")]
       property collapse_height : Int32
 
+      property integer_format : String
+      property decimal_format : String
+
       def self.new
         @@project_settings || user_settings || default
       end
 
       def initialize(@indent_width, @max_element_width, omit_after @display_limit,
-                     @brackets, colors, collapse_brackets_after @collapse_height)
+                     @brackets, colors, collapse_brackets_after @collapse_height,
+                     @integer_format, @decimal_format)
         @colors = colors.map &.as(Colorize::ColorRGB | Symbol)
       end
 
       # TODO: document properly once this is set in stone
       # tries to read from LATTICE_CONFIG_DIR - if the file isn't there,
       # reads from XDG_CONFIG_DIR/lattice. if still not there, tries ~/.config
+      # TODO: Better error message for failed read
       def self.user_settings : self?
         return nil if @@disable_user_settings
         return @@cached_user_settings if @@cached_user_settings
@@ -71,13 +76,16 @@ module Lattice::MultiIndexable
       def self.default : self
         new(
           indent_width: 4,
-          max_element_width: 20,
+          max_element_width: 15,
           omit_after: [10, 5],
           brackets: [{"[", "]"}],
           colors: [:default],
-          collapse_brackets_after: 5
+          collapse_brackets_after: 5,
+          integer_format: "%d",
+          decimal_format: "%.3g"
         )
       end
+      
 
       class ColorConverter
         # NOTE: I tried generating this with macros, but nothing was

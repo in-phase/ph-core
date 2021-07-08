@@ -48,7 +48,7 @@ module Lattice
     # Maps a single-element 1D `{{@type}}` to the element it contains.
     def to_scalar : T
       if scalar?
-        return first
+        first
       else
         if shape_internal.size != 1
           if size == 1
@@ -57,7 +57,7 @@ module Lattice
             raise DimensionError.new("Only one-dimensional MultiIndexables can be converted to scalars, but this one has #{dimensions} dimensions (shape: #{shape_internal}).")
           end
         else
-          raise DimensionError.new("Only single-element MultiIndexables can be converted to scalars, but this one has #{size} elements (shape: #{shape_internal}).")
+          raise ShapeError.new("Only single-element MultiIndexables can be converted to scalars, but this one has #{size} elements (shape: #{shape_internal}).")
         end
       end
     end
@@ -77,13 +77,13 @@ module Lattice
       if n < 0
         raise ArgumentError.new("Can't sample a negative number of elements. (n = #{n}, which is negative)")
       end
-      
+
       Array(T).new(n) { sample(random) }
     end
 
     # Returns a random element from the `{{@type}}`.
     def sample(random = Random::DEFAULT) : T
-      raise IndexError.new("Can't sample empty collection. (shape: #{shape_internal})") if empty?
+      raise ShapeError.new("Can't sample empty collection. (shape: #{shape_internal})") if empty?
       unsafe_fetch_element(shape_internal.map { |dim| random.rand(dim) })
     end
 
@@ -99,12 +99,10 @@ module Lattice
 
     # Checks that `region` is in-bounds for this `{{@type}}`.
     def has_region?(region : Indexable) : Bool
-      begin
-        IndexRegion.new(region, shape_internal)
-        return true
-      rescue ex : IndexError
-        return false
-      end
+      IndexRegion.new(region, shape_internal)
+      true
+    rescue ex : IndexError
+      false
     end
 
     # Copies the elements in `region` to a new `{{@type}}`, and throws an error if `region` is out-of-bounds for this `{{@type}}`.
@@ -220,7 +218,7 @@ module Lattice
     {% end %}
 
     def to_narr : NArray(T)
-      NArray.build(@shape.dup) do |coord, idx|
+      NArray.build(@shape.dup) do |coord, _|
         unsafe_fetch_element(coord)
       end
     end
@@ -236,7 +234,7 @@ module Lattice
       each_with_coord do |elem, coord|
         return false unless yield(elem, other.unsafe_fetch_element(coord))
       end
-      return true
+      true
     end
 
     def view(region : Indexable? | IndexRegion = nil) : View(self, T)

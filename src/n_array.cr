@@ -261,7 +261,7 @@ module Lattice
     end
 
     def size : Int32
-      return @buffer.size
+      @buffer.size
     end
 
     # Creates a deep copy of this {{@type}};
@@ -286,13 +286,13 @@ module Lattice
 
       # Version 1: Theoretically faster, as index calculations occur only once
       mapping = [] of Int32
-      each_in_region(region) do |elem, idx, buffer_idx|
+      each_in_region(region) do |elem, _, buffer_idx|
         mapping << buffer_idx
       end
       shape = RegionUtil.measure_region(region, @shape)
       step = @axis_strides[axis]
 
-      slices = (0...@shape[axis]).map do |slice_number|
+      (0...@shape[axis]).map do |slice_number|
         offset = step * slice_number
         {{@type}}.new(shape) { |i| mapping[i] + offset }
       end
@@ -414,43 +414,46 @@ module Lattice
       end
     end
 
-    # def map(&block : T -> U) forall U
-    #   map_with_index do |elem|
-    #     yield elem
-    #   end
-    # end
-
-    def map_with_index(&block : T, Int32 -> U) forall U
-      NArray(U).build(@shape) do |coord, idx|
-          yield @buffer[idx], idx
+    def map(&block : T -> U) forall U
+      map_with_index do |elem|
+        yield elem
       end
     end
-  
 
-    # def map_with_coord(&block : T, Array(Int32), Int32 -> U) forall U
-    #   map_with_index do |elem, idx|
-    #     yield elem, index_to_coord(idx), idx
-    #   end
-    # end
+    def map_with_index(&block : T, Int32 -> U) forall U
+      new_buffer = @buffer.map_with_index do |elem, idx|
+        yield elem, idx
+      end
+      NArray.new(@shape.clone, new_buffer)
+    end
 
-    # def map!(&block : T -> U) forall U
-    #   map_with_index! do |elem|
-    #     yield elem
-    #   end
-    # end
+    def map_with_coord(&block : T, Array(Int32), Int32 -> U) forall U
+      NArray(U).build(@shape) do |coord, idx|
+        yield @buffer[idx], coord, idx
+      end
+    end
 
-    # def map_with_index!(&block : T, Int32 -> T) forall T
-    #   @buffer.map_with_index! do |elem, idx|
-    #     yield elem, idx
-    #   end
-    #   self
-    # end
+    def map!(&block : T -> T) : self
+      map_with_index! do |elem|
+        yield elem
+      end
+      self
+    end
 
-    # def map_with_coord!(&block : T, Array(Int32), Int32 -> U) forall U
-    #   map_with_index! do |elem, idx|
-    #     yield elem, index_to_coord(idx), idx
-    #   end
-    # end
+    def map_with_index!(&block : T, Int32 -> T) : self
+      @buffer.map_with_index! do |elem, idx|
+        yield elem, idx
+      end
+      self
+    end
+
+    def map_with_coord!(&block : T, Array(Int32), Int32 -> T) : self
+      iter = LexIterator.of(src.shape)
+      @buffer.map_with_index! do |el, idx|
+        yield el, iter.next, idx
+      end
+      self
+    end
 
     # Given a list of `{{@type}}`s, returns the smallest shape array in which any one of those `{{@type}}s` can be contained.
     # TODO: Example
@@ -472,7 +475,7 @@ module Lattice
           return false if dim != narr.shape[idx] && idx != axis
         end
       end
-      return true
+      true
     end
 
     # Checks that the shape of this and other match in every dimension
@@ -487,10 +490,10 @@ module Lattice
     end
 
     # optimization for pushing other NArrays on axis 0, in-place
-    def push(*others : self) : self
+    def push(*others : self, axis = 0) : self
       raise DimensionError.new("Cannot concatenate these arrays along axis #{axis}: shapes do not match") if !compatible?(*others, axis: axis)
 
-      concat_size = size + others.sum { |narr| narr.size }
+      concat_size = size + others.sum &.size
 
       full_ptr = Pointer(T).malloc(concat_size)
       full_ptr.move_from(@buffer.to_unsafe, size)
@@ -512,7 +515,7 @@ module Lattice
     end
 
     def concatenate(*others, axis = 0) : self
-      self.new *(narrs[0].concatenate_to_slice(*narrs, axis: axis))
+      NArray.new *(NArray(T).concatenate_to_slice(self, *others, axis: axis))
     end
 
     def concatenate!(*others, axis = 0) : self
@@ -526,24 +529,24 @@ module Lattice
 
     # Cycle between the iterators of each narr maybe?
     # NOTE: narrs should include self.
-    protected def concatenate_to_slice(*narrs, axis = 0) : Tuple(Array(Int32), Slice(T))
-      raise DimensionError.new("Cannot concatenate these arrays along axis #{axis}: shapes do not match") if !self.compatible?(*narrs, axis: axis)
+    protected def self.concatenate_to_slice(*narrs : MultiIndexable(T), axis = 0) : Tuple(Array(Int32), Slice(T)) forall T
+      raise DimensionError.new("Cannot concatenate these arrays along axis #{axis}: shapes do not match") if !narrs[0].compatible?(*narrs, axis: axis)
 
-      concat_size = narrs.sum { |narr| narr.size }
-      concat_shape = @shape.dup
+      concat_size = narrs.sum &.size
+      concat_shape = narrs[0].shape
       concat_shape[axis] = narrs.sum { |narr| narr.shape[axis] }
 
-      partial_chunk_size = @axis_strides[axis]
+      partial_chunk_size = narrs[0].axis_strides[axis]
       chunk_sizes = narrs.map { |narr| narr.shape[axis] * partial_chunk_size }
       num_chunks = concat_shape[...axis].product
 
       values = Array(T).new(initial_capacity: concat_size)
-      iters = narrs.map { |narr| narr.each }
+      iters = narrs.map {|narr| BufferedECIterator.of(narr)}
 
       num_chunks.times do
         iters.each_with_index do |narr_iter, i|
           chunk_sizes[i].times do
-            values << narr_iter.next.as(Tuple(T, Array(Int32)))[0]
+            values << narr_iter.unsafe_next_value
           end
         end
       end
@@ -713,71 +716,5 @@ module Lattice
         raise YAML::Error.new("Could not read NArray from YAML: Expected mapping, found #{node.class}")
       end
     end
-
-    # TODO: compare this iterator, generic MultiIndexable iterator, and old direct each
-    #     class BufferedLexRegionIterator(A,T) < ElemAndCoordIterator(A,T)
-
-    #       @buffer_index : Int32
-    #       @buffer_step : Array(Int32)
-
-    #       def initialize(@narr : A, region = nil, reverse = false)
-    #         super
-    #         @buffer_step = @narr.axis_strides
-    #         @buffer_index = @buffer_step.map_with_index {|e, i| e * @first[i]}.sum
-    #         @buffer_index = setup_buffer_index(@buffer_index, @buffer_step, @step)
-    #       end
-
-    #       def setup_coord(coord, step)
-    #         coord[-1] -= step[-1]
-    #       end
-
-    #       def setup_buffer_index(buffer_index, buffer_step, step)
-    #         buffer_index -= buffer_step[-1] * step[-1]
-    #         buffer_index
-    #       end
-
-    #       def unsafe_next
-    #         (@coord.size - 1).downto(0) do |i| # ## least sig .. most sig
-    #           if @coord[i] == @last[i]
-    #             @buffer_index -= (@coord[i] - @first[i]) * @buffer_step[i]
-    #             @coord[i] = @first[i]
-    #             return stop if i == 0 # most sig
-    #           else
-    #             @coord[i] += @step[i]
-    #             @buffer_index += @buffer_step[i] * @step[i]
-    #             break
-    #           end
-    #         end
-    #         {@narr.buffer.unsafe_fetch(@buffer_index), @coord}
-    #       end
-    #     end
-
-    #     class BufferedColexRegionIterator(A,T) < BufferedLexRegionIterator(A,T)
-
-    #       def setup_coord(coord, step)
-    #         coord[0] -= step[0]
-    #       end
-
-    #       def setup_buffer_index(buffer_index, buffer_step, step)
-    #         buffer_index -= buffer_step[0] * step[0]
-    #         buffer_index
-    #       end
-
-    #       def unsafe_next
-    #         0.upto(@coord.size - 1) do |i| # ## least sig .. most sig
-    #           if @coord[i] == @last[i]
-    #             @buffer_index -= (@coord[i] - @first[i]) * @buffer_step[i]
-    #             @coord[i] = @first[i]
-    #             return stop if i == @coord.size - 1 # most sig
-    #           else
-    #             @coord[i] += @step[i]
-    #             @buffer_index += @buffer_step[i] * @step[i]
-    #             break
-    #           end
-    #         end
-    #         {@narr.buffer.unsafe_fetch(@buffer_index), @coord}
-    #       end
-
-    #     end
   end
 end

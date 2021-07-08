@@ -39,14 +39,14 @@ module Lattice
 
     # Sets the element specified by `coord` to `value`.
     # Raises an error if `coord` is out-of-bounds for this `{{@type}}`.
-    def set_element(coord : Indexable, value)
-      unsafe_set_element(CoordUtil.canonicalize_coord(coord, shape_internal), value.as(T))
+    def set_element(coord : Indexable, value : T)
+      unsafe_set_element(CoordUtil.canonicalize_coord(coord, shape_internal), value)
     end
 
     # NOTE: changed name from 'value' to 'src' - approve?
     # Copies the elements from a MultiIndexable `src` into `region`.
     # Raises an error if `region` is out-of-bounds for this `{{@type}}` or if the shape of `region` does not match `src.shape`
-    def set_chunk(region_literal : Indexable, src : MultiIndexable)
+    def set_chunk(region_literal : Indexable, src : MultiIndexable(T))
       idx_region = IndexRegion.new(region_literal, shape_internal)
 
       if !ShapeUtil.compatible_shapes?(src.shape_internal, idx_region.shape)
@@ -54,17 +54,17 @@ module Lattice
       end
 
       idx_region.each do |coord|
-        unsafe_set_element(coord, unsafe_fetch_element(coord).as(T))
+        unsafe_set_element(coord, unsafe_fetch_element(coord))
       end
     end
 
     # Sets each element in `region` to `value`.
     # Raises an error if `region` is out-of-bounds for this `{{@type}}`.
-    def set_chunk(region : Indexable | IndexRegion, value)
-      unsafe_set_chunk(IndexRegion.new(region, shape_internal), value.as(T))
+    def set_chunk(region : Indexable | IndexRegion, value : T)
+      unsafe_set_chunk(IndexRegion.new(region, shape_internal), value)
     end
 
-    def set_available(region : Indexable, value)
+    def set_available(region : Indexable, value : T)
       unsafe_set_chunk(IndexRegion.new(region, trim_to: shape))
     end
 
@@ -80,7 +80,7 @@ module Lattice
 
     # In implementation phase:
 
-    def []=(bool_mask : MultiIndexable(Bool), value)
+    def []=(bool_mask : MultiIndexable(Bool), value : T)
       # We can't use `bool_mask.shape_internal` here, because it is protected
       if bool_mask.shape != shape_internal
         raise DimensionError.new("Cannot perform masking: mask shape #{bool_mask.shape} does not match array shape #{shape_internal}.")
@@ -89,12 +89,9 @@ module Lattice
       # TODO implement this based on how each works
       bool_mask.each_with_coord do |bool_val, coord|
         if bool_val
-          unsafe_set_element(coord, value.as(T))
+          unsafe_set_element(coord, value)
         end
       end
     end
-
-    # TODO: once we figure out map, figure out map!
-    # Will throw compile error if not both read and writeable
   end
 end

@@ -1,5 +1,6 @@
 require "colorize"
 require "yaml"
+require "big"
 
 # when you first print an narray, it loads whatever it should find from file, and then saves it in a static variable on FormatterSettings
 module Lattice
@@ -16,10 +17,12 @@ module Lattice
       @iter : ElemIterator(E,I)
 
       @shape : Array(I)
+      @depth = 0
       @col = 0
       @current_indentation = 0
-      @cutoff_length = 8
-      @justify_length = 8
+
+      # This will be set in the measurement step, and should never be used before.
+      @justify_length = 0
 
       def self.print(narr : MultiIndexable(E), io : IO = STDOUT, settings = nil)
         settings ||= Settings.new
@@ -39,10 +42,7 @@ module Lattice
       end
 
       def initialize(narr : MultiIndexable(E), @io, @settings)
-        @depth = 0
         @iter = ElemIterator.of(narr, LexIterator.cover(narr.shape))
-
-        # FormatIterator(MultiIndexable(T), T).new(narr)
         @shape = narr.shape
       end
 
@@ -71,6 +71,7 @@ module Lattice
 
       # get the length of the longest element to be displayed (for justification purposes)
       def measure
+        @justify_length = @settings.max_element_width
         @justify_length = walk_n_measure
         @iter.reset
       end
@@ -94,12 +95,13 @@ module Lattice
       end
 
       protected def walk_n_measure(depth = 0)
+        
         height = @shape.size - depth - 1
         max_columns = @settings.display_limit[{@settings.display_limit.size - 1, height}.min]
 
         max_length = 0
         if depth < @shape.size - 1
-          capped_iterator(depth, max_columns) do |flag, i|
+          capped_iterator(depth, max_columns) do |flag, _|
             unless flag == Flags::SKIP
               max_length = {max_length, walk_n_measure(depth + 1)}.max
             end
@@ -107,16 +109,16 @@ module Lattice
         else
           capped_iterator(depth, max_columns) do |flag|
             unless flag == Flags::SKIP
-              elem_length = @iter.unsafe_next.inspect.size
+              elem_length = format_element(@iter.unsafe_next).size
               max_length = {max_length, elem_length}.max
             end
           end
         end
-        return max_length
+
+        max_length
       end
 
       protected def walk_n_print_flat(depth = 0)
-        height = @shape.size - depth - 1
         @io << "["
 
         if @shape.size - 1 > depth
@@ -157,19 +159,74 @@ module Lattice
           end
         else
           # printing elements in a single "row" (deepest axis)
-          capped_iterator(depth, max_columns) do |flag, i|
+          capped_iterator(depth, max_columns) do |flag, _|
             if flag == Flags::SKIP
               @io << "..., "
             else
-              str = @iter.unsafe_next.inspect
-              # str = str.rjust(@cutoff_length, ' ')[0...@cutoff_length]
-              str = str.rjust(@justify_length, ' ')
-              @io << str
+              @io << format_element(@iter.unsafe_next).rjust(@justify_length, ' ')
               @io << ", " unless flag == Flags::LAST
             end
           end
         end
         close(height, idx)
+      end
+
+      def format_element(el : Int) : String
+        str = @settings.integer_format % el
+        if str.size > @justify_length
+          return format_element(BigFloat.new(el))
+        end
+        str
+      end
+
+      def format_element(el : Float) : String
+        # Try the user specified decimal format
+        str = @settings.decimal_format % el
+
+        if str.size > @justify_length
+          # Check if the formatted string is in scientific notation, either decimal (e) or hex (p)
+          separator = str.rindex(/[pe]/i)
+          if separator.nil?
+            # If not, reformat the value into decimal scientific notation
+            str = "%e" % el
+            separator = str.rindex(/[pe]/i).not_nil!
+          end
+
+          truncate_length = str.size - @justify_length
+          # We want to make sure that the first digit, decimal place, and second digit are shown.
+          if separator - truncate_length < 3
+            # If it's not possible to fit all three, use just the first digit. This will likely break
+            # the justification, but it's the shortest possible representation that is still correct.
+            mantissa = str[0]
+          else
+            mantissa = str[...(separator - truncate_length)]
+          end
+
+          exponent = str[separator..]
+          str = mantissa + exponent
+        end
+        str
+      end
+
+      def format_element(el : String) : String
+        str = el.inspect
+        if str.size > @justify_length
+          str = str[0...(@justify_length - 4)] + %("...)
+        end
+        str
+      end
+
+      def format_element(el) : String
+        if el.responds_to? :lattice_to_s
+          str = el.lattice_to_s
+        else
+          str = el.inspect
+        end
+
+        if str.size > @justify_length
+          str = str[0...(@justify_length - 3)] + "..."
+        end
+        str
       end
 
       protected def compact?(height)
