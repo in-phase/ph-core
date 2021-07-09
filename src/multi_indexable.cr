@@ -120,7 +120,7 @@ module Lattice
       unsafe_fetch_element CoordUtil.canonicalize_coord(coord, shape_internal)
     end
 
-    def get(coord) : T
+    def get(coord : Indexable) : T
       get_element(coord)
     end
 

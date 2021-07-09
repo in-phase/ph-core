@@ -79,13 +79,11 @@ module Lattice
       def print
         measure
         walk_n_print
-        @io << "\n"
         @iter.reset
       end
 
       def print_literal
         walk_n_print_flat
-        @io << "\n"
         @iter.reset
       end
 

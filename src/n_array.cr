@@ -31,7 +31,7 @@ module Lattice
     # index to an unpacked index isn't needed for many constructors, and generating
     # them would waste resources.
     # For more information, see `coord_to_index`, `buffer`, and `build`.
-    protected def initialize(shape, &block : Int32 -> T)
+    protected def initialize(shape : Enumerable, &block : Int32 -> T)
       if shape.empty?
         raise DimensionError.new("Cannot create {{@type}}: `shape` was empty.")
       end
@@ -41,7 +41,7 @@ module Lattice
           raise DimensionError.new("Cannot create {{@type}}: One or more of the provided dimensions was negative.")
         end
         dim
-      end
+      end.to_a
 
       num_elements = shape.product.to_i32
       @axis_strides = BufferUtil.axis_strides(@shape)
@@ -94,11 +94,15 @@ module Lattice
     #  [3],
     #  [4]]
     # ```
-    def self.build(shape, &block : Array(Int32), Int32 -> T)
-      coord_iter = IndexedLexIterator.cover(shape)
+    def self.build(shape : Enumerable, &block : Array(Int32), Int32 -> T)
+      coord_iter = IndexedLexIterator.cover(shape.to_a)
       {{@type}}.new(shape) do |idx|
         yield *(coord_iter.unsafe_next_with_index)
       end
+    end
+
+    def self.build(*shape : Int, &block : Array(Int32), Int32 -> T)
+      build(shape, &block) 
     end
 
     # Creates an `{{@type}}` from a nested array with uniform dimensions.
