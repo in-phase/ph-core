@@ -205,7 +205,7 @@ module Lattice
       end
     end
 
-    def each(iter = LexIterator) : Iterator(T)
+    def each(iter = LexIterator) : CoordIterator(T)
       LexIterator.new(self)
     end
 

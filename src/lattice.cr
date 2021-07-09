@@ -6,6 +6,7 @@ require "./exceptions/*"
 
 require "./type_aliases.cr"
 require "./coord_util.cr"
+require "./shape_util.cr"
 require "./index_region.cr"
 
 require "./multi_indexable.cr"

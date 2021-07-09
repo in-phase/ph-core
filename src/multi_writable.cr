@@ -54,7 +54,7 @@ module Lattice
       end
 
       idx_region.each do |coord|
-        unsafe_set_element(coord, unsafe_fetch_element(coord))
+        unsafe_set_element(coord, src.unsafe_fetch_element(coord))
       end
     end
 

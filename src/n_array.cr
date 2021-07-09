@@ -374,7 +374,7 @@ module Lattice
     end
 
     def unsafe_set_element(coord : Enumerable, value : T)
-      @buffer[coord_to_index_fast(coord)] = value
+      @buffer[BufferUtil.coord_to_index_fast(coord, @shape, @axis_strides)] = value
     end
 
     # replaces all values in a boolean mask with a given value

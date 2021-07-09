@@ -52,7 +52,7 @@ module Lattice
       else
         if shape_internal.size != 1
           if size == 1
-            raise DimensionError.new("Only one-dimensional MultiIndexables can be converted to scalars, but this one has #{dimensions} dimensions (shape: #{shape_internal}). Because there is only one element, you likely meant to call {{@type}}#reshape(1) first. Consider calling {{@type}}#first, instead.")
+            raise DimensionError.new("Only one-dimensional MultiIndexables can be converted to scalars, but this one has #{dimensions} dimensions (shape: #{shape_internal}). Because there is only one element, you likely meant to call {{@type}}#reshape(1) first. Alternatively, consider calling {{@type}}#first.")
           else
             raise DimensionError.new("Only one-dimensional MultiIndexables can be converted to scalars, but this one has #{dimensions} dimensions (shape: #{shape_internal}).")
           end
