@@ -519,12 +519,13 @@ module Lattice
     end
 
     def concatenate!(*others, axis = 0) : self
-      @shape, @buffer = concatenate_to_slice(self, *others, axis: axis)
+      @shape, @buffer = NArray(T).concatenate_to_slice(self, *others, axis: axis)
+      @axis_strides = BufferUtil.axis_strides(@shape)
       self
     end
 
     def self.concatenate(*narrs : MultiIndexable(T), axis = 0) : NArray(T)
-      self.new *(narrs[0].concatenate_to_slice(*narrs, axis: axis))
+      self.new *(self.concatenate_to_slice(*narrs, axis: axis))
     end
 
     # Cycle between the iterators of each narr maybe?

@@ -1,28 +1,19 @@
-def format_element(el : Float, justify_length) : String
-  str = "%f" % el
+require "../src/lattice"
 
-  if str.size > justify_length
-    separator = str.rindex(/[pe]/i)
-    if separator.nil?
-      str = "%e" % el
-      separator = str.rindex(/[pe]/i).not_nil!
-    end
+include Lattice
 
-    truncate_length = str.size - justify_length
+narr = NArray.build([3,2,4]) {|c,i| i}
 
-    if separator - truncate_length < 3
-      mantissa = str[0]
-    else
-      mantissa = str[...(separator - truncate_length)]
-    end
+narr2 = NArray.build([3,2,4]) {|c,i| 300 + i}
 
-    exponent = str[separator..]
+big = NArray.build([10,10,10,10]) {|c,i| i}
+# puts narr
 
-    str = mantissa + exponent
-  end
-  str
-end
+# big.concatenate!(narr2, axis: 0)
+puts big[..2.., -1..0, 3, ..]
 
-15.times do |i|
-  puts "#{i}: #{format_element(2.3456, i)}"
-end
+# LexIterator.cover(narr.shape).each do |coord|
+#   puts({coord, narr.get(coord)})
+# end
+
+# puts narr.@buffer
