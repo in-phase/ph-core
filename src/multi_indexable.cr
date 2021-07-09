@@ -62,6 +62,11 @@ module Lattice
       end
     end
 
+    def to_scalar? : T?
+      return first if scalar?
+      false
+    end
+
     # Returns the element at position `0` along every axis.
     def first : T
       if size == 0
