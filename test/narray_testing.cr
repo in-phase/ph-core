@@ -73,8 +73,8 @@ puts narr
 puts "Consider a (6,7,8) shape array, what is the index (x,y,z) of the 100th element?"
 puts NArray::BufferUtil.index_to_coord(100, [6,7,8])
 
-module Lattice
-  class WrappedLexIterator(T) < CoordIterator(T)
+module Lattice::NArray(T)
+  protected class WrappedLexIterator(T) < CoordIterator(T)
     getter smaller_coord : Array(T)
     @smaller_shape : Array(T)
 
@@ -107,24 +107,25 @@ module Lattice
       @coord
     end
   end
+
+    def self.tile(narr : MultiIndexable(T), counts : Enumerable)
+    shape = narr.shape.map_with_index { |axis, idx| axis * counts[idx] }
+    
+    iter = WrappedLexIterator.new(IndexRegion.cover(shape), narr.shape).each
+    
+    build(shape) do |coord|
+        iter.next
+        narr.get(iter.smaller_coord)
+    end
+    end
+
+    def tile(counts : Enumerable) : self
+        NArray.tile(self, counts)
+    end
 end
 
 
 class Lattice::NArray(T)
-    def self.tile(narr : MultiIndexable(T), counts : Enumerable)
-        shape = narr.shape.map_with_index { |axis, idx| axis * counts[idx] }
-        
-        iter = WrappedLexIterator.new(IndexRegion.cover(shape), narr.shape).each
-        
-        build(shape) do |coord|
-            iter.next
-            narr.get(iter.smaller_coord)
-        end
-    end
-    
-    def tile(counts : Enumerable) : self
-        NArray.tile(self, counts)
-    end
 end
 
 puts "Create a checkerboard 8x8 matrix using the tile function"
