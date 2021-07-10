@@ -132,6 +132,16 @@ module Lattice
       unsafe_get_chunk(IndexRegion.new(region, trim_to: shape))
     end
 
+    def [](bool_mask : MultiIndexable(Bool)) : MultiIndexable(T?)
+      if bool_mask.shape != shape_internal
+        raise ShapeError.new("Could not use mask: mask shape #{bool_mask.shape} does not match this MultiIndexable's shape (#{shape_internal}).")
+      end
+
+      bool_mask.map_with_coord do |bool_val, coord|
+        bool_val ?  unsafe_fetch_element(coord) : nil
+      end
+    end
+
     # Copies the elements in `region` to a new `{{@type}}`, and throws an error if `region` is out-of-bounds for this `{{@type}}`.
     def [](region : Indexable | IndexRegion)
       get_chunk(region)
@@ -143,16 +153,6 @@ module Lattice
         get_chunk(region)
       end
       false
-    end
-
-    def []?(bool_mask : MultiIndexable(Bool)) : MultiIndexable(T?)
-      if bool_mask.shape != shape_internal
-        raise ShapeError.new("Could not use mask: mask shape #{bool_mask.shape} does not match this MultiIndexable's shape (#{shape_internal}).")
-      end
-
-      bool_mask.map_with_coord do |bool_val, coord|
-        bool_val ?  unsafe_fetch_element(coord) : nil
-      end
     end
 
     {% begin %}

@@ -5,7 +5,8 @@ include Lattice
 narr = NArray.build(3,3,3) {|c,_| c.sum }
 puts narr
 
-narr[(narr % 2).eq 1] *= 20
+narr[1.eq (narr % 2)] = 20
+puts narr
 # narr[narr < 6] = 20 + narr
 # puts narr > 2
 # puts narr < 6
