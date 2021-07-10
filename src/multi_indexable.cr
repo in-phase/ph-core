@@ -156,23 +156,23 @@ module Lattice
     {% end %}
 
     # Iterators ====================================================================
-    def each_coord : Iterator(Coord)
+    def each_coord : Iterator #(Coord)
       LexIterator.of(shape)
     end
 
     def each : Iterator(T)
-      ElemIterator.of(self)
+      each(each_coord)
     end
 
-    def each(iter : CoordIterator) : Iterator(T)
+    def each(iter : CoordIterator(I)) : Iterator(T) forall I
       ElemIterator.of(self, iter)
     end
 
-    def each_with_coord : Iterator(Tuple(T, Coord))
-      ElemAndCoordIterator.of(self, iter: iter)
+    def each_with_coord : Iterator # Iterator(Tuple(T, Coord)) # "Error: can't use Indexable(T) as a generic type argument yet"
+      each_with_coord(each_coord)
     end
 
-    def each_with_coord(iter : CoordIterator) : Iterator(Tuple(T, Coord))
+    def each_with_coord(iter : CoordIterator(I)) : Iterator forall I # Iterator(Tuple(T, Coord))
       ElemAndCoordIterator.of(self, iter)
     end
 
@@ -290,18 +290,12 @@ module Lattice
             if scalar? || other.scalar?
               raise DimensionError.new("The shape of this MultiIndexable (#{shape_internal}) does not match the shape of the one provided (#{other.shape_internal}), so '{{name.id}}' cannot be applied element-wise. Did you mean to call to_scalar on one of the arguments?")
             end
-
             raise DimensionError.new("The shape of this MultiIndexable (#{shape_internal}) does not match the shape of the one provided (#{other.shape_internal}), so '{{name.id}}' cannot be applied element-wise.")
           end
 
           map_with_coord do |elem, coord|
             elem.{{name.id}} other.unsafe_fetch_element(coord).as(U)
           end
-
-          # NArray.build(shape_internal) do |coord, i|
-          #   unsafe_fetch_element(coord).{{name.id}} other.unsafe_fetch_element(coord).as(U)
-          # end
-
         end
 
         # Invokes `#{{name.id}}(other)` on each element in `self`, returning an

@@ -45,6 +45,10 @@ module Lattice
       advance_coord
     end
 
+    def unsafe_next : Array(T)
+      self.next.as(Array(T))
+    end
+
     # TODO: constrain, figure out what +1 means and if it should depend on step, generally test heavily
     def unsafe_skip(axis, amount) : Nil
       @coord[axis] += amount + 1
