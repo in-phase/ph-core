@@ -406,10 +406,12 @@ module Lattice
       @buffer.each
     end
 
-    # TODO????
-    # wrong params.
-    def each_with_coord(iter : CoordIterator.class = IndexedLexIterator)
-      BufferedECIterator.new(self, iter: iter)
+    def each_coord
+      IndexedLexIterator.cover(shape_internal)
+    end
+
+    def each_with_coord(iter : IndexedCoordIterator(I)) forall I
+      BufferedECIterator.new(self, iter)
     end
 
     def each_with_index(&block : T, Int32 ->)
@@ -452,9 +454,9 @@ module Lattice
     end
 
     def map_with_coord!(&block : T, Array(Int32), Int32 -> T) : self
-      iter = LexIterator.of(src.shape)
+      iter = LexIterator.cover(shape_internal)
       @buffer.map_with_index! do |el, idx|
-        yield el, iter.next, idx
+        yield el, iter.unsafe_next, idx
       end
       self
     end
