@@ -94,7 +94,7 @@ module Lattice
       if src.shape != shape_internal
         raise ShapeError.new("Cannot perform masking: source shape #{src.shape} does not match array shape #{shape_internal}.")
       end
-      set_mask(bool_mask) {|coord| src.unsafe_fetch_element(coord)}
+      set_mask(bool_mask) {|coord| src.unsafe_fetch_element(coord).as(T)}
     end
 
     def set_mask(bool_mask, value)

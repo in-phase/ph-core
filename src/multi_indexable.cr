@@ -132,7 +132,11 @@ module Lattice
       unsafe_get_chunk(IndexRegion.new(region, trim_to: shape))
     end
 
-    def [](bool_mask : MultiIndexable(Bool)) : MultiIndexable(T?)
+    def [](bool_mask : MultiIndexable(Bool)) : self
+      self
+    end
+
+    def []?(bool_mask : MultiIndexable(Bool)) : MultiIndexable(T?)
       if bool_mask.shape != shape_internal
         raise ShapeError.new("Could not use mask: mask shape #{bool_mask.shape} does not match this MultiIndexable's shape (#{shape_internal}).")
       end
@@ -301,7 +305,7 @@ module Lattice
 
         # Invokes `#{{name.id}}` element-wise between `self` and *other*, returning
         # an `NArray` that contains the results.
-        def {{name.id}}(other : MultiIndexable(U)) forall U
+        def {{name.id}}(other : MultiIndexable(U)) forall U 
           if shape_internal != other.shape_internal
             if scalar? || other.scalar?
               raise DimensionError.new("The shape of this MultiIndexable (#{shape_internal}) does not match the shape of the one provided (#{other.shape_internal}), so '{{name.id}}' cannot be applied element-wise. Did you mean to call to_scalar on one of the arguments?")
@@ -310,7 +314,7 @@ module Lattice
           end
 
           map_with_coord do |elem, coord|
-            elem.{{name.id}} other.unsafe_fetch_element(coord).as(U)
+            elem.{{name.id}} other.unsafe_fetch_element(coord)
           end
         end
 
@@ -323,7 +327,7 @@ module Lattice
 
       {% for name in %w(- + ~) %}
         def {{name.id}}
-          map &.{{name.id}}
+          map &.{{name.id}} 
         end
       {% end %}
     {% end %}

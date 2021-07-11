@@ -152,10 +152,10 @@ not_supported
 
 puts "25. Given a 1D array, negate all elements which are between 3 and 8, in place."
 z = NArray.new((0..11).to_a)
-# z.map! {|el| el.in?(3..8) ? -el : el}
-mask = (3 < z) & (z <= 8)
-z[mask] *= -1 #z[mask]? * -1
+z[(3 < z) & (z <= 8)] *= -1
 puts z
+# faster 
+z.map_with_index! {|el, i| i.in?(4..8) ? -el : el}
 
 # TODO: do we want to support this type of boolean indexing? 
 # `z[(3 < z) && (z <= 8)] *= -1`
@@ -240,5 +240,4 @@ puts "41. How to sum a small array faster than np.sum?"
 # NOTE: speed unknown
 narr = NArray.build(10) {|c,i| i}
 puts narr.sum
-
 

@@ -1,5 +1,5 @@
 class Foo
-    def [](index)
+    protected def [](index)
         puts "normal"
         5
     end
