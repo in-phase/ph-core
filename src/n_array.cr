@@ -281,26 +281,26 @@ module Lattice
     end
 
     # TODO any way to avoid copying these out yet, too? Iterator magic?
-    def slices(axis = 0) : Array(self)
-      region = [] of (Int32 | Range(Int32, Int32))
-      (0...axis).each do |dim|
-        region << Range.new(0, @shape[dim] - 1)
-      end
-      region << 0
+    # def slices(axis = 0) : Array(self)
+    #   region = [] of (Int32 | Range(Int32, Int32))
+    #   (0...axis).each do |dim|
+    #     region << Range.new(0, @shape[dim] - 1)
+    #   end
+    #   region << 0
 
-      # Version 1: Theoretically faster, as index calculations occur only once
-      mapping = [] of Int32
-      each_in_region(region) do |elem, _, buffer_idx|
-        mapping << buffer_idx
-      end
-      shape = RegionUtil.measure_region(region, @shape)
-      step = @axis_strides[axis]
+    #   # Version 1: Theoretically faster, as index calculations occur only once
+    #   mapping = [] of Int32
+    #   each_in_region(region) do |elem, _, buffer_idx|
+    #     mapping << buffer_idx
+    #   end
+    #   shape = RegionUtil.measure_region(region, @shape)
+    #   step = @axis_strides[axis]
 
-      (0...@shape[axis]).map do |slice_number|
-        offset = step * slice_number
-        {{@type}}.new(shape) { |i| mapping[i] + offset }
-      end
-    end
+    #   (0...@shape[axis]).map do |slice_number|
+    #     offset = step * slice_number
+    #     {{@type}}.new(shape) { |i| mapping[i] + offset }
+    #   end
+    # end
 
     def flatten : self
       reshape(@buffer.size)

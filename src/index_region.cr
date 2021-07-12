@@ -79,7 +79,7 @@ module Lattice
       @step = step
       @shape = [] of T # initialized first to pacify the compiler, which
       # (I think) is unable to detect the output of self.get_size
-      @shape = start.zip(stop, step).map { |vals| self.get_size(*vals) }
+      @shape = start.zip(stop, step).map { |vals| IndexRegion.get_size(*vals) }
     end
 
     def initialize(@start, step = nil, *, @shape : Indexable(T))
@@ -142,7 +142,7 @@ module Lattice
     end
 
     # TODO
-    def trim!(bound_shape) : IndexRegion(T)
+    def trim!(bound_shape) : self
       dims = @shape.size
 
       if bound_shape.size != dims
@@ -151,7 +151,7 @@ module Lattice
 
       bound_shape.each_with_index do |container_size, axis|
         @start[axis], @step[axis], @stop[axis], @shape[axis] =
-          self.trim_axis(container_size, @start[axis], @step[axis], @stop[axis], @shape[axis])
+          IndexRegion.trim_axis(container_size, @start[axis], @step[axis], @stop[axis], @shape[axis])
       end
       self
     end
@@ -162,22 +162,23 @@ module Lattice
       self
     end
 
-    def reverse : IndexRegion(T)
+    def reverse : self
       clone.reverse!
     end
 
-    def trim(bound_shape) : IndexRegion(T)
+    def trim(bound_shape) : self
       self.clone.trim!(bound_shape)
     end
 
-    def translate!(by offset : Enumerable) : IndexRegion(T)
+    def translate!(by offset : Enumerable) : self
       offset.each_with_index do |amount, axis|
         @start[axis] += amount
         @stop[axis] += amount
       end
+      self
     end
 
-    def translate(by offset : Enumerable) : IndexRegion(T)
+    def translate(by offset : Enumerable) : self
       self.clone.translate!(offset)
     end
 

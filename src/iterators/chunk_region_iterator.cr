@@ -11,7 +11,7 @@ module Lattice
     @src : MultiIndexable(E)
 
     # TODO: change from classes to instances of iter
-    def self.new(src, chunk_shape, strides = nil, iter : CoordIterator.class = LexIterator, fringe_behaviour : FringeBehaviour = FringeBehaviour::DISCARD)
+    def self.new(src, chunk_shape, strides = nil, iter : CoordIterator.class = LexIterator, fringe_behaviour : RegionIterator::FringeBehaviour = RegionIterator::FringeBehaviour::DISCARD)
       new(src, RegionIterator.new(src.shape, chunk_shape, strides, iter, fringe_behaviour))
     end
 

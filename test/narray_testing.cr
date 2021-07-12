@@ -241,3 +241,46 @@ puts "41. How to sum a small array faster than np.sum?"
 narr = NArray.build(10) {|c,i| i}
 puts narr.sum
 
+puts "42. Consider two random array A anb B, check if they are equal"
+a = NArray.build(5) {Random.rand(2)}
+b = NArray.build(5) {Random.rand(2)}
+puts a == b
+
+puts "43. Make an array immutable (read-only)"
+not_supported
+# TODO: this should be relatively easy since Slice implements a read-only flag
+
+puts "44. Consider a random 10x2 matrix representing cartesian coordinates, convert them to polar coordinates"
+narr = NArray.build(10,2) {Random.rand}
+r = [] of Float64 
+t = [] of Float64
+narr.slices.each do |slice|
+  a,b = 
+  x,y = slice.get(0,0), slice.get(0,1)
+  # My first instinct: slice[0,0], slice[0,1]
+  # NOTE: because of how the crystal compiler does multiple assignment 
+  # (just converts source code to a sequence of var_x = tmp[x], https://github.com/crystal-lang/crystal/issues/132)
+  # we can theoretically do multiple assignment to divide up NArrays! But would only work on first dimension.
+  # Possible reason to go for dropping dimensions? (at bare minimum, in #slices)
+  # Could become: x,y = slice
+  
+  # probelm 1: 
+  # - sqrt doesn't work on NArray (calls to_f)
+  #     - added to_f to MultiIndexable
+  # - slice[0,0] is 2x2, to_scalar doesn't work
+  r << Math.sqrt(x**2 + y**2)
+  t << Math.atan2(y,x)
+end
+puts r,t
+# DISCUSS: 
+# - numpy, numo support operations on arrays elementwise, eg np.sqrt(X). Consider method_missing, or alternatives, one more time?
+      # X,Y = Z[:,0], Z[:,1]
+      # R = np.sqrt(X**2+Y**2)
+      # T = np.arctan2(Y,X)
+      # print(R)
+# - to_scalar allowing for squishing any number of dimensions? e.g. succeed on shape (1,1,1)
+#       - I feel like we need at least one of dimension dropping or this... else to_scalar feels very pointless.
+#       - also was a little annoying to specify the first "0" in slice.get here
+
+
+

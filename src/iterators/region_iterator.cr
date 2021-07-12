@@ -19,7 +19,9 @@ module Lattice
       end
       last = self.compute_lasts(src_shape, chunk_shape, strides, fringe_behaviour)
 
-      coord_iter = iter.from_canonical(Array(I).new(src_shape.size, 0), last, strides)
+      region = IndexRegion.new(Array(I).new(src_shape.size, 0), strides, stop: last)
+      # coord_iter = iter.from_canonical(Array(I).new(src_shape.size, 0), last, strides)
+      coord_iter = iter.new(region)
 
       new(src_shape, chunk_shape, coord_iter, fringe_behaviour)
     end
@@ -28,7 +30,7 @@ module Lattice
       new(src_shape, chunk_shape, coord_iter, fringe_behaviour)
     end
 
-    protected def initialize(@src_shape, @chunk_shape, @coord_iter, @fringe_behaviour)
+    protected def initialize(@src_shape : Indexable(I), @chunk_shape, @coord_iter, @fringe_behaviour)
     end
 
     # protected def initialize(@src_shape, @chunk_shape, first, last, strides, @fringe_behaviour)
@@ -91,7 +93,7 @@ module Lattice
     end
 
     protected def compute_region(coord)
-      region = IndexRegion.cover(chunk_shape).translate!(coord)
+      region = IndexRegion.cover(@chunk_shape).translate!(coord)
       unless @fringe_behaviour == FringeBehaviour::DISCARD
         region.trim!(@src_shape)
       end

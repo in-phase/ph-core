@@ -67,6 +67,10 @@ module Lattice
       false
     end
 
+    def to_f : Float 
+      to_scalar.to_f
+    end
+
     # Returns the element at position `0` along every axis.
     def first : T
       if size == 0
@@ -171,7 +175,7 @@ module Lattice
 
     # Iterators ====================================================================
     def each_coord : Iterator #(Coord)
-      LexIterator.of(shape)
+      LexIterator.cover(shape)
     end
 
     def each : Iterator(T)
