@@ -6,13 +6,20 @@ module Lattice
     # TODO: IndexRegion(Int32) is a needless restriction - find a way to 
     # allow generic coordiate types in the future
     include Iterator(Tuple(MultiIndexable(E), IndexRegion(I)))
+    alias FB = RegionIterator::FringeBehaviour
 
     @region_iter : RegionIterator(I)
     @src : MultiIndexable(E)
 
     # TODO: change from classes to instances of iter
-    def self.new(src, chunk_shape, strides = nil, iter : CoordIterator.class = LexIterator, fringe_behaviour : RegionIterator::FringeBehaviour = RegionIterator::FringeBehaviour::DISCARD)
-      new(src, RegionIterator.new(src.shape, chunk_shape, strides, iter, fringe_behaviour))
+    def self.new(src, chunk_shape, strides = nil, degeneracy = nil,
+      fringe_behaviour : FB = FB::DISCARD, &block)
+      new(src, RegionIterator.new(src.shape, chunk_shape, strides, degeneracy, fringe_behaviour) {|region| yield region})
+    end
+
+    def self.new(src, chunk_shape, strides = nil, degeneracy = nil,
+      fringe_behaviour : FB = FB::DISCARD)
+      new(src, RegionIterator.new(src.shape, chunk_shape, strides, degeneracy, fringe_behaviour))
     end
 
     def initialize(@src : MultiIndexable(E), @region_iter : RegionIterator(I))

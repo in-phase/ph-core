@@ -20,6 +20,8 @@ module Lattice
     getter step : Array(Int32)
     @shape : Array(T)
 
+    property degeneracy : Array(Bool)
+
     # =========================== Constructors ==============================
 
     def self.new(region : IndexRegion, bound_shape)
@@ -36,6 +38,9 @@ module Lattice
       region_literal.each_with_index do |range, i|
         IndexRegion.ensure_nonnegative(range)
         idx_r.start[i], idx_r.step[i], idx_r.stop[i], idx_r.shape_internal[i] = infer_range(range, trim_to[i])
+        if range.is_a? Int
+          idx_r.degeneracy[i] = true
+        end
       end
       idx_r.trim!(trim_to)
     end
@@ -44,7 +49,11 @@ module Lattice
     def self.new(region_literal : Enumerable, bound_shape : Indexable(T)) : IndexRegion(T)
       idx_r = new(bound_shape: bound_shape)
       region_literal.each_with_index do |range, i|
-        idx_r.start[i], idx_r.step[i], idx_r.stop[i], idx_r.shape_internal[i] = canonicalize_range(range, bound_shape[i])
+        vals = canonicalize_range(range, bound_shape[i])
+        idx_r.start[i], idx_r.step[i], idx_r.stop[i], idx_r.shape_internal[i] = vals
+        if range.is_a? Int
+          idx_r.degeneracy[i] = true
+        end
       end
       idx_r
     end
@@ -55,12 +64,12 @@ module Lattice
     end
 
     # creates an indexRegion from positive, bounded literals
-    def initialize(region_literal : Enumerable)
+    def self.new(region_literal : Enumerable)
         dims = region_literal.size
-        @start = Array(T).new(dims, T.zero)
-        @step = Array(T).new(dims, T.zero)
-        @stop = Array(T).new(dims, T.zero)
-        @shape = Array(T).new(dims, T.zero)
+        start = Array(T).new(dims, T.zero)
+        step = Array(T).new(dims, T.zero)
+        stop = Array(T).new(dims, T.zero)
+        shape = Array(T).new(dims, T.zero)
 
         region_literal.each_with_index do |range, i|
             IndexRegion.ensure_nonnegative(range)
@@ -68,36 +77,38 @@ module Lattice
                 raise "Cannot create IndexRegion without an explicit upper bound unless you provide a bounding shape"
             end
             
-            @start[i], @step[i], @stop[i], @shape[i] = IndexRegion.infer_range(range, T.zero)
+            start[i], step[i], stop[i], shape[i] = IndexRegion.infer_range(range, T.zero)
         end
+        new(start, step, stop, shape)
     end
 
-    def initialize(@start, step = nil, *, @stop : Indexable(T))
+    def self.new(start, step = nil, *, stop : Indexable(T))
       if !step
         step = start.map_with_index { |s, i| stop[i] <=> s }
       end
-      @step = step
-      @shape = [] of T # initialized first to pacify the compiler, which
-      # (I think) is unable to detect the output of self.get_size
-      @shape = start.zip(stop, step).map { |vals| IndexRegion.get_size(*vals) }
+
+      shape = start.zip(stop, step).map { |vals| IndexRegion.get_size(*vals) }
+      new(start, step, stop, shape)
     end
 
-    def initialize(@start, step = nil, *, @shape : Indexable(T))
+    def self.new(start, step = nil, *, shape : Indexable(T))
       if !step
         step = start.map_with_index { |s, i| stop[i] <=> s }
       end
-      @step = step
-      @stop = start.zip(step, shape).map { |x0, dx, size| x0 + dx * size }
+      stop = start.zip(step, shape).map { |x0, dx, size| x0 + dx * size }
+      new(start, step, stop, shape)
     end
 
-    protected def initialize(*, bound_shape : Indexable(T))
-      @start = Array.new(bound_shape.size, T.zero)
-      @step = Array.new(bound_shape.size, T.zero + 1)
-      @stop = bound_shape.map &.pred
-      @shape = bound_shape.dup
+    protected def self.new(*, bound_shape : Indexable(T))
+      start = Array.new(bound_shape.size, T.zero)
+      step = Array.new(bound_shape.size, T.zero + 1)
+      stop = bound_shape.map &.pred
+      shape = bound_shape.dup
+      new(start, step, stop, shape)
     end
 
-    protected def initialize(@start, @step, @stop, @shape)
+    protected def initialize(@start, @step, @stop, @shape : Indexable(T))
+      @degeneracy = Array(Bool).new(@start.size, false)
     end
 
     # ============= Methods required by MultiIndexable ===========================
@@ -132,6 +143,15 @@ module Lattice
     # ========================== Other =====================================
 
     def_clone
+
+    def includes?(coord)
+      coord.each_with_index do |value, i|
+        bounds = (@step[i] > 0) ? (@start[i]..@stop[i]) : (@stop[i]..@start[i])
+        return false unless bounds.includes?(value)
+        return false unless (value - @start[i]) % @step[i] == 0
+      end
+      return true
+    end
 
     # TODO: check dimensions
     def fits_in?(bound_shape) : Bool
@@ -203,6 +223,12 @@ module Lattice
     def local_to_absolute(coord)
       coord.zip(@start, @step).map do |idx, start, step|
         start + idx * step
+      end
+    end
+
+    def absolute_to_local(coord)
+      coord.zip(@start, @step).map do |idx, start, step|
+        (idx - start) // step
       end
     end
 

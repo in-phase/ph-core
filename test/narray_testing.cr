@@ -254,17 +254,25 @@ puts "44. Consider a random 10x2 matrix representing cartesian coordinates, conv
 narr = NArray.build(10,2) {Random.rand}
 r = [] of Float64 
 t = [] of Float64
+# slice[0, preserve: true]
+# slice[[0, 1, 2], preserve: true]
+# slice.crop()
 narr.slices.each do |slice|
-  a,b = 
-  x,y = slice.get(0,0), slice.get(0,1)
-  # My first instinct: slice[0,0], slice[0,1]
+  x,y = slice[0], slice[1]
+
+  x,y = slice
+
+  # x,y = slice.get(0,0), slice.get(0,1)
+  # My first instinct: slice[0], slice[1]
   # NOTE: because of how the crystal compiler does multiple assignment 
   # (just converts source code to a sequence of var_x = tmp[x], https://github.com/crystal-lang/crystal/issues/132)
   # we can theoretically do multiple assignment to divide up NArrays! But would only work on first dimension.
   # Possible reason to go for dropping dimensions? (at bare minimum, in #slices)
   # Could become: x,y = slice
+  # (unpacking block args is only for tuples - can't just "do |x,y|"
   
   # probelm 1: 
+  # - slice is 2d; must use [0,0], [0,1]. When I am certian it's conceptually a vector it's a little annoying
   # - sqrt doesn't work on NArray (calls to_f)
   #     - added to_f to MultiIndexable
   # - slice[0,0] is 2x2, to_scalar doesn't work
@@ -276,11 +284,45 @@ puts r,t
 # - numpy, numo support operations on arrays elementwise, eg np.sqrt(X). Consider method_missing, or alternatives, one more time?
       # X,Y = Z[:,0], Z[:,1]
       # R = np.sqrt(X**2+Y**2)
+      # # TODO: possibly implement math functions to work on arrays
       # T = np.arctan2(Y,X)
       # print(R)
 # - to_scalar allowing for squishing any number of dimensions? e.g. succeed on shape (1,1,1)
 #       - I feel like we need at least one of dimension dropping or this... else to_scalar feels very pointless.
 #       - also was a little annoying to specify the first "0" in slice.get here
 
+# module MultiMath
+#   def self.sqrt()
+#     # square root algorithm
+#   end
+# end
+
+# narr.sqrt
+# Phase.sqrt(narr)
+
+# (x**2 + y**2).sqrt
+
+# # 
+# class NArray
+#   include MultiMath
+# end
+
+# TODO: 46
+# TODO: 47
+
+puts "48. Print the minimum and maximum representable value for each numpy scalar type"
+{% begin %}
+{% for type in Int.all_subclasses %}
+  {% unless type == BigInt %}
+    puts "#{{{type}}}: #{{{type}}::MIN}, #{{{type}}::MAX}"
+  {% end %}
+{% end %}
+{% end %}
+# TODO: try this without macro? Don't think :: operator works on variables of type "class" so difficult to iterate classes
 
 
+# TODO: 49
+
+puts "50. How to find the closest value (to a given scalar) in an array?"
+# TODO
+# Is there a method in Enumerable to get the index of the min?

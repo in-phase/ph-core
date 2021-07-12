@@ -6,6 +6,8 @@ module Lattice
     # add search, traversal methods
     include Enumerable(T)
 
+    DROP_BY_DEFAULT = true
+
     # Please consider overriding:
     # -fast: for performance
     # -transform functions: reshape, permute, reverse; for performance
@@ -42,7 +44,7 @@ module Lattice
 
     # Checks that this `{{@type}}` is one-dimensional, and contains a single element.
     def scalar? : Bool
-      shape_internal.size == 1 && size == 1
+      size == 1
     end
 
     # Maps a single-element 1D `{{@type}}` to the element it contains.
@@ -50,15 +52,7 @@ module Lattice
       if scalar?
         first
       else
-        if shape_internal.size != 1
-          if size == 1
-            raise DimensionError.new("Only one-dimensional MultiIndexables can be converted to scalars, but this one has #{dimensions} dimensions (shape: #{shape_internal}). Because there is only one element, you likely meant to call {{@type}}#reshape(1) first. Alternatively, consider calling {{@type}}#first.")
-          else
-            raise DimensionError.new("Only one-dimensional MultiIndexables can be converted to scalars, but this one has #{dimensions} dimensions (shape: #{shape_internal}).")
-          end
-        else
-          raise ShapeError.new("Only single-element MultiIndexables can be converted to scalars, but this one has #{size} elements (shape: #{shape_internal}).")
-        end
+        raise ShapeError.new("Only single-element MultiIndexables can be converted to scalars, but this one has #{size} elements (shape: #{shape_internal}).")
       end
     end
 
@@ -220,7 +214,9 @@ module Lattice
     def each_slice(axis = 0) : Iterator
       chunk_shape = shape
       chunk_shape[axis] = 1
-      ChunkIterator.new(self, chunk_shape)
+      degeneracy = Array.new(dimensions, false)
+      degeneracy[axis] = true
+      ChunkIterator.new(self, chunk_shape, degeneracy: degeneracy)
     end
 
     def slices(axis = 0) : Enumerable

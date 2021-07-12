@@ -4,13 +4,21 @@ module Lattice
   class ChunkIterator(E, I)
     include Iterator(MultiIndexable(E))
 
+    alias FB = RegionIterator::FringeBehaviour
+
     @chunk_and_region_iterator : ChunkAndRegionIterator(E, I)
 
     def initialize(@chunk_and_region_iterator : ChunkAndRegionIterator(E, I))
     end
 
-    def self.new(src, chunk_shape, strides = nil, iter : CoordIterator.class = LexIterator, fringe_behaviour : RegionIterator::FringeBehaviour = RegionIterator::FringeBehaviour::DISCARD)
-      new(ChunkAndRegionIterator.new(src, chunk_shape, strides, iter, fringe_behaviour))
+    def self.new(src, chunk_shape, strides = nil, degeneracy = nil,
+      fringe_behaviour : FB = FB::DISCARD, &block)
+      new(ChunkAndRegionIterator.new(src, chunk_shape, strides, degeneracy, fringe_behaviour) { |region| yield region })
+    end
+
+    def self.new(src, chunk_shape, strides = nil, degeneracy = nil,
+      fringe_behaviour : FB = FB::DISCARD)
+      new(ChunkAndRegionIterator.new(src, chunk_shape, strides, degeneracy, fringe_behaviour))
     end
 
     def next

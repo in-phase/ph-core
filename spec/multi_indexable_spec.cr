@@ -71,7 +71,7 @@ macro test_get_chunk(method)
 
     end
 
-    it "returns the correct output" do
+    pending "returns the correct output" do
         chunk = r_narr.{{method.id}}([0..1, 1])
         puts chunk.buffer
     end
@@ -103,9 +103,9 @@ describe Lattice::MultiIndexable do
             RONArray.new([3], scalar_buffer).scalar?.should be_false
         end
 
-        it "returns false for a multidimensional MultiIndexable with only one element" do
+        it "returns true for a multidimensional MultiIndexable with only one element" do
             scalar_buffer = Slice[1]
-            RONArray.new([1, 1, 1, 1], scalar_buffer).scalar?.should be_false
+            RONArray.new([1, 1, 1, 1], scalar_buffer).scalar?.should be_true
         end
 
         it "returns false for a multidimensional MultiIndexable with multiple elements" do
@@ -115,30 +115,28 @@ describe Lattice::MultiIndexable do
     end
 
     describe "#to_scalar " do 
-        it "raises for a MultiIndexable with one element but multiple dimensions" do
-            scalar_buffer = Slice[1]
-            expect_raises DimensionError do
-                RONArray.new([1, 1, 1], scalar_buffer).to_scalar
-            end
-        end
-
         it "raises for a MultiIndexable with multiple elements in one dimension" do
             scalar_buffer = Slice[1, 2, 3]
-            expect_raises DimensionError do
+            expect_raises ShapeError do
                 RONArray.new([3], scalar_buffer).to_scalar
             end
         end
 
         it "raises for a MultiIndexable with multiple elements and dimensions" do
             scalar_buffer = Slice[1, 2, 3, 4]
-            expect_raises DimensionError do
+            expect_raises ShapeError do
                 RONArray.new([2, 2], scalar_buffer).to_scalar
             end
         end
 
-        it "returns the element when the MultiIndexable is a scalar" do
+        it "returns the element when the MultiIndexable is a 1D scalar" do
             scalar_buffer = Slice[1]
             RONArray.new([1], scalar_buffer).to_scalar.should eq 1
+        end
+
+        it "returns the element when the MultiIndexable is a multidimensional scalar" do
+            scalar_buffer = Slice[1]
+            RONArray.new([1, 1, 1], scalar_buffer).to_scalar.should eq 1
         end
     end
 

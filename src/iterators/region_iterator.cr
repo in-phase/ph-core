@@ -7,30 +7,35 @@ module Lattice
     @coord_iter : CoordIterator(I)
 
     @fringe_behaviour : FringeBehaviour
+    @degeneracy : Array(Bool)
 
     # getter size : Int32
-
     # TODO: iter inputs, etc
-    def self.new(src_shape : Indexable(I), chunk_shape, strides = nil, iter : CoordIterator.class = LexIterator, fringe_behaviour : FringeBehaviour = FringeBehaviour::DISCARD)
+    def self.new(src_shape : Indexable(I), chunk_shape = nil, strides = nil, degeneracy = nil,
+      fringe_behaviour : FringeBehaviour = FringeBehaviour::DISCARD, &block : IndexRegion(I) -> CoordIterator(I))
       # convert strides into an iterable region
+      puts fringe_behaviour, degeneracy, chunk_shape
       strides ||= chunk_shape
       if strides.any? { |x| x <= 0 }
         raise DimensionError.new("Stride size must be greater than 0.")
       end
+
       last = self.compute_lasts(src_shape, chunk_shape, strides, fringe_behaviour)
-
       region = IndexRegion.new(Array(I).new(src_shape.size, 0), strides, stop: last)
-      # coord_iter = iter.from_canonical(Array(I).new(src_shape.size, 0), last, strides)
-      coord_iter = iter.new(region)
+      coord_iter = yield region
 
-      new(src_shape, chunk_shape, coord_iter, fringe_behaviour)
+      new(src_shape, chunk_shape, coord_iter, degeneracy, fringe_behaviour)
     end
 
-    def self.from_canonical(src_shape, chunk_shape, coord_iter, fringe_behaviour)
-      new(src_shape, chunk_shape, coord_iter, fringe_behaviour)
+    def self.new(src_shape : Indexable(I), chunk_shape, strides = nil, degeneracy = nil,
+      fringe_behaviour : FringeBehaviour = FringeBehaviour::DISCARD)
+      new(src_shape, chunk_shape, strides, degeneracy, fringe_behaviour) do |region|
+        LexIterator.new(region)
+      end
     end
 
-    protected def initialize(@src_shape : Indexable(I), @chunk_shape, @coord_iter, @fringe_behaviour)
+    protected def initialize(@src_shape : Indexable(I), @chunk_shape, @coord_iter : CoordIterator(I), degeneracy : Array(Bool)? = nil, @fringe_behaviour : FringeBehaviour = FringeBehaviour::DISCARD)
+      @degeneracy = degeneracy || Array.new(@src_shape.size, false)
     end
 
     # protected def initialize(@src_shape, @chunk_shape, first, last, strides, @fringe_behaviour)
@@ -94,6 +99,7 @@ module Lattice
 
     protected def compute_region(coord)
       region = IndexRegion.cover(@chunk_shape).translate!(coord)
+      region.degeneracy = @degeneracy.clone
       unless @fringe_behaviour == FringeBehaviour::DISCARD
         region.trim!(@src_shape)
       end

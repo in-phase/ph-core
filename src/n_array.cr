@@ -326,10 +326,19 @@ module Lattice
 
     # Copies the elements in `region` to a new `{{@type}}`, assuming that `region` is in canonical form and in-bounds for this `{{@type}}`.
     # For full specification of canonical form see `RegionHelpers` documentation. TODO: make this actually happen
-    def unsafe_fetch_chunk(region)
-      shape = region.shape
+    def unsafe_fetch_chunk(region : IndexRegion, drop = MultiIndexable::DROP_BY_DEFAULT)
+      new_shape = region.shape
       iter = BufferedECIterator.new(self, IndexedLexIterator.new(region, @shape))
-      typeof(self).new(shape) { iter.unsafe_next_value }
+      if drop
+        new_shape = [] of Int32
+        region.shape.each_with_index do |dim, idx|
+          new_shape << dim unless region.degeneracy[idx]
+        end
+
+        # If every axis was dropped, you must have a scalar
+        new_shape = [1] if new_shape.empty?
+      end
+      typeof(self).new(new_shape) { iter.unsafe_next_value }
     end
 
     # Retrieves the element specified by `coord`, assuming that `coord` is in canonical form and in-bounds for this `{{@type}}`.
