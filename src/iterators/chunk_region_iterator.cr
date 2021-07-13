@@ -30,7 +30,7 @@ module Lattice
       when Stop
         return stop
       else
-        {@src.unsafe_fetch_chunk(region), region}
+        {@src.unsafe_fetch_chunk(region, drop: true), region}
       end
     end
 

@@ -258,24 +258,7 @@ t = [] of Float64
 # slice[[0, 1, 2], preserve: true]
 # slice.crop()
 narr.slices.each do |slice|
-  x,y = slice[0], slice[1]
-
   x,y = slice
-
-  # x,y = slice.get(0,0), slice.get(0,1)
-  # My first instinct: slice[0], slice[1]
-  # NOTE: because of how the crystal compiler does multiple assignment 
-  # (just converts source code to a sequence of var_x = tmp[x], https://github.com/crystal-lang/crystal/issues/132)
-  # we can theoretically do multiple assignment to divide up NArrays! But would only work on first dimension.
-  # Possible reason to go for dropping dimensions? (at bare minimum, in #slices)
-  # Could become: x,y = slice
-  # (unpacking block args is only for tuples - can't just "do |x,y|"
-  
-  # probelm 1: 
-  # - slice is 2d; must use [0,0], [0,1]. When I am certian it's conceptually a vector it's a little annoying
-  # - sqrt doesn't work on NArray (calls to_f)
-  #     - added to_f to MultiIndexable
-  # - slice[0,0] is 2x2, to_scalar doesn't work
   r << Math.sqrt(x**2 + y**2)
   t << Math.atan2(y,x)
 end

@@ -5,6 +5,28 @@ module Lattice
         def apply : ElemSet
             ElemSet.new(self)
         end
+
+        def apply! : InPlaceElemSet
+            InPlaceElemSet.new(self)
+        end
+
+        def ap
+            apply 
+        end
+
+        def ap! 
+            apply!
+        end
+    end
+
+    # This one should not be in MultiIndexable (since by default it doesn't accept setters)
+    class InPlaceElemSet(T)
+        @src : MultiIndexable(T)
+
+        def initialize(@src : MultiIndexable(T))
+        end
+
+        # method missing here
     end
     
     class ElemSet(T)
@@ -36,22 +58,22 @@ module Lattice
                             ) %}
                 \{% end %}
 
+
                 \{% for i in 0...(U.size) %}
-                \{% if U[i] < {{@type}} %}
+                \{% if U[i] < MultiIndexable %}
                     if args[\{{i}}].shape != @src.shape_internal
                         raise DimensionError.new("Could not apply .{{call.name.id}} elementwise - Shape of argument does match dimension of `self`")
                     end
                 \{% end %}
                 \{% end %}
 
+                # Note: Be careful with this section. Adding newlines can break this code because it might put commas on their own lines.
                 @src.map_with_coord do |elem, coord|
                 \{% begin %}
-                    # Note: Be careful with this section. Adding newlines can break this code because it might put commas on their
-                    # own lines.
                     elem.{{call.name.id}}(
-                    \{% for i in 0...(U.size) %}\
-                        \{% if U[i] < MultiIndexable %} args[\{{i}}].get(coord) \{% else %} args[\{{i}}] \{% end %} \{% if i < U.size - 1 %}, \{% end %}
-                    \{% end %}\
+                    \{% for i in 0...(U.size) %}
+                        \{% if U[i] < MultiIndexable %} args[\{{i}}].get(coord) \{% else %} args[\{{i}}]\{% end %}\{% if i < U.size - 1 %}, \{% end %}
+                    \{% end %}
                     )
                 \{% end %}
                 end
@@ -63,5 +85,22 @@ end
 include Lattice
 
 narr = NArray.build(2, 2) { |c| c.sum }
-puts narr
-puts narr.apply.+(2)
+# puts narr
+# puts narr.apply.+(2)
+
+# should fail 
+# shape mismatch
+# long_narr = narr.concatenate(narr)
+# puts narr.apply * long_narr
+# error: undefined method
+# puts narr.apply.substring
+# error: bad argument 
+# puts narr.apply.+("hi", "yo")
+
+
+str_narr = NArray.build(3,4) {|c| (c.sum % 2 ) == 0 ? "hello" : "world"}
+puts str_narr
+puts str_narr.apply.[2]
+
+puts str_narr.apply + str_narr
+puts narr.map &.+(3+94)
