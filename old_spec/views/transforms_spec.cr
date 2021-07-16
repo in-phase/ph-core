@@ -1,6 +1,6 @@
 require "../spec_helper"
 
-include Lattice
+include Phase
 
 # describe Transforms do
 #   describe Identity do

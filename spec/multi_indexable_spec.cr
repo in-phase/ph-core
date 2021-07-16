@@ -1,7 +1,7 @@
 require "./spec_helper"
 require "./test_narray"
 
-include Lattice
+include Phase
 
 # arr = NArray.build([2, 3, 2, 3]) { |coord, index| index }
 # small_arr = NArray.build([3, 3]) { |coord, index| index }
@@ -80,7 +80,7 @@ macro test_get_chunk(method)
     end
 end
 
-describe Lattice::MultiIndexable do
+describe Phase::MultiIndexable do
     describe "#empty?" do 
         it "returns true for an empty MultiIndexable" do
             empty_buffer = Slice(Int32).new(size: 0)

@@ -1,7 +1,7 @@
 require "colorize"
 require "yaml"
 
-module Lattice::MultiIndexable
+module Phase::MultiIndexable
   class Formatter(E, I)
     class Settings
       include YAML::Serializable
@@ -21,7 +21,7 @@ module Lattice::MultiIndexable
 
       property brackets : Array(Tuple(String, String))
 
-      @[YAML::Field(converter: YAML::ArrayConverter(Lattice::MultiIndexable::Formatter::Settings::ColorConverter))]
+      @[YAML::Field(converter: YAML::ArrayConverter(Phase::MultiIndexable::Formatter::Settings::ColorConverter))]
       property colors : Array(Colorize::ColorRGB | Symbol)
 
       @[YAML::Field(key: "collapse_brackets_after")]
@@ -41,14 +41,14 @@ module Lattice::MultiIndexable
       end
 
       # TODO: document properly once this is set in stone
-      # tries to read from LATTICE_CONFIG_DIR - if the file isn't there,
-      # reads from XDG_CONFIG_DIR/lattice. if still not there, tries ~/.config
+      # tries to read from PHASE_CONFIG_DIR - if the file isn't there,
+      # reads from XDG_CONFIG_DIR/phase. if still not there, tries ~/.config
       # TODO: Better error message for failed read
       def self.user_settings : self?
         return nil if @@disable_user_settings
         return @@cached_user_settings if @@cached_user_settings
 
-        if dir = ENV["LATTICE_CONFIG_DIR"]?
+        if dir = ENV["PHASE_CONFIG_DIR"]?
           path = (Path[dir] / USER_CONFIG_FILENAME).expand(home: true)
 
           if File.exists?(path)
@@ -58,7 +58,7 @@ module Lattice::MultiIndexable
 
         {ENV["XDG_CONFIG_DIR"]?, "~/.config"}.each do |dir|
           if dir
-            path = (Path[dir] / "lattice" / USER_CONFIG_FILENAME).expand(home: true)
+            path = (Path[dir] / "phase" / USER_CONFIG_FILENAME).expand(home: true)
 
             if File.exists?(path)
               return @@cached_user_settings = from_yaml(File.read(path))

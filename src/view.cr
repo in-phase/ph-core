@@ -1,4 +1,4 @@
-module Lattice
+module Phase
   class View(S, R) < ReadonlyView(S, R)
     include MultiWritable(R)
 

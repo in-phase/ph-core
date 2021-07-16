@@ -1,4 +1,4 @@
-module Lattice
+module Phase
   class RegionIterator(I)
     include Iterator(IndexRegion)
 

@@ -1,8 +1,8 @@
-require "../src/lattice"
+require "../src/ph-core"
 require "benchmark"
 
 
-include Lattice 
+include Phase 
 
 narr = NArray.build([10,10,10]) {|c, i| i}
 region = [0..4, 5..8, ..]

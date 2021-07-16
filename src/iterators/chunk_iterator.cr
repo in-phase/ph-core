@@ -1,6 +1,6 @@
 require "./chunk_region_iterator.cr"
 
-module Lattice
+module Phase
   class ChunkIterator(E, I)
     include Iterator(MultiIndexable(E))
 

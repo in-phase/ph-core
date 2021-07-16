@@ -1,6 +1,6 @@
 require "./spec_helper.cr"
 
-include Lattice
+include Phase
 
 # Provides barebones versions of NArray used to test MultiEnumerable, MultiIndexable, and MultiWritable methods,
 # and provide a minimum standard for implementing a usable multidimensional array type.

@@ -1,7 +1,7 @@
 require "./spec_helper"
 require "./test_narray"
 
-include Lattice
+include Phase
 
 arr = NArray.build([2, 3, 2, 3]) { |coord, index| index }
 small_arr = NArray.build([3, 3]) { |coord, index| index }
@@ -11,7 +11,7 @@ r_narr = RONArray.new([3,3], bufferA)
 w_narr = WONArray.new([3,3], bufferA)
 rw_narr = RWNArray.new([3,3], bufferA)
 
-pending Lattice::MultiWritable do
+pending Phase::MultiWritable do
     describe ".unsafe_set_chunk" do 
     end
 

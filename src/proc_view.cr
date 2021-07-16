@@ -1,4 +1,4 @@
-module Lattice
+module Phase
   class ProcView(S, T, R) < ReadonlyView(S, R)
     @proc : Proc(T, R)
 

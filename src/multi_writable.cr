@@ -1,4 +1,4 @@
-module Lattice
+module Phase
   module MultiWritable(T)
     # TODO: discuss: should mutators explicitly return the object itself, for chaining purposes?
 

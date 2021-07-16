@@ -4,7 +4,7 @@ require "yaml"
 # alias IndexType = Int32
 # alias Shape = Array(IndexType)
 
-module Lattice
+module Phase
   # An `{{@type}}` is a multidimensional array for any arbitrary type.
   # It is the most general implementation of Abstract{{@type}}, and as a result
   # only implements primitive data operations (construction, data reading,
@@ -67,7 +67,7 @@ module Lattice
     # index) to the value you wish to store at that position.
     # For example, to create the 2x2 identity matrix:
     # ```
-    # Lattice::{{@type}}.build([2, 2]) do |coord|
+    # Phase::{{@type}}.build([2, 2]) do |coord|
     #   if coord[0] == coord[1]
     #     1
     #   else

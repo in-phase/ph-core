@@ -1,5 +1,5 @@
-require "../src/lattice.cr"
+require "../src/ph-core.cr"
 
-include Lattice
+include Phase
 
 puts RegionUtil.translate_shape([1, 2, 3], [1, 2, 3], [10, 10, 10])

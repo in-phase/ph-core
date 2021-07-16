@@ -1,8 +1,8 @@
-require "../src/lattice"
+require "../src/ph-core"
 require "yaml"
 require "json"
 
-module Lattice::Data
+module Phase::Data
   class DataFrame(T)
     alias Serializable = YAML::Serializable | JSON::Serializable
 

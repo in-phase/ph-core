@@ -1,4 +1,4 @@
-module Lattice
+module Phase
   # In theory, these types should represent Array(Int); however, these are difficult
   # for the compiler to check as every combination of integer union types
   # must be checked for separately.

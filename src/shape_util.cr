@@ -1,4 +1,4 @@
-module Lattice
+module Phase
     module ShapeUtil
         extend self
 

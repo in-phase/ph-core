@@ -1,6 +1,6 @@
 require "./region_iterator"
 
-module Lattice
+module Phase
   class ChunkAndRegionIterator(E, I)
     # VerboseChunkIterator ?
     # TODO: IndexRegion(Int32) is a needless restriction - find a way to 

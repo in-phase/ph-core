@@ -1,4 +1,4 @@
-module Lattice
+module Phase
   class DimensionError < Exception
     def self.initialize(message = "Wrong number of dimensions for this operation.")
       super

@@ -1,6 +1,6 @@
-require "../src/lattice.cr"
+require "../src/ph-core.cr"
 
-include Lattice
+include Phase
 
 T_LEFT    =   0f64 # C
 T_RIGHT   = 100f64 # C

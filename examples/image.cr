@@ -1,8 +1,8 @@
 require "stumpy_png/src/stumpy_png"
-require "../src/lattice.cr"
+require "../src/ph-core.cr"
 
 include StumpyPNG
-include Lattice
+include Phase
 
 canvas = StumpyPNG.read("rainbow.png")
 

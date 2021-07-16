@@ -1,8 +1,8 @@
 require "./spec_helper"
 
-include Lattice
+include Phase
 
-describe Lattice do
+describe Phase do
   describe NArray do
     it "canonicalizes ranges" do
       narr = NArray.fill([4], 0)

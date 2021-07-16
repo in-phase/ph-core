@@ -1,6 +1,6 @@
-require "./lattice"
+require "./ph-core"
 
-module Lattice
+module Phase
 
     # class CartesianProduct(*U) # < MultiIndexable(Tuple(*U))
     class CartesianProduct(*U)

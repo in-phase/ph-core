@@ -1,6 +1,6 @@
 require "big"
 
-module Lattice
+module Phase
     abstract class GeneralCoordIterator(T)
     include Iterator(Coord)
 

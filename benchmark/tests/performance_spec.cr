@@ -1,9 +1,9 @@
 require "./spec_helper"
 require "./test_objects"
 
-include Lattice
+include Phase
 
-describe Lattice do
+describe Phase do
   describe NArray do
     it "creates large, many-dimensional arrays" do
       # An excessively large array (with total # elements > max Int32) causes arithmetic overload error

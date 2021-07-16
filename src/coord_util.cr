@@ -1,4 +1,4 @@
-module Lattice
+module Phase
   module CoordUtil
     extend self
 

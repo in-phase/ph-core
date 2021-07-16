@@ -1,4 +1,4 @@
-module Lattice
+module Phase
 
   # Strictly finite regions
   abstract class CoordIterator(T) < GeneralCoordIterator(T)

@@ -3,10 +3,10 @@
 # - not evenly tileable, DISCARD/AVAILABLE
 # - different stride size, y/n tileable, discard/available
 
-require "../../src/lattice"
+require "../../src/ph-core"
 require "complex"
 
-include Lattice
+include Phase
 include MultiIndexable(Int32)
 
 alias FringeBehaviour = RegionIterator::FringeBehaviour

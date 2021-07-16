@@ -1,7 +1,7 @@
-require "../src/lattice"
+require "../src/ph-core"
 
 
-module Lattice 
+module Phase 
 
     class SparseArray(T)
         include MultiIndexable(T)

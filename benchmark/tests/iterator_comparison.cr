@@ -1,12 +1,12 @@
-require "../src/lattice.cr"
+require "../src/ph-core.cr"
 
-include Lattice
+include Phase
 
 shape = [20, 20, 20, 20, 20]
 
 large_arr = NArray.build(shape) { |coord, i| i }
 
-module Lattice
+module Phase
   class NArray(T)
     # Control: a regular "each" over the buffer indices
     def each_with_coord(&block : T, Array(Int32), Int32 ->)

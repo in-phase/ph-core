@@ -1,9 +1,9 @@
-require "../../src/lattice"
+require "../../src/ph-core"
 
-include Lattice
+include Phase
 
-arr = Lattice::NArray.build([2, 3, 2, 3]) { |coord, index| index }
-coord_arr = Lattice::NArray.build([2, 3, 2, 3]) { |coord, index| coord }
+arr = Phase::NArray.build([2, 3, 2, 3]) { |coord, index| index }
+coord_arr = Phase::NArray.build([2, 3, 2, 3]) { |coord, index| coord }
 
 puts arr
 

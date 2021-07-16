@@ -1,6 +1,6 @@
-require "../src/lattice"
+require "../src/ph-core"
 
-include Lattice
+include Phase
 
 def not_supported 
     puts %(            ===================================
@@ -81,7 +81,7 @@ puts narr
 puts "20. Consider a (6,7,8) shape array, what is the index (x,y,z) of the 100th element?"
 puts NArray::BufferUtil.index_to_coord(100, [6,7,8])
 
-class Lattice::NArray(T)
+class Phase::NArray(T)
   private class WrappedLexIterator(T) < CoordIterator(T)
     getter smaller_coord : Array(T)
     @smaller_shape : Array(T)

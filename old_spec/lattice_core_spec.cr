@@ -1,4 +1,4 @@
 require "./spec_helper"
 
-describe Lattice do
+describe Phase do
 end

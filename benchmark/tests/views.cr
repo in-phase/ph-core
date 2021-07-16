@@ -1,6 +1,6 @@
-require "../src/lattice"
+require "../src/ph-core"
 
-include Lattice
+include Phase
 
 # this breaks:
 

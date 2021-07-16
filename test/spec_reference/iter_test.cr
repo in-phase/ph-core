@@ -1,6 +1,6 @@
-require "../../src/lattice"
+require "../../src/ph-core"
 
-include Lattice
+include Phase
 
 arr = NArray.build([2, 3, 2, 3]) { |coord, index| index }
 small_arr = NArray.build([5, 5]) { |coord, index| index }

@@ -1,6 +1,6 @@
 require "./spec_helper"
 
-include Lattice
+include Phase
 
 pending "SteppedRange" do
     describe ".new" do

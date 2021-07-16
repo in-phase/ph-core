@@ -1,6 +1,6 @@
-require "../src/lattice.cr"
+require "../src/ph-core.cr"
 
-module Lattice
+module Phase
     class NArray(T)
         def apply : ElemSet
             ElemSet.new(self)
@@ -50,7 +50,7 @@ module Lattice
                 \{% if !@type.type_vars[0].has_method?({{call.name.id.stringify}}) %}
                 \{% raise( <<-ERROR
                             undefined method '{{call.name.id}}' for #{@type.type_vars[0]}.
-                            This error is a result of Lattice attempting to apply `{{call.name.id}}`,
+                            This error is a result of Phase attempting to apply `{{call.name.id}}`,
                             an unknown method, to each element of an `{{@type}}`. (See the documentation
                             of `{{@type}}#method_missing` for more info). For the source of the error, 
                             use `--error-trace`.
@@ -82,7 +82,7 @@ module Lattice
     end
 end
 
-include Lattice
+include Phase
 
 narr = NArray.build(2, 2) { |c| c.sum }
 # puts narr

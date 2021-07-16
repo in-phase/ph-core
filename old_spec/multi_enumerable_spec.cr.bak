@@ -2,7 +2,7 @@
 require "./spec_helper.cr"
 require "./test_narray.cr"
 
-include Lattice
+include Phase
 
 slice1 = Slice(Int32).new(9) { |idx| idx }
 slice1transpose = Slice(Int32).new(9) {|idx| [0,3,6,1,4,7,2,5,8][idx] }
@@ -12,7 +12,7 @@ transpose = RONArray.new([3,3], slice1transpose)
 
 # TODO: revise unit tests seriously. These serve more as demos than exhaustive tests.
 
-describe Lattice::MultiEnumerable do
+describe Phase::MultiEnumerable do
     describe ".map" do
         it "produces an NArray(U) where U is the result of the block" do
             typeof(small_arr.map {|e| e.to_s}).should eq NArray(String)

@@ -1,6 +1,6 @@
 require "./elem_coord_iterator"
 
-module Lattice
+module Phase
   class ElemIterator(E, I)
     include Iterator(E)
 

@@ -1,7 +1,7 @@
 require "benchmark"
-require "../src/lattice"
+require "../src/ph-core"
 
-include Lattice
+include Phase
 shape = [20, 20, 400]
 narr = NArray.fill(shape, 1)
 region = RegionUtil.canonicalize_region([1.., 1..], shape)

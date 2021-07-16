@@ -1,8 +1,8 @@
 require "./spec_helper"
 
-include Lattice::RegionHelpers
+include Phase::RegionHelpers
 
-describe Lattice::RegionHelpers do
+describe Phase::RegionHelpers do
   describe ".has_index?" do
     shape = [1, 5, 1]
     it "determines whether a positive index is in bounds" do

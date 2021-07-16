@@ -1,4 +1,4 @@
-module Lattice
+module Phase
   class ReadonlyView(S, R)
     include MultiIndexable(R)
 

@@ -1,8 +1,8 @@
 require "./spec_helper"
 
-# include Lattice::RegionUtil
+# include Phase::RegionUtil
 
-pending "Lattice::RegionUtil" do
+pending "Phase::RegionUtil" do
   
   pending ".has_region?" do
     it "rejects region specifiers of the wrong dimensionality" do

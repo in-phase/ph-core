@@ -1,8 +1,9 @@
-name: lattice
+name: ph-core
 version: 0.1.0
 
 authors:
-  - your-name-here <your-email-here>
+  - Seth Hinz <sethhinz@me.com>
+  - Emily Love <emily.jeanette.love@gmail.com>
 
 crystal: 1.0.0
 

@@ -1,6 +1,6 @@
 require "./coord_iterator"
 
-module Lattice
+module Phase
   class LexIterator(T) < CoordIterator(T)
     def_clone
     def initialize(region : IndexRegion(T))

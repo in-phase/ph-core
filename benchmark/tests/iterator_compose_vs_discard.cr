@@ -1,6 +1,6 @@
-require "../src/lattice"
+require "../src/ph-core"
 require "benchmark"
-include Lattice
+include Phase
 include MultiIndexable(Int32)
 
 # # Make a ElemAndCoordIterator by getting coord and composing with ElemIterator

@@ -1,4 +1,4 @@
-module Lattice
+module Phase
   # Assumptions:
   # - length along every axis is finite and positive, and each element is positively indexed
   # - size is stored as an Int32, i.e. there are no more than Int32::MAX elements.

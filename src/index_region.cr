@@ -2,7 +2,7 @@ require "./coord_util"
 require "./multi_indexable"
 require "./type_aliases"
 
-module Lattice
+module Phase
   struct IndexRegion(T)
     # DISCUSS: should it be a MultiIndexable?
     # should .each give an iterator over dimensions, or over coords?

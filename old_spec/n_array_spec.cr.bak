@@ -1,9 +1,9 @@
 require "./spec_helper"
 require "./test_objects"
 
-include Lattice
+include Phase
 
-describe Lattice do
+describe Phase do
   describe NArray do
     it "canonicalizes ranges" do
       narr = NArray.fill([4], 0)

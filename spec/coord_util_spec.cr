@@ -1,8 +1,8 @@
 require "./spec_helper"
 
-include Lattice::CoordUtil
+include Phase::CoordUtil
 
-describe Lattice::CoordUtil do 
+describe Phase::CoordUtil do 
   describe ".has_index?" do
     shape = [1, 5, 1]
     it "determines whether a positive index is in bounds" do

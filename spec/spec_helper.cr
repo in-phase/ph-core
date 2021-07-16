@@ -1,5 +1,5 @@
 require "spec"
-require "../src/lattice"
+require "../src/ph-core"
 
 # An arbitrary class
 class TestObject

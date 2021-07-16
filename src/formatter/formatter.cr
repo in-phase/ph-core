@@ -3,7 +3,7 @@ require "yaml"
 require "big"
 
 # when you first print an narray, it loads whatever it should find from file, and then saves it in a static variable on FormatterSettings
-module Lattice
+module Phase
   module MultiIndexable
     class Formatter(E, I)
       private enum Flags
@@ -215,8 +215,8 @@ module Lattice
       end
 
       def format_element(el) : String
-        if el.responds_to? :lattice_to_s
-          str = el.lattice_to_s
+        if el.responds_to? :ph_to_s
+          str = el.ph_to_s
         else
           str = el.inspect
         end

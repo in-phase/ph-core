@@ -1,6 +1,6 @@
-require "../src/lattice"
+require "../src/ph-core"
 require "benchmark"
-include Lattice
+include Phase
 
 narr = NArray.build(3,3,3) {|c,_| c.sum }
 puts narr

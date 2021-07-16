@@ -1,7 +1,7 @@
-require "../src/lattice"
+require "../src/ph-core"
 require "benchmark"
 
-include Lattice 
+include Phase 
 
 shape = [3,3,3]
 

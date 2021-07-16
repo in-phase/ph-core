@@ -2,7 +2,7 @@
 # (in lexicographic/row major/C order).
 # This suggests the concept of a singular "index" representing each element, alongside the multidimensional coordinate.
 
-module Lattice
+module Phase
   class NArray(T)
     module BufferUtil
       # TODO: decide

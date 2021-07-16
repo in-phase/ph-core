@@ -1,4 +1,4 @@
-module Lattice
+module Phase
   # probably done
   abstract struct CoordTransform
     @@commutes = [] of CoordTransform.class
