@@ -1,10 +1,29 @@
 require "./spec_helper"
+require "./test_narray"
 
 include Lattice
 
-describe Lattice::MultiWritable do
+arr = NArray.build([2, 3, 2, 3]) { |coord, index| index }
+small_arr = NArray.build([3, 3]) { |coord, index| index }
 
-  # Check that WONArray can't be read
-  # Check that setting does what it is supposed to with a RWNArray (read-write)
+bufferA = Slice[1, 2, 3, 'a', 'b', 'c', 1f64, 2f64, 3f64]
+r_narr = RONArray.new([3,3], bufferA)
+w_narr = WONArray.new([3,3], bufferA)
+rw_narr = RWNArray.new([3,3], bufferA)
 
+pending Lattice::MultiWritable do
+    describe ".unsafe_set_chunk" do 
+    end
+
+    describe ".set_element" do 
+    end
+
+    describe ".set_chunk" do 
+    end
+
+    describe ".set_available" do 
+    end
+
+    describe ".[]=" do 
+    end
 end

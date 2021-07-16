@@ -1,9 +1,13 @@
 module Lattice
   class DimensionError < Exception
+    def self.initialize(message = "Wrong number of dimensions for this operation.")
+      super
+    end
   end
 
-  module MultiEnumerable(T)
-    class EmptyError < Exception
+  class ShapeError < IndexError
+    def self.initialize(message = "Shape was invalid for this operation.")
+      super
     end
   end
 end
