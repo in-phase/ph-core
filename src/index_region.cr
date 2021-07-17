@@ -37,7 +37,7 @@ module Phase
       idx_r = new(bound_shape: trim_to)
       region_literal.each_with_index do |range, i|
         IndexRegion.ensure_nonnegative(range)
-        idx_r.start[i], idx_r.step[i], idx_r.stop[i], idx_r.shape_internal[i] = infer_range(range, trim_to[i])
+        idx_r.start[i], idx_r.step[i], idx_r.stop[i], idx_r.@shape[i] = infer_range(range, trim_to[i])
         if range.is_a? Int
           idx_r.degeneracy[i] = true
         end
@@ -50,7 +50,8 @@ module Phase
       idx_r = new(bound_shape: bound_shape)
       region_literal.each_with_index do |range, i|
         vals = canonicalize_range(range, bound_shape[i])
-        idx_r.start[i], idx_r.step[i], idx_r.stop[i], idx_r.shape_internal[i] = vals
+        idx_r.start[i], idx_r.step[i], idx_r.stop[i], idx_r.@shape[i] = vals
+
         if range.is_a? Int
           idx_r.degeneracy[i] = true
         end
@@ -70,16 +71,21 @@ module Phase
         step = Array(T).new(dims, T.zero)
         stop = Array(T).new(dims, T.zero)
         shape = Array(T).new(dims, T.zero)
+        degeneracy = Array(Bool).new(dims, false)
 
         region_literal.each_with_index do |range, i|
             IndexRegion.ensure_nonnegative(range)
             if !IndexRegion.bounded?(range)
                 raise "Cannot create IndexRegion without an explicit upper bound unless you provide a bounding shape"
             end
-            
+
+            if range.is_a? Int
+              degeneracy[i] = true
+            end
             start[i], step[i], stop[i], shape[i] = IndexRegion.infer_range(range, T.zero)
         end
-        new(start, step, stop, shape)
+
+        new(start, step, stop, shape, degeneracy)
     end
 
     def self.new(start, step = nil, *, stop : Indexable(T))
@@ -107,17 +113,27 @@ module Phase
       new(start, step, stop, shape)
     end
 
-    protected def initialize(@start, @step, @stop, @shape : Indexable(T))
-      @degeneracy = Array(Bool).new(@start.size, false)
+    protected def initialize(@start, @step, @stop, @shape : Indexable(T), degeneracy : Array(Bool)? = nil)
+      @degeneracy = degeneracy || Array(Bool).new(@shape.size, false)
     end
 
     # ============= Methods required by MultiIndexable ===========================
-    def shape : Array(T)
-      @shape.dup
+    def shape(drop = MultiIndexable::DROP_BY_DEFAULT) : Array(T)
+      return @shape.dup unless drop
+
+      new_shape = Array(T).new(@shape.size)
+      @shape.each_with_index do |dim, idx|
+        new_shape << dim unless @degeneracy[idx]
+      end
+
+      # If every axis was dropped, you must have a scalar
+      return [1] if new_shape.empty?
+      new_shape
     end
 
-    def shape_internal
-      @shape
+    def shape_internal(drop = MultiIndexable::DROP_BY_DEFAULT)
+      return @shape unless drop
+      shape
     end
 
     def size
@@ -125,7 +141,19 @@ module Phase
     end
 
     # composes regions
-    def unsafe_fetch_chunk(region : IndexRegion) : IndexRegion(T)
+    def unsafe_fetch_chunk(region : IndexRegion, drop : Bool) : IndexRegion(T)
+      # Because IndexRegions store not just shape, but also positional information (the first element is
+      # not always the zero coordinate), it isn't safe to drop a dimension fully. The best we can do
+      # is take the elementwise OR of the degeneracies of `self` and `region`, which means that when
+      # the IndexRegion is used to get a chunk, it will return an object with the proper number of dimensions.
+      if drop
+        @degeneracy.map_with_index do |el, idx|
+          el || region.degeneracy[idx]
+        end
+      end
+
+      # get the indexes where its true
+      # remove the elements at those indexes and shrink all the arrays accordingly
       new_start = local_to_absolute(region.start)
       new_stop = local_to_absolute(region.stop)
 
@@ -150,7 +178,7 @@ module Phase
         return false unless bounds.includes?(value)
         return false unless (value - @start[i]) % @step[i] == 0
       end
-      return true
+      true
     end
 
     # TODO: check dimensions
@@ -158,7 +186,7 @@ module Phase
       bound_shape.zip(@start, @stop).each do |bound, a, b|
         return false if bound <= {a, b}.max
       end
-      return true
+      true
     end
 
     # TODO
@@ -208,13 +236,13 @@ module Phase
     end
 
     def to_s(io)
-      io << @shape.map_with_index do |size, i|
-        if size == 1
-          next @start[i]
+      io << @degeneracy.map_with_index do |degen, i|
+        if degen
+          @start[i]
         elsif @step[i].abs == 1
-          next @start[i]..@stop[i]
+          @start[i]..@stop[i]
         else
-          next @start[i]..@step[i]..@stop[i]
+          @start[i]..@step[i]..@stop[i]
         end
       end
     end

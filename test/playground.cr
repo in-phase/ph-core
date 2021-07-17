@@ -2,17 +2,15 @@ require "../src/ph-core"
 
 include Phase 
 
+foo = [1, 2]
+bar = [1, 2]
+baz = [1, 2]
+too_small = [1]
 
-
-
-
-narr = NArray.build(10, 2) {|c,i| i}
-
-# puts narr[.., 0,2]
-
-narr.slices(2).each do |slice|
-    x, y = slice
-    puts Math.sqrt(x**2 +  y**2)
+def returns_tuple
+    {3, 4, 5, 6}
 end
 
-sqrt(x^2+(x+1)^2) == sqrt(2x^2+2x+1)
+2.times do |i|
+    foo[i], bar[i], baz[i], too_small[i] = returns_tuple
+end

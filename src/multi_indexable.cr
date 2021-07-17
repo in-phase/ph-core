@@ -21,7 +21,7 @@ module Phase
 
     # Copies the elements in `region` to a new `{{@type}}`, assuming that `region` is in canonical form and in-bounds for this `{{@type}}`.
     # For full specification of canonical form see `RegionHelpers` documentation. TODO: make this actually happen
-    abstract def unsafe_fetch_chunk(region : IndexRegion)
+    abstract def unsafe_fetch_chunk(region : IndexRegion, drop : Bool)
 
     # Retrieves the element specified by `coord`, assuming that `coord` is in canonical form and in-bounds for this `{{@type}}`.
     # For full specification of canonical form see `RegionHelpers` documentation. TODO: make this actually happen
@@ -109,7 +109,7 @@ module Phase
     end
 
     # Copies the elements in `region` to a new `{{@type}}`, and throws an error if `region` is out-of-bounds for this `{{@type}}`.
-    def get_chunk(region : Indexable | IndexRegion)
+    def get_chunk(region : Indexable | IndexRegion, drop : Bool = MultiIndexable::DROP_BY_DEFAULT)
       unsafe_fetch_chunk IndexRegion.new(region, shape_internal)
     end
 
@@ -126,7 +126,7 @@ module Phase
       get_chunk(IndexRegion.new(region_shape).translate!(coord))
     end
 
-    def get_available(region : Indexable | IndexRegion)
+    def get_available(region : Indexable | IndexRegion, drop : Bool = MultiIndexable::DROP_BY_DEFAULT)
       unsafe_get_chunk(IndexRegion.new(region, trim_to: shape))
     end
 
@@ -145,12 +145,12 @@ module Phase
     end
 
     # Copies the elements in `region` to a new `{{@type}}`, and throws an error if `region` is out-of-bounds for this `{{@type}}`.
-    def [](region : Indexable | IndexRegion)
+    def [](region : Indexable | IndexRegion, drop : Bool = MultiIndexable::DROP_BY_DEFAULT)
       get_chunk(region)
     end
 
     # Copies the elements in `region` to a new `{{@type}}`, or returns false if `region` is out-of-bounds for this `{{@type}}`.
-    def []?(region : Indexable | IndexRegion) : self?
+    def []?(region : Indexable | IndexRegion, drop : Bool = MultiIndexable::DROP_BY_DEFAULT) : self?
       if has_region?(region)
         get_chunk(region)
       end
@@ -158,8 +158,16 @@ module Phase
     end
 
     {% begin %}
-      {% enumerable_functions = %w(get get_element get_chunk [] []? has_coord? has_region?) %}
-      {% for name in enumerable_functions %}
+      {% functions_with_drop = %w(get_chunk [] []?) %}
+      {% for name in functions_with_drop %}
+          # Tuple-accepting overload of `#{{name}}`.
+          def {{name.id}}(*tuple, drop : Bool = MultiIndexable::DROP_BY_DEFAULT)
+            self.{{name.id}}(tuple, drop)
+          end
+      {% end %}
+
+      {% functions_without_drop = %w(get get_element has_coord? has_region?) %}
+      {% for name in functions_without_drop %}
           # Tuple-accepting overload of `#{{name}}`.
           def {{name.id}}(*tuple)
             self.{{name.id}}(tuple)

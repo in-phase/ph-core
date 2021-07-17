@@ -215,9 +215,11 @@ not_supported
 
 
 puts "37. Create a 5x5 matrix with row values ranging from 0 to 4"
-narr = NArray.build(5,5) {|c,_| c[0]}
+narr = NArray.build(5,5) {|c| c[0]}
+# narr = NArray[0, 1, 2, 3, 4].tile([5, 5]) # make this happen
 puts narr
 # DISCUSS: is the ability to add different-dimensioned objects like this valuable???
+
 
 puts "38. Consider a generator function that generates 10 integers and use it to build an array"
 # no way it seems to directly pipe results of this into an NArray
@@ -256,39 +258,13 @@ r = [] of Float64
 t = [] of Float64
 # slice[0, preserve: true]
 # slice[[0, 1, 2], preserve: true]
-# slice.crop()
+
 narr.slices.each do |slice|
   x,y = slice
   r << Math.sqrt(x**2 + y**2)
   t << Math.atan2(y,x)
 end
 puts r,t
-# DISCUSS: 
-# - numpy, numo support operations on arrays elementwise, eg np.sqrt(X). Consider method_missing, or alternatives, one more time?
-      # X,Y = Z[:,0], Z[:,1]
-      # R = np.sqrt(X**2+Y**2)
-      # # TODO: possibly implement math functions to work on arrays
-      # T = np.arctan2(Y,X)
-      # print(R)
-# - to_scalar allowing for squishing any number of dimensions? e.g. succeed on shape (1,1,1)
-#       - I feel like we need at least one of dimension dropping or this... else to_scalar feels very pointless.
-#       - also was a little annoying to specify the first "0" in slice.get here
-
-# module MultiMath
-#   def self.sqrt()
-#     # square root algorithm
-#   end
-# end
-
-# narr.sqrt
-# Phase.sqrt(narr)
-
-# (x**2 + y**2).sqrt
-
-# # 
-# class NArray
-#   include MultiMath
-# end
 
 # TODO: 46
 # TODO: 47

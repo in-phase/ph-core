@@ -83,7 +83,8 @@ module Phase
       clone.reverse!
     end
 
-    def unsafe_fetch_chunk(region) : self
+    def unsafe_fetch_chunk(region : IndexRegion, drop : Bool) : self
+      # TODO !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!11
       view(region)
     end
 

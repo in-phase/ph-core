@@ -58,7 +58,7 @@ end
 module ReadUtils(T)
   include MultiIndexable(T)
 
-  def unsafe_fetch_chunk(idx_region : IndexRegion)
+  def unsafe_fetch_chunk(idx_region : IndexRegion, drop = MultiIndexable::DROP_BY_DEFAULT)
     shape = idx_region.shape # RegionUtil.measure_canonical_region(region)
     iter = ElemIterator.of(self, idx_region)
 
@@ -66,7 +66,7 @@ module ReadUtils(T)
       iter.next.as(T)
     end
 
-    {{@type}}.new(shape, buffer)
+    {{@type}}.new(idx_region.shape(drop), buffer)
   end
 
   def unsafe_fetch_element(coord) : T

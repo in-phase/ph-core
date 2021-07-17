@@ -134,7 +134,8 @@ module Phase
     # ```
     # {{@type}}.new([[1], [1, 2]]) # => DimensionError
     # ```
-    def self.new(nested_array)
+    def self.new(data : Enumerable)
+      nested_array = data.to_a
       shape = measure_nested_array(nested_array)
       flattened = nested_array.flatten
 
@@ -142,7 +143,13 @@ module Phase
       buffer = Slice.new(flattened.to_unsafe, flattened.size)
 
       # Do the typical `new` stuff
-      self.new(shape, buffer)
+      new(shape, buffer)
+    end
+
+    # NArray[1, 2, 3] == NArray.new([1, 2, 3])
+    # NArray[[1, 2, 3]] == NArray.new([[1, 2, 3]])
+    def self.[](*contents)
+      new(contents)
     end
 
     # Fills an `{{@type}}` of given shape with a specified value.
@@ -327,18 +334,8 @@ module Phase
     # Copies the elements in `region` to a new `{{@type}}`, assuming that `region` is in canonical form and in-bounds for this `{{@type}}`.
     # For full specification of canonical form see `RegionHelpers` documentation. TODO: make this actually happen
     def unsafe_fetch_chunk(region : IndexRegion, drop = MultiIndexable::DROP_BY_DEFAULT)
-      new_shape = region.shape
       iter = BufferedECIterator.new(self, IndexedLexIterator.new(region, @shape))
-      if drop
-        new_shape = [] of Int32
-        region.shape.each_with_index do |dim, idx|
-          new_shape << dim unless region.degeneracy[idx]
-        end
-
-        # If every axis was dropped, you must have a scalar
-        new_shape = [1] if new_shape.empty?
-      end
-      typeof(self).new(new_shape) { iter.unsafe_next_value }
+      typeof(self).new(region.shape(drop)) { iter.unsafe_next_value }
     end
 
     # Retrieves the element specified by `coord`, assuming that `coord` is in canonical form and in-bounds for this `{{@type}}`.
