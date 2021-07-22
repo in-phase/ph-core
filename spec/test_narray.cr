@@ -66,7 +66,7 @@ module ReadUtils(T)
       iter.next.as(T)
     end
 
-    {{@type}}.new(idx_region.shape(drop), buffer)
+    {{@type}}.new(idx_region.shape, buffer)
   end
 
   def unsafe_fetch_element(coord) : T

@@ -11,6 +11,7 @@ module Phase
     # Please consider overriding:
     # -fast: for performance
     # -transform functions: reshape, permute, reverse; for performance
+    # -unsafe_fetch_chunk: for performance and return type (defaults to NArray)
 
     # Returns the number of elements in the `{{@type}}`; equal to `shape.product`.
     abstract def size
@@ -18,10 +19,6 @@ module Phase
     # Returns the length of the `{{@type}}` in each dimension.
     # For a `coord` to specify an element of the `{{@type}}` it must satisfy `coord[i] < shape[i]` for each `i`.
     abstract def shape : Array
-
-    # Copies the elements in `region` to a new `{{@type}}`, assuming that `region` is in canonical form and in-bounds for this `{{@type}}`.
-    # For full specification of canonical form see `RegionHelpers` documentation. TODO: make this actually happen
-    abstract def unsafe_fetch_chunk(region : IndexRegion, drop : Bool)
 
     # Retrieves the element specified by `coord`, assuming that `coord` is in canonical form and in-bounds for this `{{@type}}`.
     # For full specification of canonical form see `RegionHelpers` documentation. TODO: make this actually happen
@@ -108,26 +105,38 @@ module Phase
       false
     end
 
+    # Copies the elements in `region` to a new `{{@type}}`, assuming that `region` is in canonical form and in-bounds for this `{{@type}}`.
+    # For full specification of canonical form see `RegionHelpers` documentation. TODO: make this actually happen
+    def unsafe_fetch_chunk(region : IndexRegion)
+      NArray.build(region.shape) do |coord|
+        unsafe_fetch_element(region.local_to_absolute(coord))
+      end
+    end
+
     # Copies the elements in `region` to a new `{{@type}}`, and throws an error if `region` is out-of-bounds for this `{{@type}}`.
-    def get_chunk(region : Indexable | IndexRegion, drop : Bool = MultiIndexable::DROP_BY_DEFAULT)
-      unsafe_fetch_chunk IndexRegion.new(region, shape_internal)
+    def get_chunk(region : IndexRegion) : MultiIndexable(T)
+      # TODO: Write good error messages
+      raise DimensionError.new if region.proper_dimensions != dimensions
+      raise ShapeError.new unless region.fits_in?(shape_internal)
+      unsafe_fetch_chunk(region)
     end
 
-    # Retrieves the element specified by `coord`, and throws an error if `coord` is out-of-bounds for this `{{@type}}`.
-    def get_element(coord : Indexable) : T
-      unsafe_fetch_element CoordUtil.canonicalize_coord(coord, shape_internal)
+    # Copies the elements in `region` to a new `{{@type}}`, and throws an error if `region` is out-of-bounds for this `{{@type}}`.
+    def get_chunk(region : Indexable, drop : Bool = DROP_BY_DEFAULT)
+      unsafe_fetch_chunk IndexRegion.new(region, shape_internal, drop)
     end
 
-    def get(coord : Indexable) : T
-      get_element(coord)
-    end
-
+    # "drags out" a region of shape region_shape with coord as the top left corner
     def get_chunk(coord : Indexable, region_shape : Indexable)
       get_chunk(IndexRegion.new(region_shape).translate!(coord))
     end
 
-    def get_available(region : Indexable | IndexRegion, drop : Bool = MultiIndexable::DROP_BY_DEFAULT)
-      unsafe_get_chunk(IndexRegion.new(region, trim_to: shape))
+    def get_available(region : IndexRegion, drop : Bool = DROP_BY_DEFAULT)
+      unsafe_get_chunk(region.trim!(shape_internal))
+    end
+
+    def get_available(region : Indexable, drop : Bool = DROP_BY_DEFAULT)
+      unsafe_get_chunk(IndexRegion.new(region, shape_internal, drop, trim_to: shape))
     end
 
     def [](bool_mask : MultiIndexable(Bool)) : self
@@ -140,7 +149,7 @@ module Phase
       end
 
       bool_mask.map_with_coord do |bool_val, coord|
-        bool_val ?  unsafe_fetch_element(coord) : nil
+        bool_val ? unsafe_fetch_element(coord) : nil
       end
     end
 
@@ -155,6 +164,15 @@ module Phase
         get_chunk(region)
       end
       false
+    end
+
+    # Retrieves the element specified by `coord`, and throws an error if `coord` is out-of-bounds for this `{{@type}}`.
+    def get_element(coord : Indexable) : T
+      unsafe_fetch_element CoordUtil.canonicalize_coord(coord, shape_internal)
+    end
+
+    def get(coord : Indexable) : T
+      get_element(coord)
     end
 
     {% begin %}

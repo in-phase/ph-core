@@ -4,6 +4,8 @@ require "./type_aliases"
 
 module Phase
   struct IndexRegion(T)
+    DROP_BY_DEFAULT = MultiIndexable::DROP_BY_DEFAULT
+
     # DISCUSS: should it be a MultiIndexable?
     # should .each give an iterator over dimensions, or over coords?
     include MultiIndexable(Array(T))
@@ -14,13 +16,16 @@ module Phase
     # :nodoc:
     getter stop : Array(T)
 
-    # @start, @stop, @shape must all be valid index representers but @step need not be (e.g. may be negative)
+    # @start, @stop, @proper_shape, @reduced_shape must all be valid index representers but @step need not be (e.g. may be negative)
     # TODO: see if there is a way to generalize to any SignedInt
     # :nodoc:
     getter step : Array(Int32)
-    @shape : Array(T)
+    @proper_shape : Array(T) 
+    @reduced_shape : Array(T)
 
     property degeneracy : Array(Bool)
+    getter drop : Bool
+
 
     # =========================== Constructors ==============================
 
@@ -33,39 +38,75 @@ module Phase
 
     # doesn't allow negative (relative) indices, and allows you to clip
     # a region_literal down so it will fit inside of *trim_to*.
-    def self.new(region_literal : Enumerable, *, trim_to : Indexable(T))
-      idx_r = new(bound_shape: trim_to)
+    def self.new(region_literal : Enumerable, bound_shape : Indexable? = nil, drop : Bool = DROP_BY_DEFAULT,
+      *, trim_to : Indexable(T))
+      start = Array.new(trim_to.size, T.zero)
+      step = Array.new(trim_to.size, T.zero + 1)
+      stop = Array.new(trim_to.size, T.zero)
+      shape = Array.new(trim_to.size, T.zero)
+      degeneracy = Array(Bool).new(trim_to.size, false)
+      # you can only use negative indexes as relative offsets if you've explicitly passed the bound
+      # shape that they should reference.
+      allow_relative = !bound_shape.nil?
+      bound_shape ||= trim_to
+
       region_literal.each_with_index do |range, i|
-        IndexRegion.ensure_nonnegative(range)
-        idx_r.start[i], idx_r.step[i], idx_r.stop[i], idx_r.@shape[i] = infer_range(range, trim_to[i])
+        IndexRegion.ensure_nonnegative(range) unless allow_relative
+        start[i], step[i], stop[i], shape[i] = infer_range(range, bound_shape[i])
+
         if range.is_a? Int
-          idx_r.degeneracy[i] = true
+          degeneracy[i] = true
         end
       end
-      idx_r.trim!(trim_to)
+
+      # The region literal is allowed to have implicit dimensions (fewer than the bound_shape would imply).
+      # this loop just populates the remaining dimensions with sensible defaults
+      (region_literal.size...bound_shape.size).each do |axis|
+        stop[axis] = bound_shape[axis] - 1
+        shape[axis] = bound_shape[axis]
+      end
+
+      new(start, step, stop, shape, drop, degeneracy).trim!(trim_to)
     end
 
     # Main constructor
-    def self.new(region_literal : Enumerable, bound_shape : Indexable(T)) : IndexRegion(T)
-      idx_r = new(bound_shape: bound_shape)
+    def self.new(region_literal : Enumerable, bound_shape : Indexable(T), drop : Bool = DROP_BY_DEFAULT) : IndexRegion(T)
+      start = Array.new(bound_shape.size, T.zero)
+      step = Array.new(bound_shape.size, T.zero + 1)
+      stop = Array.new(bound_shape.size, T.zero)
+      shape = Array.new(bound_shape.size, T.zero)
+      degeneracy = Array(Bool).new(bound_shape.size, false)
+
       region_literal.each_with_index do |range, i|
         vals = canonicalize_range(range, bound_shape[i])
-        idx_r.start[i], idx_r.step[i], idx_r.stop[i], idx_r.@shape[i] = vals
+        start[i], step[i], stop[i], shape[i] = vals
 
         if range.is_a? Int
-          idx_r.degeneracy[i] = true
+          degeneracy[i] = true
         end
       end
-      idx_r
+
+      # The region literal is allowed to have implicit dimensions (fewer than the bound_shape would imply).
+      # this loop just populates the remaining dimensions with sensible defaults
+      (region_literal.size...bound_shape.size).each do |axis|
+        stop[axis] = bound_shape[axis] - 1
+        shape[axis] = bound_shape[axis]
+      end
+
+      new(start, step, stop, shape, drop, degeneracy)
     end
 
     # Gets the region including all coordinates in the given bound_shape
     def self.cover(bound_shape : Indexable(T))
-      new(bound_shape: bound_shape)
+      start = Array.new(bound_shape.size, T.zero)
+      step = Array.new(bound_shape.size, T.zero + 1)
+      stop = bound_shape.map &.pred
+      shape = bound_shape.dup
+      new(start, step, stop, shape, DROP_BY_DEFAULT)
     end
 
     # creates an indexRegion from positive, bounded literals
-    def self.new(region_literal : Enumerable)
+    def self.new(region_literal : Enumerable, drop : Bool = DROP_BY_DEFAULT)
         dims = region_literal.size
         start = Array(T).new(dims, T.zero)
         step = Array(T).new(dims, T.zero)
@@ -85,59 +126,51 @@ module Phase
             start[i], step[i], stop[i], shape[i] = IndexRegion.infer_range(range, T.zero)
         end
 
-        new(start, step, stop, shape, degeneracy)
+        new(start, step, stop, shape, drop, degeneracy)
     end
 
-    def self.new(start, step = nil, *, stop : Indexable(T))
+    protected def self.new(start, step = nil, *, stop : Indexable(T))
       if !step
         step = start.map_with_index { |s, i| stop[i] <=> s }
       end
 
       shape = start.zip(stop, step).map { |vals| IndexRegion.get_size(*vals) }
-      new(start, step, stop, shape)
+      new(start, step, stop, shape, DROP_BY_DEFAULT)
     end
 
-    def self.new(start, step = nil, *, shape : Indexable(T))
+    protected def self.new(start, step = nil, *, shape : Indexable(T))
       if !step
         step = start.map_with_index { |s, i| stop[i] <=> s }
       end
       stop = start.zip(step, shape).map { |x0, dx, size| x0 + dx * size }
-      new(start, step, stop, shape)
+      new(start, step, stop, shape, DROP_BY_DEFAULT)
     end
 
-    protected def self.new(*, bound_shape : Indexable(T))
-      start = Array.new(bound_shape.size, T.zero)
-      step = Array.new(bound_shape.size, T.zero + 1)
-      stop = bound_shape.map &.pred
-      shape = bound_shape.dup
-      new(start, step, stop, shape)
-    end
+    protected def initialize(@start, @step, @stop, @proper_shape : Indexable(T), @drop : Bool, degeneracy : Array(Bool)? = nil)
+      @degeneracy = degeneracy || Array(Bool).new(@proper_shape.size, false)
 
-    protected def initialize(@start, @step, @stop, @shape : Indexable(T), degeneracy : Array(Bool)? = nil)
-      @degeneracy = degeneracy || Array(Bool).new(@shape.size, false)
+      if degeneracy.nil?
+        @reduced_shape = @proper_shape.dup
+      else
+        @reduced_shape = drop_degenerate(@proper_shape) {[T.zero + 1]}
+      end
     end
 
     # ============= Methods required by MultiIndexable ===========================
-    def shape(drop = MultiIndexable::DROP_BY_DEFAULT) : Array(T)
-      return @shape.dup unless drop
-
-      new_shape = Array(T).new(@shape.size)
-      @shape.each_with_index do |dim, idx|
-        new_shape << dim unless @degeneracy[idx]
-      end
-
-      # If every axis was dropped, you must have a scalar
-      return [1] if new_shape.empty?
-      new_shape
+    def shape : Array(T)
+      @reduced_shape.dup
     end
 
     def shape_internal(drop = MultiIndexable::DROP_BY_DEFAULT)
-      return @shape unless drop
-      shape
+      @reduced_shape
     end
 
     def size
-      @shape.product
+      @reduced_shape.product
+    end
+
+    def proper_dimensions : Int32
+      @proper_shape.size
     end
 
     # composes regions
@@ -168,6 +201,24 @@ module Phase
       local_to_absolute(coord)
     end
 
+    # the outer narr is 5x5
+    # we use [1, 2..3] to select a region of 2 elems
+    # the indexregion representing that is callex idx_r
+
+    # a b c d e 
+    # f g h i j 
+    # k l m n o 
+    # p q r s t  
+    # u v w x y 
+
+    # h i
+    # @drop = true
+
+    # idx_r.shape => [2]
+    # idx_r.dimensions => 1
+    # idx_r[0] => [1, 2]
+    # idx_r[1] => [1, 3]
+    
     # ========================== Other =====================================
 
     def_clone
@@ -191,15 +242,21 @@ module Phase
 
     # TODO
     def trim!(bound_shape) : self
-      dims = @shape.size
+      dims = @reduced_shape.size
 
       if bound_shape.size != dims
         raise DimensionError.new("invalid error :)")
       end
 
       bound_shape.each_with_index do |container_size, axis|
-        @start[axis], @step[axis], @stop[axis], @shape[axis] =
-          IndexRegion.trim_axis(container_size, @start[axis], @step[axis], @stop[axis], @shape[axis])
+        @start[axis], @step[axis], @stop[axis], @proper_shape[axis] =
+          IndexRegion.trim_axis(container_size, @start[axis], @step[axis], @stop[axis], @proper_shape[axis])
+      end
+
+      if @drop
+        @reduced_shape = drop_degenerate(@proper_shape) {[T.zero + 1]}
+      else
+        @reduced_shape = @proper_shape.dup
       end
       self
     end
@@ -230,11 +287,6 @@ module Phase
       self.clone.translate!(offset)
     end
 
-    # Gives an iterator over tuples {start[i], step[i], stop[i], shape[i]}
-    def range_tuples
-      @start.zip(@step, @stop, @shape)
-    end
-
     def to_s(io)
       io << @degeneracy.map_with_index do |degen, i|
         if degen
@@ -249,15 +301,43 @@ module Phase
 
     # TODO: in general, maybe use immediate methods rather than zip?
     def local_to_absolute(coord)
-      coord.zip(@start, @step).map do |idx, start, step|
-        start + idx * step
+      if @drop
+        local_axis = 0
+        degeneracy.map_with_index do |degenerate, i|
+          if degenerate
+            @start[i]
+          else
+            local_axis += 1
+            @start[i] + coord[local_axis - 1] * @step[i]
+          end
+        end
+      else
+        coord.zip(@start, @step).map do |idx, start, step|
+          start + idx * step
+        end
       end
     end
 
     def absolute_to_local(coord)
-      coord.zip(@start, @step).map do |idx, start, step|
+      local = coord.zip(@start, @step).map do |idx, start, step|
         (idx - start) // step
       end
+
+      if @drop
+        drop_degenerate(local) {[T.zero]}
+      else
+        local
+      end
+    end
+    
+    def drop_degenerate(arr : Array, &when_full : -> Array(T)) : Array(T)
+      new_arr = Array(T).new(arr.size)
+      arr.each_with_index do |value, idx|
+        new_arr << value unless @degeneracy[idx]
+      end
+      # If every axis was dropped, you must have a scalar
+      return yield if new_arr.empty?
+      new_arr
     end
 
     def each : CoordIterator(T)

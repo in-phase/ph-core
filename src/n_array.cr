@@ -333,9 +333,9 @@ module Phase
 
     # Copies the elements in `region` to a new `{{@type}}`, assuming that `region` is in canonical form and in-bounds for this `{{@type}}`.
     # For full specification of canonical form see `RegionHelpers` documentation. TODO: make this actually happen
-    def unsafe_fetch_chunk(region : IndexRegion, drop = MultiIndexable::DROP_BY_DEFAULT)
+    def unsafe_fetch_chunk(region : IndexRegion)
       iter = BufferedECIterator.new(self, IndexedLexIterator.new(region, @shape))
-      typeof(self).new(region.shape(drop)) { iter.unsafe_next_value }
+      typeof(self).new(region.shape) { iter.unsafe_next_value }
     end
 
     # Retrieves the element specified by `coord`, assuming that `coord` is in canonical form and in-bounds for this `{{@type}}`.
