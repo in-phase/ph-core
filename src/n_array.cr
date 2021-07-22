@@ -369,16 +369,19 @@ module Phase
     # Copies the elements from a MultiIndexable `src` into `region`, assuming that `region` is in canonical form and in-bounds for this `{{type}}`
     # and the shape of `region` matches the shape of `src`.
     def unsafe_set_chunk(region : IndexRegion, src : MultiIndexable(T))
-      iter = IndexedLexIterator.new(region, @shape)
-      iter.each do |coord|
-        @buffer[iter.current_index] = src.unsafe_fetch_element(iter.coord)
+      absolute_iter = IndexedLexIterator.new(region, @shape)
+      src_iter = src.each
+      
+      src_iter.each do |src_el|
+        absolute_iter.next
+        @buffer[absolute_iter.current_index] = src_el
       end
     end
 
     # Sets each element in `region` to `value`, assuming that `region` is in canonical form and in-bounds for this `{{type}}`
     def unsafe_set_chunk(region : IndexRegion, value : T)
       iter = IndexedLexIterator.new(region, @shape)
-      iter.each do |coord|
+      iter.each do
         @buffer[iter.current_index] = value
       end
     end

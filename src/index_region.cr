@@ -260,7 +260,7 @@ module Phase
       end
     end
 
-    def each(iter = LexIterator) : CoordIterator(T)
+    def each : CoordIterator(T)
       LexIterator.new(self)
     end
 

@@ -24,8 +24,11 @@ module Phase
     # and the shape of `region` matches the shape of `src`.
     # For full specification of canonical form see `RegionHelpers` documentation. TODO: make this actually happen
     def unsafe_set_chunk(region : IndexRegion, src : MultiIndexable(T))
-      region.each do |coord|
-        unsafe_set_element(coord, unsafe_fetch_element(coord))
+      absolute_iter = region.each
+      src_iter = src.each
+
+      src_iter.each do |src_el|
+        unsafe_set_element(absolute_iter.unsafe_next, src_el)
       end
     end
 
@@ -53,9 +56,7 @@ module Phase
         raise DimensionError.new("Cannot substitute #{typeof(src)}: the given #{typeof(src)} has shape #{src.shape_internal}, but region #{idx_region} has shape #{idx_region.shape}.")
       end
 
-      idx_region.each do |coord|
-        unsafe_set_element(coord, src.unsafe_fetch_element(coord))
-      end
+      unsafe_set_chunk(idx_region, src)
     end
 
     # Sets each element in `region` to `value`.

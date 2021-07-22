@@ -180,6 +180,7 @@ module Phase
       LexIterator.cover(shape)
     end
 
+    # The default iterator must be lexicographic
     def each : Iterator(T)
       each(each_coord)
     end
