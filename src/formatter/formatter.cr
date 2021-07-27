@@ -28,7 +28,12 @@ module Phase
         settings ||= Settings.new
 
         display_shape = narr.shape.map_with_index do |dim, i|
-          color = settings.colors[(-i - 1) % settings.colors.size]
+          if i < narr.shape.size - 1
+            color = settings.colors[(-i-2) % settings.colors.size]
+          else
+            color = :default
+          end
+
           dim.to_s.colorize(color)
         end
 

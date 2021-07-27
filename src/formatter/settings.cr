@@ -79,7 +79,7 @@ module Phase::MultiIndexable
           max_element_width: 15,
           omit_after: [10, 5],
           brackets: [{"[", "]"}],
-          colors: [:default],
+          colors: [:red, :yellow, :blue],
           collapse_brackets_after: 5,
           integer_format: "%d",
           decimal_format: "%.3g"
