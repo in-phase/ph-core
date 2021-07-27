@@ -12,23 +12,22 @@ module Phase
     # getter size : Int32
     # TODO: iter inputs, etc
     def self.new(src_shape : Indexable(I), chunk_shape = nil, strides = nil, degeneracy = nil,
-      fringe_behaviour : FringeBehaviour = FringeBehaviour::DISCARD, &block : IndexRegion(I) -> CoordIterator(I))
+                 fringe_behaviour : FringeBehaviour = FringeBehaviour::DISCARD, &block : IndexRegion(I) -> CoordIterator(I))
       # convert strides into an iterable region
-      puts fringe_behaviour, degeneracy, chunk_shape
       strides ||= chunk_shape
       if strides.any? { |x| x <= 0 }
         raise DimensionError.new("Stride size must be greater than 0.")
       end
 
       last = self.compute_lasts(src_shape, chunk_shape, strides, fringe_behaviour)
-      region = IndexRegion.new(Array(I).new(src_shape.size, 0), strides, stop: last)
+      region = IndexRegion.new(Array(I).new(src_shape.size, 0), strides, last: last)
       coord_iter = yield region
 
       new(src_shape, chunk_shape, coord_iter, degeneracy, fringe_behaviour)
     end
 
     def self.new(src_shape : Indexable(I), chunk_shape, strides = nil, degeneracy = nil,
-      fringe_behaviour : FringeBehaviour = FringeBehaviour::DISCARD)
+                 fringe_behaviour : FringeBehaviour = FringeBehaviour::DISCARD)
       new(src_shape, chunk_shape, strides, degeneracy, fringe_behaviour) do |region|
         LexIterator.new(region)
       end
@@ -98,11 +97,13 @@ module Phase
     end
 
     protected def compute_region(coord)
-      region = IndexRegion.cover(@chunk_shape).translate!(coord)
-      region.degeneracy = @degeneracy.clone
+      region = IndexRegion.cover(@chunk_shape, drop: true, degeneracy: @degeneracy.clone)
+      region.translate!(coord)
+
       unless @fringe_behaviour == FringeBehaviour::DISCARD
         region.trim!(@src_shape)
       end
+      
       return region
     end
 

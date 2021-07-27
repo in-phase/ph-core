@@ -85,7 +85,6 @@ module Phase::MultiIndexable
           decimal_format: "%.3g"
         )
       end
-      
 
       class ColorConverter
         # NOTE: I tried generating this with macros, but nothing was

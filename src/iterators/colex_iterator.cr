@@ -3,6 +3,7 @@ require "./coord_iterator"
 module Phase
   class ColexIterator(T) < CoordIterator(T)
     def_clone
+
     def initialize(region : IndexRegion(T))
       super
     end

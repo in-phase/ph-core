@@ -3,12 +3,11 @@ require "./spec_helper"
 # include Phase::RegionUtil
 
 pending "Phase::RegionUtil" do
-  
   pending ".has_region?" do
     it "rejects region specifiers of the wrong dimensionality" do
     end
   end
-  
+
   pending ".canonicalize_range" do
     it "creates a SteppedRange" do
     end
@@ -46,13 +45,13 @@ pending "Phase::RegionUtil" do
     # see canonicalize region, measure_canonical_region
   end
 
-  pending ".compatible_shapes" do 
+  pending ".compatible_shapes" do
   end
 
-  pending ".full_region" do 
+  pending ".full_region" do
   end
 
-  pending ".translate_shape" do 
+  pending ".translate_shape" do
   end
 
   pending ".trim_region" do

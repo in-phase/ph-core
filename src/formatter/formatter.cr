@@ -14,7 +14,7 @@ module Phase
 
       @settings : Settings
       @io : IO
-      @iter : ElemIterator(E,I)
+      @iter : ElemIterator(E, I)
 
       @shape : Array(I)
       @depth = 0
@@ -29,7 +29,7 @@ module Phase
 
         display_shape = narr.shape.map_with_index do |dim, i|
           if i < narr.shape.size - 1
-            color = settings.colors[(-i-2) % settings.colors.size]
+            color = settings.colors[(-i - 2) % settings.colors.size]
           else
             color = :default
           end
@@ -98,7 +98,6 @@ module Phase
       end
 
       protected def walk_n_measure(depth = 0)
-        
         height = @shape.size - depth - 1
         max_columns = @settings.display_limit[{@settings.display_limit.size - 1, height}.min]
 

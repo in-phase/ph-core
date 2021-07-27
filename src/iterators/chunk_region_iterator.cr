@@ -3,7 +3,7 @@ require "./region_iterator"
 module Phase
   class ChunkAndRegionIterator(E, I)
     # VerboseChunkIterator ?
-    # TODO: IndexRegion(Int32) is a needless restriction - find a way to 
+    # TODO: IndexRegion(Int32) is a needless restriction - find a way to
     # allow generic coordiate types in the future
     include Iterator(Tuple(MultiIndexable(E), IndexRegion(I)))
     alias FB = RegionIterator::FringeBehaviour
@@ -13,12 +13,12 @@ module Phase
 
     # TODO: change from classes to instances of iter
     def self.new(src, chunk_shape, strides = nil, degeneracy = nil,
-      fringe_behaviour : FB = FB::DISCARD, &block)
-      new(src, RegionIterator.new(src.shape, chunk_shape, strides, degeneracy, fringe_behaviour) {|region| yield region})
+                 fringe_behaviour : FB = FB::DISCARD, &block)
+      new(src, RegionIterator.new(src.shape, chunk_shape, strides, degeneracy, fringe_behaviour) { |region| yield region })
     end
 
     def self.new(src, chunk_shape, strides = nil, degeneracy = nil,
-      fringe_behaviour : FB = FB::DISCARD)
+                 fringe_behaviour : FB = FB::DISCARD)
       new(src, RegionIterator.new(src.shape, chunk_shape, strides, degeneracy, fringe_behaviour))
     end
 

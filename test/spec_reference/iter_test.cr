@@ -7,8 +7,7 @@ small_arr = NArray.build([5, 5]) { |coord, index| index }
 huge_arr = NArray.build([100, 100]) { |_, index| index }
 
 region_literal = [2..1, 1..2..4]
-region = IndexRegion.new(region_literal, [5,5])
-
+region = IndexRegion.new(region_literal, [5, 5])
 
 # puts LexIterator(Int32).new([4,5])
 
@@ -59,6 +58,4 @@ all_iter_types(NArray::BufferedECIterator, NArray::IndexedColexIterator, co_reg_
 
 # puts "RegionIterators"
 co_reg_iter = ColexIterator.new(region)
-all_iter_types(ElemAndCoordIterator, ColexIterator,co_reg_iter, small_arr, region)
-
-
+all_iter_types(ElemAndCoordIterator, ColexIterator, co_reg_iter, small_arr, region)

@@ -2,8 +2,8 @@ require "../src/ph-core"
 
 include Phase
 
-def not_supported 
-    puts %(            ===================================
+def not_supported
+  puts %(            ===================================
                 not currently supported
             ===================================)
 end
@@ -34,7 +34,6 @@ puts narr
 puts "9. Create a 3x3 matrix with values ranging from 0 to 8"
 narr = NArray.build(3, 3) { |_, i| i }
 puts narr
-
 
 puts "10. Find indices of non-zero elements from [1, 2, 0, 0, 4, 0]"
 narr = NArray.new([1, 2, 0, 0, 4, 0])
@@ -75,11 +74,11 @@ narr = NArray.build(5, 5) { |c| c[1] + 1 == c[0] ? c[0] : 0 }
 puts narr
 
 puts "19. Create an 8x8 matrix and fill it with a checkerboard pattern"
-narr = NArray.build(8,8) { |c, i| c.sum % 2 }
+narr = NArray.build(8, 8) { |c, i| c.sum % 2 }
 puts narr
 
 puts "20. Consider a (6,7,8) shape array, what is the index (x,y,z) of the 100th element?"
-puts NArray::BufferUtil.index_to_coord(100, [6,7,8])
+puts NArray::BufferUtil.index_to_coord(100, [6, 7, 8])
 
 class Phase::NArray(T)
   private class WrappedLexIterator(T) < CoordIterator(T)
@@ -97,7 +96,7 @@ class Phase::NArray(T)
     end
 
     def wrap_coord(coord)
-        coord.map_with_index { |axis, idx| axis % @smaller_shape[idx] }
+      coord.map_with_index { |axis, idx| axis % @smaller_shape[idx] }
     end
 
     def advance_coord
@@ -116,25 +115,25 @@ class Phase::NArray(T)
     end
   end
 
-    def self.tile(narr : MultiIndexable(T), counts : Enumerable)
+  def self.tile(narr : MultiIndexable(T), counts : Enumerable)
     shape = narr.shape.map_with_index { |axis, idx| axis * counts[idx] }
-    
-    iter = WrappedLexIterator.new(IndexRegion.cover(shape), narr.shape).each
-    
-    build(shape) do |coord|
-        iter.next
-        narr.get(iter.smaller_coord)
-    end
-    end
 
-    def tile(counts : Enumerable) : self
-        NArray.tile(self, counts)
+    iter = WrappedLexIterator.new(IndexRegion.cover(shape), narr.shape).each
+
+    build(shape) do
+      iter.next
+      narr.get(iter.smaller_coord)
     end
+  end
+
+  def tile(counts : Enumerable) : self
+    NArray.tile(self, counts)
+  end
 end
 
 puts "21. Create a checkerboard 8x8 matrix using the tile function"
 # puts NArray.tile(NArray.new([[0,1],[1,0]]), [4,4])
-puts NArray.new([[0,1],[1,0]]).tile([4,4])
+puts NArray.new([[0, 1], [1, 0]]).tile([4, 4])
 
 puts "22. Normalize a 5x5 random matrix"
 narr = NArray.build(5, 5) { Random.rand }
@@ -154,10 +153,10 @@ puts "25. Given a 1D array, negate all elements which are between 3 and 8, in pl
 z = NArray.new((0..11).to_a)
 z[(3 < z) & (z <= 8)] *= -1
 puts z
-# faster 
-z.map_with_index! {|el, i| i.in?(4..8) ? -el : el}
+# faster
+z.map_with_index! { |el, i| i.in?(4..8) ? -el : el }
 
-# TODO: do we want to support this type of boolean indexing? 
+# TODO: do we want to support this type of boolean indexing?
 # `z[(3 < z) && (z <= 8)] *= -1`
 # May not be possible without our own parser? May not be necessary either?
 
@@ -193,18 +192,18 @@ puts "33. How to get the dates of yesterday, today and tomorrow?"
 today = Time.local.date
 yesterday = 1.day.ago.date
 tomorrow = 1.day.from_now.date
-puts yesterday, today, tomorrow 
+puts yesterday, today, tomorrow
 
+# OOS
 puts "34. How to get all the dates corresponding to the month of July 2016?"
-not_supported
-# OOS; but in Crystal 1.1 should become trivial
-# https://github.com/crystal-lang/crystal/pull/10279
+jul1 = Time.utc(2016, 7, 1)
+puts jul1.step(by: 1.day, to: jul1 + 1.month).to_a
 
 puts "35. Compute ((A+B)*(-A/2)) in place (without copy)"
 # DISCUSS: do we want special notation?
 a = NArray.fill([3], 1.0)
 b = NArray.fill([3], 2.0)
-puts (a+b)*(-a/2)
+puts (a + b)*(-a/2)
 a.map_with_coord! do |el, coord|
   (el + b.get(coord))*(-el/2)
 end
@@ -213,39 +212,38 @@ puts a
 puts "36. Extract the integer part of a random array using 5 different methods"
 not_supported
 
-
 puts "37. Create a 5x5 matrix with row values ranging from 0 to 4"
-narr = NArray.build(5,5) {|c| c[0]}
+narr = NArray.build(5, 5) { |c| c[0] }
 # narr = NArray[0, 1, 2, 3, 4].tile([5, 5]) # make this happen
 puts narr
 # DISCUSS: is the ability to add different-dimensioned objects like this valuable???
 
-
 puts "38. Consider a generator function that generates 10 integers and use it to build an array"
+
 # no way it seems to directly pipe results of this into an NArray
 def generate
-  10.times {|i| yield i}
+  10.times { |i| yield i }
 end
+
 y = [] of Int32
-generate {|x| y << x}
+generate { |x| y << x }
 puts NArray.new(y)
 
 puts "39. Create a vector of size 10 with values ranging from 0 to 1, both excluded"
 # TODO: make this better. worth adding a linspace?
-puts NArray.build(10) {|_,i| (i + 1)/11 }
+puts NArray.build(10) { |_, i| (i + 1)/11 }
 
 puts "40. Create a random vector of size 10 and sort it"
 not_supported
 
-
 puts "41. How to sum a small array faster than np.sum?"
 # NOTE: speed unknown
-narr = NArray.build(10) {|c,i| i}
+narr = NArray.build(10) { |c, i| i }
 puts narr.sum
 
 puts "42. Consider two random array A anb B, check if they are equal"
-a = NArray.build(5) {Random.rand(2)}
-b = NArray.build(5) {Random.rand(2)}
+a = NArray.build(5) { Random.rand(2) }
+b = NArray.build(5) { Random.rand(2) }
 puts a == b
 
 puts "43. Make an array immutable (read-only)"
@@ -253,18 +251,18 @@ not_supported
 # TODO: this should be relatively easy since Slice implements a read-only flag
 
 puts "44. Consider a random 10x2 matrix representing cartesian coordinates, convert them to polar coordinates"
-narr = NArray.build(10,2) {Random.rand}
-r = [] of Float64 
+narr = NArray.build(10, 2) { Random.rand }
+r = [] of Float64
 t = [] of Float64
 # slice[0, preserve: true]
 # slice[[0, 1, 2], preserve: true]
 
 narr.slices.each do |slice|
-  x,y = slice
+  x, y = slice
   r << Math.sqrt(x**2 + y**2)
-  t << Math.atan2(y,x)
+  t << Math.atan2(y, x)
 end
-puts r,t
+puts r, t
 
 # TODO: 46
 # TODO: 47
@@ -278,9 +276,6 @@ puts "48. Print the minimum and maximum representable value for each numpy scala
 {% end %}
 {% end %}
 # TODO: try this without macro? Don't think :: operator works on variables of type "class" so difficult to iterate classes
-
-
-# TODO: 49
 
 puts "50. How to find the closest value (to a given scalar) in an array?"
 # TODO

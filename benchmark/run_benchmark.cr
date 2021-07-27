@@ -3,7 +3,7 @@
 
 # # inside a different file (view_bench.cr)
 # run do
-#     # 
+#     #
 # end
 
 # # main file
@@ -11,9 +11,9 @@
 # saves all the results
 
 # option 1: the main file literally just calls crystal run on each benchmark and saves results
-    # - there's no global state
-    # - super slow
-    # - if one part crashes not all of it does
+# - there's no global state
+# - super slow
+# - if one part crashes not all of it does
 
 # require "spec"
 
@@ -30,7 +30,6 @@
 # end
 
 # OUTFILE = WrappedIO.new(File.new("test.txt", mode: "w"))
-
 
 # puts "testing!!!"
 
@@ -68,13 +67,12 @@
 #     end
 # end
 
-
 class Benchmarks
-    class_property procs : Array(Proc(Nil)) = [] of Proc(Nil)
+  class_property procs : Array(Proc(Nil)) = [] of Proc(Nil)
 end
 
-Benchmarks.procs << -> { puts "wow!" }
-Benchmarks.procs << -> { puts "whoa" }
+Benchmarks.procs << ->{ puts "wow!" }
+Benchmarks.procs << ->{ puts "whoa" }
 
 macro finished
     Benchmarks.procs.each &.call

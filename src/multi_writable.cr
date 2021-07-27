@@ -62,7 +62,8 @@ module Phase
     # Sets each element in `region` to `value`.
     # Raises an error if `region` is out-of-bounds for this `{{@type}}`.
     def set_chunk(region : Indexable | IndexRegion, value : T)
-      unsafe_set_chunk(IndexRegion.new(region, shape_internal), value)
+      idx_r = IndexRegion.new(region, shape_internal)
+      unsafe_set_chunk(idx_r, value)
     end
 
     def set_available(region : Indexable, value : T)
@@ -78,14 +79,14 @@ module Phase
     def []=(*args)
       set_chunk(args[...-1].to_a, args.last)
     end
-  
+
     # The general form is a <op>= b and the compiler transform that into a = a <op> b.
     # a[i] ||= b transforms to a[i] = (a[i]? || b)
     # a[pred] *= -1
     # a[pred] = a[pred]? * -1
     # def []?(narr : MultiIndexable(Bool), value) # = this returns
     # def []=(pred : MultiIndexable(Bool), src : MultiIndexable(T?))
-  
+
     # TODO: consider overriding these in NArray, may benefit from speedup?
     def []=(bool_mask : MultiIndexable(Bool), value)
       set_mask(bool_mask, value)
@@ -95,11 +96,11 @@ module Phase
       if src.shape != shape_internal
         raise ShapeError.new("Cannot perform masking: source shape #{src.shape} does not match array shape #{shape_internal}.")
       end
-      set_mask(bool_mask) {|coord| src.unsafe_fetch_element(coord).as(T)}
+      set_mask(bool_mask) { |coord| src.unsafe_fetch_element(coord).as(T) }
     end
 
     def set_mask(bool_mask, value)
-      set_mask(bool_mask) {value}
+      set_mask(bool_mask) { value }
     end
 
     def set_mask(bool_mask : MultiIndexable(Bool), &block)

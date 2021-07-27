@@ -13,7 +13,7 @@ module Phase
     # -transform functions: reshape, permute, reverse; for performance
     # -unsafe_fetch_chunk: for performance and return type (defaults to NArray)
 
-    # Returns the number of elements in the `{{@type}}`; equal to `shape.product`.
+    # Returns the number of elements in the `{{@type}}`; generally equal to `shape.product`.
     abstract def size
 
     # Returns the length of the `{{@type}}` in each dimension.
@@ -58,7 +58,7 @@ module Phase
       false
     end
 
-    def to_f : Float 
+    def to_f : Float
       to_scalar.to_f
     end
 
@@ -194,7 +194,7 @@ module Phase
     {% end %}
 
     # Iterators ====================================================================
-    def each_coord : Iterator #(Coord)
+    def each_coord : Iterator # (Coord)
       LexIterator.cover(shape)
     end
 
@@ -262,6 +262,10 @@ module Phase
         view.{{transform.id}}(*args).to_narr
       end
     {% end %}
+
+    def tile(counts : Enumerable) : self
+      NArray.tile(self, counts)
+    end
 
     def to_narr : NArray(T)
       NArray.build(@shape.dup) do |coord, _|

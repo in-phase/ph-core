@@ -12,12 +12,12 @@ module Phase
     end
 
     def self.new(src, chunk_shape, strides = nil, degeneracy = nil,
-      fringe_behaviour : FB = FB::DISCARD, &block)
+                 fringe_behaviour : FB = FB::DISCARD, &block)
       new(ChunkAndRegionIterator.new(src, chunk_shape, strides, degeneracy, fringe_behaviour) { |region| yield region })
     end
 
     def self.new(src, chunk_shape, strides = nil, degeneracy = nil,
-      fringe_behaviour : FB = FB::DISCARD)
+                 fringe_behaviour : FB = FB::DISCARD)
       new(ChunkAndRegionIterator.new(src, chunk_shape, strides, degeneracy, fringe_behaviour))
     end
 

@@ -102,7 +102,7 @@ module Phase
     end
 
     def self.build(*shape : Int, &block : Array(Int32), Int32 -> T)
-      build(shape, &block) 
+      build(shape, &block)
     end
 
     # Creates an `{{@type}}` from a nested array with uniform dimensions.
@@ -168,6 +168,17 @@ module Phase
     def self.fill(shape, value : T)
       # \{% begin %} \{{ @type.id }}.new(shape) { value } \{% end %}
       {{@type}}.new(shape) { value }
+    end
+
+    def self.tile(narr : MultiIndexable(T), counts : Enumerable)
+      shape = narr.shape.map_with_index { |axis, idx| axis * counts[idx] }
+
+      iter = WrappedLexIterator.new(IndexRegion.cover(shape), narr.shape).each
+
+      build(shape) do
+        iter.next
+        narr.get(iter.smaller_coord)
+      end
     end
 
     # shorthand
@@ -371,7 +382,7 @@ module Phase
     def unsafe_set_chunk(region : IndexRegion, src : MultiIndexable(T))
       absolute_iter = IndexedLexIterator.new(region, @shape)
       src_iter = src.each
-      
+
       src_iter.each do |src_el|
         absolute_iter.next
         @buffer[absolute_iter.current_index] = src_el
@@ -557,7 +568,7 @@ module Phase
       num_chunks = concat_shape[...axis].product
 
       values = Array(T).new(initial_capacity: concat_size)
-      iters = narrs.map {|narr| BufferedECIterator.of(narr)}
+      iters = narrs.map { |narr| BufferedECIterator.of(narr) }
 
       num_chunks.times do
         iters.each_with_index do |narr_iter, i|
@@ -730,6 +741,40 @@ module Phase
         raise YAML::Error.new("Could not read NArray from YAML: 'shape' and/or 'elements' were missing.")
       else
         raise YAML::Error.new("Could not read NArray from YAML: Expected mapping, found #{node.class}")
+      end
+    end
+
+    private class WrappedLexIterator(T) < CoordIterator(T)
+      getter smaller_coord : Array(T)
+      @smaller_shape : Array(T)
+
+      def initialize(region : IndexRegion(T), @smaller_shape)
+        super(region)
+        @smaller_coord = wrap_coord(@first)
+      end
+
+      def initialize(region_literal, @smaller_shape)
+        super(IndexRegion(T).new(region_literal))
+        @smaller_coord = wrap_coord(@first)
+      end
+
+      def wrap_coord(coord)
+        coord.map_with_index { |axis, idx| axis % @smaller_shape[idx] }
+      end
+
+      def advance_coord
+        (@coord.size - 1).downto(0) do |i| # ## least sig .. most sig
+          if @coord[i] == @last[i]
+            @coord[i] = @first[i]
+            @smaller_coord[i] = @coord[i] % @smaller_shape[i]
+            return stop if i == 0 # most sig
+          else
+            @coord[i] += @step[i]
+            @smaller_coord[i] = @coord[i] % @smaller_shape[i]
+            break
+          end
+        end
+        @coord
       end
     end
   end

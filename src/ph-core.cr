@@ -7,6 +7,8 @@ require "./exceptions/*"
 require "./type_aliases.cr"
 require "./coord_util.cr"
 require "./shape_util.cr"
+
+require "./range_syntax/range_syntax.cr"
 require "./index_region.cr"
 
 require "./multi_indexable.cr"

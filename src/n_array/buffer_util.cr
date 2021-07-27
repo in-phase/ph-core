@@ -108,6 +108,7 @@ module Phase
 
       class IndexedLexIterator(I) < IndexedCoordIterator(I)
         def_clone
+
         def advance_coord
           (@coord.size - 1).downto(0) do |i| # ## least sig .. most sig
             if @coord[i] == @last[i]
@@ -126,6 +127,7 @@ module Phase
 
       class IndexedColexIterator(I) < IndexedCoordIterator(I)
         def_clone
+
         def advance_coord
           0.upto(@coord.size - 1) do |i| # ## least sig .. most sig
             if @coord[i] == @last[i]
@@ -144,7 +146,6 @@ module Phase
 
       # TODO: Make generic coord
       class BufferedECIterator(T, I) < ElemAndCoordIterator(T, I)
-        
         # This is needed here to prevent the method below (def self.of(src, region = nil)) from taking priority
         def self.of(src, iter : CoordIterator(I))
           new(src, iter)

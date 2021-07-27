@@ -16,7 +16,7 @@ module Phase
       else
         iter = LexIterator.new(region)
       end
-      
+
       new(src, iter)
     end
 

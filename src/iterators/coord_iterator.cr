@@ -1,5 +1,4 @@
 module Phase
-
   # Strictly finite regions
   abstract class CoordIterator(T) < GeneralCoordIterator(T)
     @last : Array(T)
@@ -10,7 +9,7 @@ module Phase
     end
 
     protected def initialize(region : IndexRegion(T))
-      initialize(region.start, region.stop, region.step, BigInt.new(region.size))
+      initialize(region.first, region.last, region.step, BigInt.new(region.size))
     end
 
     protected def initialize(@first, @last, @step, @size)
