@@ -1,0 +1,120 @@
+require "./spec_helper"
+require "benchmark"
+
+class Foo
+    class_property name = ""
+end
+
+def print_to_benchmark(str)
+    file << str
+end
+
+class SpecJob < Benchmark::IPS::Job
+    def report
+        max_label = ran_items.max_of &.label.size
+        max_compare = ran_items.max_of &.human_compare.size
+        max_bytes_per_op = ran_items.max_of &.bytes_per_op.humanize(base: 1024).size
+        ran_items.each do |item|
+            output = sprintf("%s %s (%s) (±%5.2f%%)  %sB/op  %s\n",
+                item.label.rjust(max_label),
+                item.human_mean,
+                item.human_iteration_time,
+                item.relative_stddev,
+                item.bytes_per_op.humanize(base: 1024).rjust(max_bytes_per_op),
+                item.human_compare.rjust(max_compare))
+            
+            print output
+        end
+        
+    end
+end
+
+{% if env("BENCHMARK") == "true" %}
+    Spec.around_each do |procsy|
+        Foo.name = procsy.example.description
+        procsy.run
+    end
+{% end %}
+
+def benchmark(name, calculation, warmup, block)
+    {% if env("BENCHMARK") == "true" %}
+        job = SpecJob.new(calculation, warmup, interactive: false)
+
+        job.report(Foo.name) do 
+            block.call
+        end
+
+        job.execute
+        job.report
+    {% else %}
+        block.call
+    {% end %}
+end
+
+def benchmark(name="", calculation = 5, warmup = 2, &block)
+    benchmark(name, calculation, warmup, block)
+end
+
+describe "NArray#fetch_chunk" do
+    it "works for valid inputs" do
+        # do slow prep here
+        n = 5
+
+        benchmark do
+            square(n).should eq 25
+        end
+    end
+
+    it "fails for invalid inputs" do
+        # do slow prep here
+        n = 5
+
+        benchmark do
+            square(n).should eq 25
+        end
+    end
+end
+
+benchmark "NArray" do
+    it "fetch_chunk", faster_than: "MultiIndexable#fetch_chunk" do
+    end
+end
+
+
+view = View.of()
+narr == NArray.new()
+
+
+def benchmark_fetch_chunk 
+end
+
+
+Benchmark.ips do |X|
+    x.report do 
+        benchmark_fetch_chunk(view)
+end
+
+
+benchmark MultiIndexable, :fetch_chunk, class_method: true do
+    setup do
+        # make the shape
+        # make the block that gets passed to #build
+    end
+
+    run do
+        MultiIndexable.fetch_chunk()
+    end
+end
+
+benchmark "NArray#fetch_chunk" do
+    run do
+    end
+end
+
+
+# ./compare v0.1.0 #each
+
+<<-FAKE
+main:
+    is_efficient:
+FAKE
