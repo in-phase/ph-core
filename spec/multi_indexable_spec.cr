@@ -21,63 +21,63 @@ end
 
 # get and get_element are aliases, so this prevents testing redundancy.
 macro test_get_element(method)
-    it "returns the correct element for all valid coordinates" do
-        (0...side_length).each do |row|
-            (0...side_length).each do |col|
-                buffer_index = row * side_length + col
-                expected_elem = test_buffer[buffer_index]
-                
-                actual = r_narr.{{method.id}}(row, col)
-                if actual != expected_elem
-                    fail("Tuple accepting verision failed: narr.{{method.id}}(#{row}, #{col}) should have been #{expected_elem}, but was #{actual}")
-                end
-                
-                actual = r_narr.{{method.id}}([row, col])
-                if actual != expected_elem
-                    fail("Indexable accepting verision failed: narr.{{method.id}}([#{row}, #{col}]) should have been #{expected_elem}, but was #{actual}")
-                end
-            end
+  it "returns the correct element for all valid coordinates" do
+    (0...side_length).each do |row|
+      (0...side_length).each do |col|
+        buffer_index = row * side_length + col
+        expected_elem = test_buffer[buffer_index]
+
+        actual = r_narr.{{method.id}}(row, col)
+        if actual != expected_elem
+          fail("Tuple accepting verision failed: narr.{{method.id}}(#{row}, #{col}) should have been #{expected_elem}, but was #{actual}")
         end
-    end
 
-    it "raises for for invalid coordinates" do
-        (0...(side_length + 2)).each do |row|
-            (0...(side_length + 2)).each do |col|
-                next if row < side_length && col < side_length
-
-                expect_raises IndexError do
-                    r_narr.{{method.id}}(row, col)
-                end
-
-                expect_raises IndexError do
-                    r_narr.{{method.id}}([row, col])
-                end
-            end
+        actual = r_narr.{{method.id}}([row, col])
+        if actual != expected_elem
+          fail("Indexable accepting verision failed: narr.{{method.id}}([#{row}, #{col}]) should have been #{expected_elem}, but was #{actual}")
         end
+      end
     end
+  end
+
+  it "raises for for invalid coordinates" do
+    (0...(side_length + 2)).each do |row|
+      (0...(side_length + 2)).each do |col|
+        next if row < side_length && col < side_length
+
+        expect_raises IndexError do
+          r_narr.{{method.id}}(row, col)
+        end
+
+        expect_raises IndexError do
+          r_narr.{{method.id}}([row, col])
+        end
+      end
+    end
+  end
 end
 
 # get_chunk and [] are aliases, so this prevents testing redundancy.
 macro test_get_chunk(method)
-    it "returns a chunk for each valid region" do
-        VALID_REGIONS.each do |region|
-            # Really, all we can test for sensibly is that it doesn't
-            # raise.
-            r_narr.{{method.id}}(region)
-        end
+  it "returns a chunk for each valid region" do
+    VALID_REGIONS.each do |region|
+      # Really, all we can test for sensibly is that it doesn't
+      # raise.
+      r_narr.{{method.id}}(region)
     end
+  end
 
-    pending "returns a chunk for each valid indexregion" do
+  pending "returns a chunk for each valid indexregion" do
 
-    end
+  end
 
-    pending "returns the correct output" do
-        chunk = r_narr.{{method.id}}([0..1, 1])
-        puts chunk.buffer
-    end
+  pending "returns the correct output" do
+    chunk = r_narr.{{method.id}}([0..1, 1])
+    puts chunk.buffer
+  end
 
-    pending "test this more exhaustively" do
-    end
+  pending "test this more exhaustively" do
+  end
 end
 
 describe Phase::MultiIndexable do
@@ -114,7 +114,7 @@ describe Phase::MultiIndexable do
     end
   end
 
-  describe "#to_scalar " do
+  describe "#to_scalar" do
     it "raises for a MultiIndexable with multiple elements in one dimension" do
       scalar_buffer = Slice[1, 2, 3]
       expect_raises ShapeError do
