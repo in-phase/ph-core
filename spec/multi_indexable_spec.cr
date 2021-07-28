@@ -353,9 +353,38 @@ describe Phase::MultiIndexable do
 
       elem_iter.empty?.should be_true
     end
+
+    pending "works in iteration" do
+    end
   end
 
   describe "#each_with_coord" do
+    pending "works for yielding" do
+    end
+    
+    it "iterates over all elements and coordinates in lexicographic order" do
+      elem_iter = test_buffer.each
+      testing_iterator = r_narr.each_with_coord
+
+      # turns [1, 2] into [[0], [0, 1]]
+      axis_coords = r_narr.shape.map &.times.to_a
+
+      # takes the cartesian product of those elements, which are lexicographically
+      # iterated by constructions
+      Array.each_product(axis_coords) do |coord|
+        case actual_value = testing_iterator.next
+        when Iterator::Stop
+        else
+          actual_el, actual_coord = actual_value
+          actual_el.should eq elem_iter.next
+
+          actual_coord.should eq coord
+        end
+      end
+
+      elem_iter.empty?.should be_true
+      testing_iterator.empty?.should be_true
+    end
   end
 
   describe "#map_with_coord" do
