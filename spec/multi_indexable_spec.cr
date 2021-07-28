@@ -341,7 +341,7 @@ describe Phase::MultiIndexable do
 
   describe "#hash" do
   end
-  
+
   pending "#tile" do
   end
 

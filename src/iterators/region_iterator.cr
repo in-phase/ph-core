@@ -103,7 +103,7 @@ module Phase
       unless @fringe_behaviour == FringeBehaviour::DISCARD
         region.trim!(@src_shape)
       end
-      
+
       return region
     end
 

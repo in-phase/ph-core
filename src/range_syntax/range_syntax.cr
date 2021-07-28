@@ -77,16 +77,16 @@ module Phase
           return infer_range(bound, first, last, range.excludes_end?)
         end
       end
-      raise "bad 2"
+      raise "bad infer_range interpretation (improve this error message)"
     end
 
     def infer_range(index : Int, bound)
       canonical = CoordUtil.canonicalize_index_unsafe(index, bound)
-      {canonical, 1, canonical, 1}
+      {first: canonical, step: 1, last: canonical, size: 1}
     end
 
     def infer_range(bound : T, first : T?, last : T?, exclusive : Bool,
-      step : Int32? = nil) : NamedTuple(first: T, step: Int32, last: T, size: T) forall T
+                    step : Int32? = nil) : NamedTuple(first: T, step: Int32, last: T, size: T) forall T
       # Infer endpoints
       if !step
         first = first ? CoordUtil.canonicalize_index_unsafe(first, bound) : T.zero

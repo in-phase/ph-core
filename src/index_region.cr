@@ -337,6 +337,10 @@ module Phase
       LexIterator.new(self)
     end
 
+    protected def package_range(axis)
+      {first: @first[axis], step: @step[axis], last: @last[axis], size: @proper_shape[axis]}
+    end
+
     protected def self.trim_axis(new_bound, first, step, last, size)
       if first >= new_bound
         if last >= new_bound # both out of bounds
