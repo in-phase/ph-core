@@ -67,13 +67,22 @@ macro test_get_chunk(method)
     end
   end
 
-  pending "returns a chunk for each valid indexregion" do
-
+  it "returns a chunk for each valid indexregion" do
+    VALID_REGIONS.each do |region_literal|
+      idx_r = IndexRegion.new(region_literal, r_narr.shape)
+      r_narr.{{method.id}}(idx_r)
+    end
   end
 
-  pending "returns the correct output" do
-    chunk = r_narr.{{method.id}}([0..1, 1])
-    puts chunk.buffer
+  it "returns the correct output" do
+    chunk = r_narr.{{method.id}}([1.., 0..2..2])
+    expected = Slice['a', 'c', 1f64, 3f64]
+
+    chunk.buffer.size.should eq expected.size
+
+    chunk.buffer.each_with_index do |value, idx|
+      value.should eq expected[idx]
+    end
   end
 
   pending "test this more exhaustively" do
@@ -145,7 +154,10 @@ describe Phase::MultiIndexable do
       RONArray.new([2, 2], Slice[1, 2, 3, 4]).first.should eq 1
     end
 
-    pending "raises some sort of error when there are no elements" do
+    it "raises some sort of error when there are no elements" do
+      expect_raises IndexError do
+        RONArray.new([1, 1, 0], Slice(Int32).new(0, 0)).first
+      end
     end
   end
 
@@ -164,7 +176,6 @@ describe Phase::MultiIndexable do
       narr = RONArray.new(shape, buffer)
 
       expected_occurrences = 1000
-      tolerance = 100
       sample_count = size * expected_occurrences
       frequencies = narr.sample(sample_count).tally
 
@@ -243,7 +254,7 @@ describe Phase::MultiIndexable do
     it "returns true for valid literal regions", tags: ["bad"] do
       VALID_REGIONS.each do |region|
         unless r_narr.has_region?(region)
-          fail(r_narr.shape.join("x") + " MultiIndexable should include #{region.to_s}, but has_region? was false")
+          fail(r_narr.shape.join("x") + " MultiIndexable should include #{region}, but has_region? was false")
         end
       end
     end
@@ -251,15 +262,33 @@ describe Phase::MultiIndexable do
     it "returns false for invalid regions" do
       INVALID_REGIONS.each do |region|
         if r_narr.has_region?(region)
-          fail(r_narr.shape.join("x") + " MultiIndexable should not include #{region.to_s}, but has_region? was true")
+          fail(r_narr.shape.join("x") + " MultiIndexable should not include #{region}, but has_region? was true")
         end
       end
     end
 
-    pending "returns true for valid IndexRegions" do
+    it "returns true for valid IndexRegions" do
+      VALID_REGIONS.each do |region_literal|
+        idx_r = IndexRegion.new(region_literal, r_narr.shape)
+
+        unless r_narr.has_region?(idx_r)
+          fail(r_narr.shape.join("x") + " MultiIndexable should include #{idx_r}, but has_region? was false")
+        end
+      end
     end
 
-    pending "returns false for invalid IndexRegions" do
+    it "returns false for invalid IndexRegions" do
+      # Note: We want to use valid regions (so that IndexRegions can be constructed),
+      # and then make them invalid for this shape by translating them massively.
+      # TODO: I'm not sure what happens here if you make an IndexRegion that
+      # spans zero elements, or if that's even possible.
+      VALID_REGIONS.each do |region_literal|
+        idx_r = IndexRegion.new(region_literal, r_narr.shape).translate!(r_narr.shape)
+
+        if r_narr.has_region?(idx_r)
+          fail(r_narr.shape.join("x") + " MultiIndexable should not include #{idx_r}, but has_region? was true")
+        end
+      end
     end
   end
 
@@ -286,6 +315,32 @@ describe Phase::MultiIndexable do
   end
 
   describe "#each_coord" do
+    it "yields only the correct coordinates, and all of the correct coordinates" do
+      {[1, 2, 3], [5, 10], [2]}.each do |shape| 
+        narr = RONArray.new(shape, Slice.new(shape.product, 0))
+        actual_coords = narr.each_coord.to_a
+        actual_count = actual_coords.size
+        actual_coords = actual_coords.to_set
+
+        if actual_coords.size != actual_count
+          fail("the same coordinate was yielded multiple times (shape: #{shape})")
+        end
+
+        if actual_count != shape.product
+          fail("not all coordinates were covered (shape: #{shape})")
+        end
+
+        # turns [1, 2] into [[0], [0, 1]]
+        axis_coords = shape.map &.times.to_a
+
+        # takes the cartesian product of those elements
+        Array.each_product(axis_coords) do |coord|
+          unless actual_coords.includes?(coord)
+            fail("#{coord}, an expected coordinate, was not present in each_coord for a MultiIndexable with shape #{shape}")
+          end
+        end
+      end
+    end
   end
 
   describe "#each" do
