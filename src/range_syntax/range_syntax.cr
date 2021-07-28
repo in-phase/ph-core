@@ -31,6 +31,7 @@ module Phase
           return false
         end
       end
+
       true
     end
 
@@ -66,17 +67,21 @@ module Phase
       when Range
         # For an input of the form `a..b..c`, representing a range `a..c` with step `b`
         case last = range.end
-        when Int
+        when Int, Nil
+          puts "range, int"
           return infer_range(bound, first.begin, last, range.excludes_end?, first.end)
         end
-      when Int
+      when Int, Nil
         case last = range.end
         when Range
+          puts "int, range"
           return infer_range(bound, first, last.end, last.excludes_end?, last.begin)
-        when Int
+        when Int, Nil
+          puts "int, int"
           return infer_range(bound, first, last, range.excludes_end?)
         end
       end
+
       raise "bad infer_range interpretation (improve this error message)"
     end
 
@@ -136,9 +141,11 @@ module Phase
     # all hte other stuff
     def canonicalize_range(range, bound : T) : NamedTuple(first: T, step: Int32, last: T, size: T) forall T
       r = infer_range(range, bound)
+
       unless range_valid?(r[:first], r[:last], bound)
         raise IndexError.new("Could not canonicalize range: #{range} is not a sensible index range for axis of length #{bound}.")
       end
+
       r
     end
   end
