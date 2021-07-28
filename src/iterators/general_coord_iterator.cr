@@ -52,5 +52,14 @@ module Phase
     def unsafe_skip(axis, amount) : Nil
       @coord[axis] += amount + 1
     end
+
+    def to_a : Array(Array(T))
+      # The default implementation of to_a doesn't clone, but in LexIterator,
+      # the iteration variable is often reused.
+      # TODO: Consider if we want to change the above
+      arr = [] of Array(T)
+      each { |coord| arr << coord.clone }
+      arr
+    end
   end
 end
