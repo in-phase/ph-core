@@ -68,16 +68,13 @@ module Phase
         # For an input of the form `a..b..c`, representing a range `a..c` with step `b`
         case last = range.end
         when Int, Nil
-          puts "range, int"
           return infer_range(bound, first.begin, last, range.excludes_end?, first.end)
         end
       when Int, Nil
         case last = range.end
         when Range
-          puts "int, range"
           return infer_range(bound, first, last.end, last.excludes_end?, last.begin)
         when Int, Nil
-          puts "int, int"
           return infer_range(bound, first, last, range.excludes_end?)
         end
       end
