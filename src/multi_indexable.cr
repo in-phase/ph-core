@@ -97,7 +97,12 @@ module Phase
       CoordUtil.has_coord?(coord, shape_internal)
     end
 
-    # Checks that `region` is in-bounds for this `{{@type}}`.
+    # Checks that the `IndexRegion` *region* is in-bounds for this `{{@type}}`.
+    def has_region?(region : IndexRegion) : Bool
+      region.fits_in?(shape_internal)
+    end
+
+    # Checks that *region* is in-bounds for this `{{@type}}`.
     def has_region?(region : Indexable) : Bool
       IndexRegion.new(region, shape_internal)
       true

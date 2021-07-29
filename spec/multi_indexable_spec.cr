@@ -330,11 +330,7 @@ describe Phase::MultiIndexable do
           fail("not all coordinates were covered (shape: #{shape})")
         end
 
-        # turns [1, 2] into [[0], [0, 1]]
-        axis_coords = shape.map &.times.to_a
-
-        # takes the cartesian product of those elements
-        Array.each_product(axis_coords) do |coord|
+        all_coords_lex_order(shape) do |coord|
           unless actual_coords.includes?(coord)
             fail("#{coord}, an expected coordinate, was not present in each_coord for a MultiIndexable with shape #{shape}")
           end
@@ -344,7 +340,7 @@ describe Phase::MultiIndexable do
   end
 
   describe "#each" do
-    it "yields all elements in lexicographic order by default" do
+    it "yields all elements in lexicographic order" do
       elem_iter = test_buffer.each
 
       r_narr.each do |el|
@@ -354,24 +350,39 @@ describe Phase::MultiIndexable do
       elem_iter.empty?.should be_true
     end
 
-    pending "works in iteration" do
+    it "provides an iterator over every element in lexicographic order" do
+      iter = r_narr.each
+
+      test_buffer.each do |el|
+        el.should eq iter.next
+      end
+
+      iter.empty?.should be_true
     end
   end
 
   describe "#each_with_coord" do
-    pending "works for yielding" do
+    it "yields all elements and coordinates in lexicographic order" do
+      elem_iter = test_buffer.each
+      coord_iter = all_coords_lex_order(r_narr.shape).each
+
+      r_narr.each_with_coord do |tuple|
+        expected_coord = coord_iter.next
+        expected_elem = elem_iter.next
+
+        {expected_elem, expected_coord}.should eq tuple
+      end
+
+      elem_iter.empty?.should be_true
+      coord_iter.empty?.should be_true
     end
     
     it "iterates over all elements and coordinates in lexicographic order" do
       elem_iter = test_buffer.each
       testing_iterator = r_narr.each_with_coord
+      coords = all_coords_lex_order(r_narr.shape)
 
-      # turns [1, 2] into [[0], [0, 1]]
-      axis_coords = r_narr.shape.map &.times.to_a
-
-      # takes the cartesian product of those elements, which are lexicographically
-      # iterated by constructions
-      Array.each_product(axis_coords) do |coord|
+      coords.each do |coord|
         case actual_value = testing_iterator.next
         when Iterator::Stop
         else
