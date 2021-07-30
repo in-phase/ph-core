@@ -376,7 +376,7 @@ describe Phase::MultiIndexable do
       elem_iter.empty?.should be_true
       coord_iter.empty?.should be_true
     end
-    
+
     it "iterates over all elements and coordinates in lexicographic order" do
       elem_iter = test_buffer.each
       testing_iterator = r_narr.each_with_coord
