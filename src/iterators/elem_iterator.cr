@@ -6,6 +6,16 @@ module Phase
 
     getter ec_iter : ElemAndCoordIterator(E, I)
 
+    # def self.of(*args)
+    #   pp args
+    #   new(ElemAndCoordIterator.new(*args))
+    # end
+
+    # def self.new(*args)
+    #   pp args
+    #   new(ElemAndCoordIterator.new(*args))
+    # end
+
     def self.of(src, iter : CoordIterator)
       new(src, iter)
     end

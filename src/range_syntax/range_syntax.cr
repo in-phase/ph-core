@@ -16,92 +16,95 @@ module Phase
       end
     end
 
-    def bounded?(range_literal : Int)
+    def bounded?(range_literal : Int32)
       true
     end
 
-    def bounded?(range_literal : Range)
-      case first = range_literal.begin
-      when Int
-        return false if range_literal.end.nil?
-      when Range
-        if first.end >= 0 && range_literal.end.nil?
-          return false
-        elsif first.begin.nil?
-          return false
-        end
-      end
+    def bounded?(range_literal)
+      vals = parse_range(range_literal)
+      step = vals[:step]
 
+      if step.nil? || step >= 0
+        # assumed to be increasing; last must be defined
+        return false if vals[:last].nil?
+      else
+        # assumed to be decreasing; first must be defined
+        return false if vals[:first].nil?
+      end
       true
     end
 
-    def ensure_nonnegative(*range_literal : Int?)
-      range_literal.each do |int|
-        next if int.nil?
-        if int < 0
-          raise IndexError.new("Negative indices have no meaning when a bounding shape is not provided.")
-        end
-      end
-    end
-
-    def ensure_nonnegative(range_literal : Range)
-      case first = range_literal.begin
-      when Int
-        self.ensure_nonnegative(first, range_literal.end)
-      when Range
-        self.ensure_nonnegative(first.begin, range_literal.end)
-      end
-    end
-
-    # NOTE: be careful with range.@var
-    def infer_range(range : Steppable::StepIterator, bound)
-      infer_range(bound, range.@current, range.@limit, range.@exclusive, range.@step)
-    end
-
-    def infer_range(range : Range, step, bound)
-      infer_range(bound, range.begin, range.end, range.excludes_end?, step)
-    end
-
-    def infer_range(range : Range, bound)
+    # Interprets stdlib `Range(Int?, Int?)`, e.g. `a..c`
+    # Interprets inputs of the form `a..b..c`, representing a range `a..c` with step `b`
+    # - `Range(Int?, Range(Int?, Int?))` e.g. `a..(b..c)`
+    # - `Range(Range(Int?, Int?), Int?)` e.g. `(a..b)..c`
+    protected def parse_range(range : Range)
       case first = range.begin
       when Range
         # For an input of the form `a..b..c`, representing a range `a..c` with step `b`
         case last = range.end
         when Int, Nil
-          return infer_range(bound, first.begin, last, range.excludes_end?, first.end)
+          return {first: first.begin, last: last, step: first.end, exclusive: range.excludes_end?}
         end
       when Int, Nil
         case last = range.end
         when Range
-          return infer_range(bound, first, last.end, last.excludes_end?, last.begin)
+          return {first: first, last: last.end, step: last.begin, exclusive: last.excludes_end?}
         when Int, Nil
-          return infer_range(bound, first, last, range.excludes_end?)
+          return {first: first, last: last, step: nil, exclusive: range.excludes_end?}
         end
       end
 
       raise "bad infer_range interpretation (improve this error message)"
     end
 
-    def infer_range(index : Int, bound)
+    # NOTE: be careful with range.@var
+    protected def parse_range(range : Steppable::StepIterator)
+      {first: range.@current, last: range.@limit, step: range.@step, exclusive: range.@exclusive}
+    end
+
+    protected def parse_range(index : Int)
+      # This method is included primarily to placate the compiler but should not need to actually run.
+      {first: index, last: index, step: 1, exclusive: false}
+    end
+
+    def ensure_nonnegative(index : Int?)
+      return if index.nil?
+      if index < 0
+        raise IndexError.new("Negative indices have no meaning when a bounding shape is not provided.")
+      end
+    end
+
+    def ensure_nonnegative(range_literal)
+      vals = parse_range(range_literal)
+      ensure_nonnegative(vals[:first])
+      ensure_nonnegative(vals[:last])
+    end
+
+    def infer_range(index : Int32, bound)
       canonical = CoordUtil.canonicalize_index_unsafe(index, bound)
       {first: canonical, step: 1, last: canonical, size: 1}
     end
 
-    def infer_range(bound : T, first : T?, last : T?, exclusive : Bool,
-                    step : Int32? = nil) : NamedTuple(first: T, step: Int32, last: T, size: T) forall T
+    def infer_range(range_literal, bound : T) : NamedTuple(first: T, step: Int32, last: T, size: T) forall T
+      vals = parse_range(range_literal)
+      f = vals[:first]
+      l = vals[:last]
+
       # Infer endpoints
-      if !step
-        first = first ? CoordUtil.canonicalize_index_unsafe(first, bound) : T.zero
-        temp_last = last ? CoordUtil.canonicalize_index_unsafe(last, bound) : bound - 1
+      if vals[:step].nil?
+        first = f.nil? ? T.zero : CoordUtil.canonicalize_index_unsafe(f, bound)
+        temp_last = l.nil? ? bound - 1 : CoordUtil.canonicalize_index_unsafe(l, bound)
 
         step = (temp_last >= first) ? 1 : -1
       else
-        first = first ? CoordUtil.canonicalize_index_unsafe(first, bound) : (step > 0 ? T.zero : bound - 1)
-        temp_last = last ? CoordUtil.canonicalize_index_unsafe(last, bound) : (step > 0 ? bound - 1 : T.zero)
+        step = vals[:step].not_nil!
+        first = f.nil? ? (step > 0 ? T.zero : bound - 1) : CoordUtil.canonicalize_index_unsafe(f, bound)
+        temp_last = l.nil? ? (step > 0 ? bound - 1 : T.zero) : CoordUtil.canonicalize_index_unsafe(l, bound)
       end
 
       # Account for exclusivity
-      if last && exclusive
+      if !l.nil? && vals[:exclusive]
         if temp_last == first
           # Range spans no integers; we use the convention first, last, step, size = 0 to indicate this
           return {first: 0, step: 0, last: 0, size: 0}
@@ -114,7 +117,7 @@ module Phase
       # endpoint for bound=5, but not a valid *inclusive* one). We have to catch the case
       # where the range wasn't even valid here.
       if first < 0 || temp_last < 0
-        raise IndexError.new("Invalid index: At least one endpoint of #{first..last} is negative after canonicalization.")
+        raise IndexError.new("Invalid index: At least one endpoint of #{Range.new(f, l, vals[:exclusive])} is negative after canonicalization.")
       end
 
       begin
@@ -125,7 +128,7 @@ module Phase
         {first: first, step: step.to_i32, last: last, size: size}
       rescue ex : IndexError
         # This doesn't change any functionality, but makes debugging easier
-        raise IndexError.new("Could not canonicalize range: Conflict between implicit direction of #{Range.new(first, last, exclusive)} and provided step #{step}")
+        raise IndexError.new("Could not canonicalize range: Conflict between implicit direction of #{Range.new(f, l, vals[:exclusive])} and provided step #{step}")
       end
     end
 

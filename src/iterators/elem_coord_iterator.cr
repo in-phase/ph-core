@@ -5,6 +5,7 @@ module Phase
     include Iterator(Tuple(E, Array(I)))
 
     getter coord_iter : CoordIterator(I)
+    @src : MultiIndexable(E)
 
     # discussed on signal: have an overload where iter is a mandatory named param
 
@@ -22,6 +23,7 @@ module Phase
     end
 
     def initialize(@src : MultiIndexable(E), @coord_iter : CoordIterator(I))
+      pp @src
     end
 
     def reset
@@ -45,7 +47,7 @@ module Phase
     end
 
     def unsafe_next_value : E
-      coord = @coord_iter.next.unsafe_as(Array(I))
+      coord = @coord_iter.next.as(Array(I))
       get_element(coord)
     end
 
