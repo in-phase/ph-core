@@ -3,55 +3,53 @@ require "./test_narray"
 
 include Phase
 
-# arr = NArray.build([2, 3, 2, 3]) { |coord, index| index }
-# small_arr = NArray.build([3, 3]) { |coord, index| index }
-
+ABSOLUTE_REGIONS = [[0..2], [2..1, 0..2..2], [0, 2...2], [] of Int32, [] of Range(Nil, Nil)]
+RELATIVE_REGIONS = [[0...3, ..], [-3..-1, 1], [.., 2], [2.., 0]]
 # These categorizations only apply to r_narr, but help simplify testing
-# of region-accepting functions (because there are so many cases)
-VALID_REGIONS   = [[0..2], [0...3, ..], [-3..-1, 1], [.., 2], [2..1, 0..2..2], [0, 2...2], [] of Int32, [] of Range(Nil, Nil), [2.., 0]]
+# of region-accepting functions (because there are so many cases.
+VALID_REGIONS = ABSOLUTE_REGIONS + RELATIVE_REGIONS
 INVALID_REGIONS = [[0..8], [1, 1, 1], [-1...-10]]
 
-test_buffer = Slice[1, 2, 3, 'a', 'b', 'c', 1f64, 2f64, 3f64]
-side_length = 3
-r_narr = RONArray.new([side_length] * 2, test_buffer)
+test_shape = [3, 4]
+test_buffer = Slice[1, 2, 3, 4, 'a', 'b', 'c', 'd', 1f64, 2f64, 3f64, 4f64]
+r_narr = uninitialized RONArray(Int32 | Char | Float64)
 
 Spec.before_each do
-  r_narr = RONArray.new([side_length] * 2, test_buffer)
+  r_narr = RONArray.new(test_shape, test_buffer)
 end
 
 # get and get_element are aliases, so this prevents testing redundancy.
 macro test_get_element(method)
   it "returns the correct element for all valid coordinates" do
-    (0...side_length).each do |row|
-      (0...side_length).each do |col|
-        buffer_index = row * side_length + col
-        expected_elem = test_buffer[buffer_index]
+    all_coords_lex_order(r_narr.shape) do |(row, col)|
+      buffer_index = row * r_narr.shape[1] + col
+      expected_elem = test_buffer[buffer_index]
 
-        actual = r_narr.{{method.id}}(row, col)
-        if actual != expected_elem
-          fail("Tuple accepting verision failed: narr.{{method.id}}(#{row}, #{col}) should have been #{expected_elem}, but was #{actual}")
-        end
+      actual = r_narr.{{method.id}}(row, col)
+      if actual != expected_elem
+        fail("Tuple accepting verision failed: narr.{{method.id}}(#{row}, #{col}) should have been #{expected_elem}, but was #{actual}")
+      end
 
-        actual = r_narr.{{method.id}}([row, col])
-        if actual != expected_elem
-          fail("Indexable accepting verision failed: narr.{{method.id}}([#{row}, #{col}]) should have been #{expected_elem}, but was #{actual}")
-        end
+      actual = r_narr.{{method.id}}([row, col])
+      if actual != expected_elem
+        fail("Indexable accepting verision failed: narr.{{method.id}}([#{row}, #{col}]) should have been #{expected_elem}, but was #{actual}")
       end
     end
   end
 
   it "raises for for invalid coordinates" do
-    (0...(side_length + 2)).each do |row|
-      (0...(side_length + 2)).each do |col|
-        next if row < side_length && col < side_length
+    oversized_shape = r_narr.shape.map &.+(2)
+    proper_coords = all_coords_lex_order(r_narr.shape)
 
-        expect_raises IndexError do
-          r_narr.{{method.id}}(row, col)
-        end
+    all_coords_lex_order(oversized_shape) do |(row, col)|
+      next if proper_coords.includes? [row, col]
 
-        expect_raises IndexError do
-          r_narr.{{method.id}}([row, col])
-        end
+      expect_raises IndexError do
+        r_narr.{{method.id}}(row, col)
+      end
+
+      expect_raises IndexError do
+        r_narr.{{method.id}}([row, col])
       end
     end
   end
@@ -74,7 +72,7 @@ macro test_get_chunk(method)
     end
   end
 
-  it "returns the correct output" do
+  it "returns the correct output for a simple slice" do
     chunk = r_narr.{{method.id}}([1.., 0..2..2])
     expected = Slice['a', 'c', 1f64, 3f64]
 
@@ -225,22 +223,21 @@ describe Phase::MultiIndexable do
 
   describe "#has_coord?" do
     it "returns true for a coordinate within the shape" do
-      (0...side_length).each do |x|
-        (0...side_length).each do |y|
-          r_narr.has_coord?([x, y]).should be_true
-          r_narr.has_coord?(x, y).should be_true
-        end
+      all_coords_lex_order(r_narr.shape) do |(row, col)|
+        r_narr.has_coord?([row, col]).should be_true
+        r_narr.has_coord?(row, col).should be_true
       end
     end
 
     it "returns false for a coordinate outside the shape" do
-      (0...(side_length + 2)).each do |x|
-        (0...(side_length + 2)).each do |y|
-          next if x < side_length || y < side_length
+      oversized_shape = r_narr.shape.map &.+(2)
+      proper_coords = all_coords_lex_order(r_narr.shape)
 
-          r_narr.has_coord?([x, y]).should be_false
-          r_narr.has_coord?(x, y).should be_false
-        end
+      all_coords_lex_order(oversized_shape) do |(row, col)|
+        next if proper_coords.includes? [row, col]
+
+        r_narr.has_coord?([row, col]).should be_false
+        r_narr.has_coord?(row, col).should be_false
       end
     end
 
@@ -305,6 +302,21 @@ describe Phase::MultiIndexable do
   end
 
   describe "#get_available" do
+    it "returns the correct output for a simple region literal" do
+      expected_buffer = Slice[3, 'c', 3f64]
+      r_narr.get_available([0..8, 5..-3..2]).buffer.should eq expected_buffer
+    end
+
+    it "returns the correct output for a simple region literal (tuple accepting)" do
+      expected_buffer = Slice[3, 'c', 3f64]
+      r_narr.get_available(0..8, 5..-3..2).buffer.should eq expected_buffer
+    end
+
+    it "returns the correct output for an IndexRegion" do
+      expected_buffer = Slice[3, 'c', 3f64]
+      idx_r = IndexRegion(Int32).new([0..8, 5..-3..2])
+      r_narr.get_available(idx_r).buffer.should eq expected_buffer
+    end
   end
 
   describe "#[]" do
@@ -312,6 +324,41 @@ describe Phase::MultiIndexable do
   end
 
   describe "#[]?" do
+    it "returns a chunk for each valid region" do
+      VALID_REGIONS.each do |region|
+        # All we're testing for here is that it doesn't raise.
+        # doing anything further would be a lot of work as it stands,
+        # but if you want to precompute a dataset of inputs and outputs
+        # for this function, please feel free to do so
+        r_narr[region]?.should_not be_nil
+      end
+    end
+
+    it "returns a chunk for each valid indexregion" do
+      VALID_REGIONS.each do |region_literal|
+        idx_r = IndexRegion.new(region_literal, r_narr.shape)
+        r_narr[idx_r]?
+      end
+    end
+
+    it "returns the correct output for a simple slice" do
+      chunk = r_narr[1.., 0..2..2]?
+      expected = Slice['a', 'c', 1f64, 3f64]
+
+      fail("chunk was nil") if chunk.nil?
+
+      chunk.buffer.size.should eq expected.size
+
+      chunk.buffer.each_with_index do |value, idx|
+        value.should eq expected[idx]
+      end
+    end
+
+    it "returns nil for invalid regions" do
+      INVALID_REGIONS.each do |region_literal|
+        r_narr[region_literal]?.should be_nil
+      end
+    end
   end
 
   describe "#each_coord" do

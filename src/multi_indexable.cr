@@ -137,11 +137,11 @@ module Phase
     end
 
     def get_available(region : IndexRegion, drop : Bool = DROP_BY_DEFAULT)
-      unsafe_get_chunk(region.trim!(shape_internal))
+      unsafe_fetch_chunk(region.trim!(shape_internal))
     end
 
     def get_available(region : Indexable, drop : Bool = DROP_BY_DEFAULT)
-      unsafe_get_chunk(IndexRegion.new(region, shape_internal, drop, trim_to: shape))
+      unsafe_fetch_chunk(IndexRegion.new(region, shape_internal, drop, trim_to: shape))
     end
 
     def [](bool_mask : MultiIndexable(Bool)) : self
@@ -166,9 +166,9 @@ module Phase
     # Copies the elements in `region` to a new `{{@type}}`, or returns false if `region` is out-of-bounds for this `{{@type}}`.
     def []?(region : Indexable | IndexRegion, drop : Bool = MultiIndexable::DROP_BY_DEFAULT) : self?
       if has_region?(region)
-        get_chunk(region)
+        return get_chunk(region)
       end
-      false
+      nil
     end
 
     # Retrieves the element specified by `coord`, and throws an error if `coord` is out-of-bounds for this `{{@type}}`.
@@ -181,7 +181,7 @@ module Phase
     end
 
     {% begin %}
-      {% functions_with_drop = %w(get_chunk [] []?) %}
+      {% functions_with_drop = %w(get_chunk get_available [] []?) %}
       {% for name in functions_with_drop %}
           # Tuple-accepting overload of `#{{name}}`.
           def {{name.id}}(*tuple, drop : Bool = MultiIndexable::DROP_BY_DEFAULT)
