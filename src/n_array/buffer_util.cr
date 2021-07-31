@@ -145,6 +145,8 @@ module Phase
       end
 
       # TODO: Make generic coord
+      # TODO: this should probably have S be a type parameter because it
+      # doesn't actually work for all MultiIndexables
       class BufferedECIterator(T, I) < ElemAndCoordIterator(T, I)
         # This is needed here to prevent the method below (def self.of(src, region = nil)) from taking priority
         def self.of(src, iter : CoordIterator(I))
@@ -166,7 +168,12 @@ module Phase
         end
 
         protected def get_element(coord = nil)
-          @src.buffer.unsafe_fetch(@coord_iter.unsafe_as(IndexedCoordIterator(I)).current_index)
+          if (src = @src).responds_to?(:buffer)
+            src.buffer.unsafe_fetch(@coord_iter.unsafe_as(IndexedCoordIterator(I)).current_index)
+          else
+            # TODO
+            raise "bad error"
+          end
         end
 
         def next_value : (T | Stop)

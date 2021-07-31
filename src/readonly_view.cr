@@ -89,7 +89,7 @@ module Phase
     end
 
     def unsafe_fetch_element(coord) : R
-      @src.unsafe_fetch_element(@transform.apply(coord)).unsafe_as(R)
+      @src.unsafe_fetch_element(@transform.apply(coord)).as(R)
     end
 
     def process(new_proc : (R -> U)) : ProcView(S, R, U) forall U

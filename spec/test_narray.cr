@@ -70,7 +70,7 @@ module ReadUtils(T)
   end
 
   def unsafe_fetch_element(coord) : T
-    @buffer.unsafe_fetch(unsafe_coord_to_index(coord))
+    @buffer.[](unsafe_coord_to_index(coord))
   end
 end
 

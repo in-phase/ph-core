@@ -449,6 +449,10 @@ describe Phase::MultiIndexable do
   end
 
   describe "#fast" do
+    # this is my favorite unit test because fast promises almost nothing lol
+    it "returns all the elements in whatever order" do
+      r_narr.fast.each.to_set.should eq test_buffer.to_set
+    end
   end
 
   describe "#each_slice" do
@@ -463,19 +467,57 @@ describe Phase::MultiIndexable do
   describe "#permute" do
   end
 
-  describe "#reverse" do
+  describe "#reverse", tags: ["yikes"] do
+    it "returns a View with a ReverseTransform applied over this MultiIndexable" do
+      # puts r_narr
+      puts r_narr.permute
+    end
   end
 
   describe "#to_narr" do
+    it "converts a MultiIndexable into an NArray copy" do
+      narr = r_narr.to_narr
+
+      pointerof(narr.@buffer).should_not(eq(pointerof(r_narr.@buffer)), "buffer was not safely duplicated")
+
+      narr.equals?(r_narr).should(be_true, "data was not equivalent")
+    end
   end
 
   describe "#equals?" do
+    it "returns true for equivalent MultiIndexables" do
+      copy_narr = RONArray.new(test_shape.clone, test_buffer.clone)
+      r_narr.equals?(copy_narr).should be_true
+    end
+
+    it "returns false for MultiIndexables with the same elements in a different shape" do
+      other_narr = RONArray.new([test_shape[0], 1, 1, test_shape[1]], test_buffer.clone)
+      r_narr.equals?(other_narr).should be_false
+    end
+
+    it "returns false for MultiIndexables with different elements but the same shape" do
+      new_buffer = test_buffer.map &.hash
+      other_narr = RONArray.new(test_shape, new_buffer)
+      r_narr.equals?(other_narr).should be_false
+    end
   end
 
   describe "#view" do
+    it "creates a View of the source MultiIndexable" do
+      # we aren't testing the functionality of the view here - only that #view
+      # creates what we're expecting.
+
+      r_narr.view.is_a?(View).should be_true
+    end
   end
 
   describe "#process" do
+    it "creates a ProcView fo the source MultiIndexable" do
+      # we aren't testing the functionality of the view here - only that #process
+      # creates what we're expecting.
+
+      r_narr.process { |el| el.hash % 2 }.is_a?(ProcView).should be_true
+    end
   end
 
   describe "#eq_elem" do
