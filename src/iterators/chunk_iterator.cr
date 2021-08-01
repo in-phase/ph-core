@@ -1,4 +1,3 @@
-require "./chunk_region_iterator.cr"
 
 module Phase
   class ChunkIterator(E, I)

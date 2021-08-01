@@ -1,4 +1,3 @@
-require "./coord_iterator"
 
 module Phase
   class LexIterator(T) < CoordIterator(T)

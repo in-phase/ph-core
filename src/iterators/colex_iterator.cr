@@ -1,4 +1,3 @@
-require "./coord_iterator"
 
 module Phase
   class ColexIterator(T) < CoordIterator(T)

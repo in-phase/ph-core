@@ -1,5 +1,3 @@
-require "./coord_iterator"
-
 module Phase
   class ElemAndCoordIterator(E, I)
     include Iterator(Tuple(E, Array(I)))

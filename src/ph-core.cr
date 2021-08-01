@@ -6,7 +6,7 @@ require "./exceptions/*"
 
 require "./index_region.cr"
 
-require "./multi_indexable.cr"
+# require "./multi_indexable.cr"
 require "./multi_writable.cr"
 
 require "./iterators/general_coord_iterator.cr"

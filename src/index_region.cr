@@ -1,5 +1,4 @@
 require "./coord_util"
-require "./multi_indexable"
 require "./type_aliases"
 
 module Phase

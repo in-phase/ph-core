@@ -1,4 +1,3 @@
-require "./region_iterator"
 
 module Phase
   class ChunkAndRegionIterator(E, I)

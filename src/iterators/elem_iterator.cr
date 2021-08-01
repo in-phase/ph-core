@@ -1,4 +1,3 @@
-require "./elem_coord_iterator"
 
 module Phase
   class ElemIterator(E, I)
