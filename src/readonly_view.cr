@@ -4,7 +4,6 @@ module Phase
 
     # A proc that transforms one coordinate into another coordinate.
     @src : S
-    @transform : ComposedTransform
     @shape : Array(Int32)
 
     def self.of(src : S, region = nil) : self
@@ -51,45 +50,13 @@ module Phase
       self
     end
 
-    def reshape!(new_shape) : self
-      # TODO:
-      # check if number of elements is still valid
-      @transform.compose!(ReshapeTransform.new(@shape, new_shape))
-      @shape = new_shape
-      self
-    end
-
-    def reshape(new_shape) : self
-      clone.reshape!(new_shape)
-    end
-
-    def permute!(order : Enumerable? = nil) : self
-      pt = PermuteTransform.new(order || self.dimensions)
-      @shape = pt.permute(@shape)
-      @transform.compose!(pt)
-      self
-    end
-
-    def permute(order : Enumerable? = nil) : self
-      clone.permute!(order)
-    end
-
-    def reverse! : self
-      @transform.compose!(ReverseTransform.new(@shape))
-      self
-    end
-
-    def reverse : self
-      clone.reverse!
-    end
-
     def unsafe_fetch_chunk(region : IndexRegion, drop : Bool) : self
       # TODO !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!11
       view(region)
     end
 
     def unsafe_fetch_element(coord) : R
-      @src.unsafe_fetch_element(@transform.apply(coord)).as(R)
+       @src.unsafe_fetch_element(coord)
     end
 
     def process(new_proc : (R -> U)) : ProcView(S, R, U) forall U
@@ -98,11 +65,6 @@ module Phase
 
     def process(&block : (R -> U)) : ProcView(S, R, U) forall U
       process(block)
-    end
-
-    def to_narr : NArray
-      iter = self.each
-      NArray.build(@shape) { |coord, i| unsafe_fetch_element(coord) }
     end
   end
 end
