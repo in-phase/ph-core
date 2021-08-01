@@ -43,7 +43,7 @@ module Phase
       # region.each {}
       @values.each_key do |key|
         if region.includes?(key)
-          new_hash[region.absolute_to_local(key)] = @values[key]
+          new_hash[region.absolute_to_local_unsafe(key)] = @values[key]
         end
       end
       SparseArray.new(region.shape, @default, new_hash)

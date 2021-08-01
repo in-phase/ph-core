@@ -114,7 +114,7 @@ module Phase
     # For full specification of canonical form see `RegionHelpers` documentation. TODO: make this actually happen
     def unsafe_fetch_chunk(region : IndexRegion)
       NArray.build(region.shape) do |coord|
-        unsafe_fetch_element(region.local_to_absolute(coord))
+        unsafe_fetch_element(region.local_to_absolute_unsafe(coord))
       end
     end
 
