@@ -23,7 +23,6 @@ module Phase
     end
 
     def initialize(@src : MultiIndexable(E), @coord_iter : CoordIterator(I))
-      pp @src
     end
 
     def reset
