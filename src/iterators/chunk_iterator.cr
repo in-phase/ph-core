@@ -21,8 +21,13 @@ module Phase
       new(ChunkAndRegionIterator.new(src, chunk_shape, strides, degeneracy, fringe_behaviour))
     end
 
-    def next
-      @chunk_and_region_iterator.next_value
+    def next : MultiIndexable(E) | Stop
+      case val = @chunk_and_region_iterator.next_value
+      when MultiIndexable(E)
+        val.unsafe_as(MultiIndexable(E))
+      else
+        stop
+      end
     end
 
     def reset

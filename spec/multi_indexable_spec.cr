@@ -14,7 +14,7 @@ test_shape = [3, 4]
 test_buffer = Slice[1, 2, 3, 4, 'a', 'b', 'c', 'd', 1f64, 2f64, 3f64, 4f64]
 r_narr = uninitialized RONArray(Int32 | Char | Float64)
 
-test_slices = [[[1, 'a', 1f64], [2, 'b', 2f64], [3, 'c', 3f64], [4, 'd', 4f64]], [[1, 2, 3, 4], ['a', 'b', 'c', 'd'], [1f64, 2f64, 3f64, 4f64]]]
+test_slices = [[[1, 2, 3, 4], ['a', 'b', 'c', 'd'], [1f64, 2f64, 3f64, 4f64]], [[1, 'a', 1f64], [2, 'b', 2f64], [3, 'c', 3f64], [4, 'd', 4f64]]]
 
 Spec.before_each do
   r_narr = RONArray.new(test_shape, test_buffer)
@@ -90,29 +90,28 @@ macro test_get_chunk(method)
 end
 
 # this method allows 
-def compare_slices(expected, actual, axis)
-  # e_s = expected.size
-  # a_s = actual.size
-  # e_s.should(eq(a_s), "number of slices (#{a_s}) was different than expected (#{e_s})")
+def compare_slices(expected, result, axis)
+  e_s = expected.size
+  r_s = result.size
+  e_s.should(eq(r_s), "number of slices computed (#{r_s}) was different than the number expected (#{e_s}) (slice axis = #{axis})")
 
   expected.each_with_index do |el, idx|
-    actual_el = actual[idx].to_a
-    puts actual_el
-    actual_el.should(eq(el.to_a), "expected slice #{el.to_a} did not match #{actual_el} (slice axis = #{axis})")
-    exit
+    result_el = result[idx].to_a
+    result_el.should(eq(el.to_a), "computed slice #{result_el.to_a} does not match the expected value #{el} (slice axis = #{axis})")
   end
 end
 
 # each_slice and slices return the same data, but each_slice is just in iterator form.
 # this method is used to test both.
 macro test_each_slice(method)
-  it "returns the row collection by default" do
-    compare_slices(r_narr.{{method.id}}.to_a, test_slices[0], 0)
+  it "returns the axis 0 slices by default" do
+    compare_slices(test_slices[0], r_narr.{{method.id}}.to_a, 0)
   end
 
   it "returns the correct slices along all axes" do
     r_narr.dimensions.times do |axis|
-      compare_slices(r_narr.{{method.id}}(axis).to_a, test_slices[axis], axis)
+      slices = r_narr.{{method.id}}(axis: axis).to_a
+      compare_slices(test_slices[axis], slices, axis)
     end
   end
 end
@@ -490,10 +489,10 @@ describe Phase::MultiIndexable do
 
     it "works with a block" do
       r_narr.dimensions.times do |axis|
-        slices = [] of Array(typeof(r_narr.sample))
+        slices = [] of MultiIndexable(typeof(r_narr.sample))
 
         r_narr.each_slice(axis) do |slice|
-          slices << slice
+          slices.push(slice)
         end
 
         compare_slices(test_slices[axis], slices, axis)

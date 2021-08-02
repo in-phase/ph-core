@@ -256,11 +256,17 @@ module Phase
       ChunkIterator.new(self, chunk_shape, degeneracy: degeneracy)
     end
 
-    def slices(axis = 0) : Enumerable
-      each_slice.to_a
+    def each_slice(axis = 0, &block)
+      each_slice(axis).each do |slice|
+        yield slice
+      end
     end
 
-    {% for name in %w(each each_coord each_with_coord each_slice fast) %}
+    def slices(axis = 0) : Enumerable
+      each_slice(axis).to_a
+    end
+
+    {% for name in %w(each each_coord each_with_coord fast) %}
       # Block accepting form of {{name}}.
       def {{name.id}}(&block) : Nil
         {{name.id}}.each {|arg| yield arg}

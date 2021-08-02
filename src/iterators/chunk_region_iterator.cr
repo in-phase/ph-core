@@ -27,19 +27,20 @@ module Phase
 
     def next : Stop | Tuple(MultiIndexable(E), IndexRegion(I))
       case region = @region_iter.next
-      when Stop
-        return stop
-      else
-        {@src.unsafe_fetch_chunk(region, drop: true), region}
+      in IndexRegion
+        chunk = @src.unsafe_fetch_chunk(region, drop: true)
+        {chunk.unsafe_as(MultiIndexable(E)), region}
+      in Stop
+        stop
       end
     end
 
-    def next_value
-      case region = @region_iter.next
-      when Stop
-        return stop
-      else
-        @src.unsafe_fetch_chunk(region)
+    def next_value : Stop | MultiIndexable(E)
+      case maybe_tuple = self.next
+      in Tuple
+        maybe_tuple[0]
+      in Stop
+        stop
       end
     end
 

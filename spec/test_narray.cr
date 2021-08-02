@@ -66,8 +66,6 @@ module ReadUtils(T)
       iter.next.as(T)
     end
 
-    {% puts "thing" %}
-    {% puts @type %}
     {{@type}}.new(idx_region.shape, buffer)
   end
 
@@ -97,9 +95,12 @@ module WriteUtils(T)
   end
 end
 
-# Read only NArray
-class RONArray(T) < TestNArray(T)
+class ReadableTestNArray(T) < TestNArray(T)
   include ReadUtils(T)
+end
+
+# Read only NArray
+class RONArray(T) < ReadableTestNArray(T)
 end
 
 # Write only NArray
