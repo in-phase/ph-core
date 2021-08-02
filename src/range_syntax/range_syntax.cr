@@ -55,7 +55,7 @@ module Phase
         end
       end
 
-      raise "bad infer_range interpretation (improve this error message)"
+      raise "poorly formatted range - should be a..c, a..b..c, (a..b)..c, or a..(b..c) where a,c are Int | Nil, b is Int (improve this error message)"
     end
 
     # NOTE: be careful with range.@var
@@ -81,25 +81,30 @@ module Phase
       ensure_nonnegative(vals[:last])
     end
 
-    def infer_range(index : Int, bound)
-      canonical = CoordUtil.canonicalize_index_unsafe(index, bound)
-      {first: canonical, step: 1, last: canonical, size: 1}
+    protected def conv(int, target_type)
+      target_type.zero + int
+    end
+
+    def infer_range(index : Int, bound : T) forall T
+      canonical = conv(CoordUtil.canonicalize_index_unsafe(index, bound), T)
+      {first: canonical, step: 1, last: canonical, size: conv(1,T)}
     end
 
     def infer_range(range_literal, bound : T) : NamedTuple(first: T, step: Int32, last: T, size: T) forall T
       vals = parse_range(range_literal)
       f = vals[:first]
       l = vals[:last]
+      step = vals[:step]
+
 
       # Infer endpoints
-      if vals[:step].nil?
-        first = f.nil? ? T.zero : CoordUtil.canonicalize_index_unsafe(f, bound)
+      if step.nil?
+        first     = f.nil? ? T.zero    : conv(CoordUtil.canonicalize_index_unsafe(f, bound), T)
         temp_last = l.nil? ? bound - 1 : CoordUtil.canonicalize_index_unsafe(l, bound)
 
         step = (temp_last >= first) ? 1 : -1
       else
-        step = vals[:step].not_nil!
-        first = f.nil? ? (step > 0 ? T.zero : bound - 1) : CoordUtil.canonicalize_index_unsafe(f, bound)
+        first     = f.nil? ? (step > 0 ? T.zero : bound - 1) : conv(CoordUtil.canonicalize_index_unsafe(f, bound), T)
         temp_last = l.nil? ? (step > 0 ? bound - 1 : T.zero) : CoordUtil.canonicalize_index_unsafe(l, bound)
       end
 
@@ -107,7 +112,7 @@ module Phase
       if !l.nil? && vals[:exclusive]
         if temp_last == first
           # Range spans no integers; we use the convention first, last, step, size = 0 to indicate this
-          return {first: 0, step: 0, last: 0, size: 0}
+          return {first: T.zero, step: 0, last: T.zero, size: T.zero}
         end
         temp_last -= step.sign
       end
@@ -122,8 +127,8 @@ module Phase
 
       begin
         # Align temp_last to an integer number of steps from first
-        size = get_size(first, temp_last, step)
-        last = first + (size - 1) * step
+        size = conv(get_size(first, temp_last, step), T)
+        last = first + step * (size - 1)
 
         {first: first, step: step.to_i32, last: last, size: size}
       rescue ex : IndexError

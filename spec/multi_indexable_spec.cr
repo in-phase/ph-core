@@ -106,6 +106,7 @@ end
 # each_slice and slices return the same data, but each_slice is just in iterator form.
 # this method is used to test both.
 macro test_each_slice(method)
+
   it "returns the row collection by default" do
     compare_slices(r_narr.{{method.id}}.to_a, test_slices[0], 0)
   end
@@ -485,7 +486,7 @@ describe Phase::MultiIndexable do
     end
   end
 
-  describe "#each_slice" do
+  pending "#each_slice" do
     test_each_slice(:each_slice)
 
     it "works with a block" do
@@ -501,7 +502,7 @@ describe Phase::MultiIndexable do
     end
   end
 
-  describe "#slices" do
+  pending "#slices" do
     test_each_slice(:slices)
   end
 

@@ -1,63 +1,45 @@
-module ModuleA 
-  abstract def val
+
+require "benchmark"
+
+def conv(int, target_type)
+  target_type.zero + int
 end
 
-module ModuleB
-end
-
-abstract class Abstract
-  @val : String
-  def initialize(@val)
+def conv_checked(int, target_type)
+  case int
+  when target_type
+    int
+  else
+    target_type.zero + int
   end
 end
 
-class ClassA < Abstract
-  include ModuleA 
-
-  def val
-    @val
-  end
-end
-
-class ClassAB < Abstract 
-  include ModuleA  
-  include ModuleB
-
-  def val
-    @val
-  end
-end
-
-class Class2 < Abstract 
-  include ModuleB
-end
-
-class Lonely
-  include ModuleA 
-
-  def val
-    "HI"
-  end
-end
-
-class MyIterator 
-  include Iterator(ModuleA)
-
-  @obj : ModuleA
-
-  def initialize(@obj)
+Benchmark.ips do |x|
+  x.report("Basic, unconverted") do 
+    sum = 0
+    (0...1000).each do |i|
+      sum += conv(i, Int32)
+    end
   end
 
-  def next : ModuleA | Stop
-    @obj
+  x.report("checked, unconverted") do
+    sum = 0  
+    (0...1000).each do |i|
+      sum += conv_checked(i, Int32)
+    end
+  end
+
+  x.report("Basic, converted") do 
+    sum = 0
+    (0...1000).each do |i|
+      sum += conv(i, UInt16)
+    end
+  end
+
+  x.report("checked, converted") do 
+    sum = 0
+    (0...1000).each do |i|
+      sum += conv_checked(i, UInt16)
+    end
   end
 end
-
-
-a = ClassA.new("a")
-ab = ClassAB.new("ab")
-b = Class2.new("b")
-
-puts MyIterator.new(a).next
-puts MyIterator.new(ab).next
-puts MyIterator.new(Lonely.new).next

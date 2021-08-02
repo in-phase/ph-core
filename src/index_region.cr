@@ -40,7 +40,7 @@ module Phase
     def self.new(region_literal : Enumerable, bound_shape : Indexable? = nil, drop : Bool = DROP_BY_DEFAULT,
                  *, trim_to : Indexable(T))
       first = Array.new(trim_to.size, T.zero)
-      step = Array.new(trim_to.size, T.zero + 1)
+      step = Array.new(trim_to.size, 1)
       last = Array.new(trim_to.size, T.zero)
       shape = Array.new(trim_to.size, T.zero)
       degeneracy = Array(Bool).new(trim_to.size, false)
@@ -75,7 +75,7 @@ module Phase
     # Main constructor
     def self.new(region_literal : Enumerable, bound_shape : Indexable(T), drop : Bool = DROP_BY_DEFAULT) : IndexRegion(T)
       first = Array.new(bound_shape.size, T.zero)
-      step = Array.new(bound_shape.size, T.zero + 1)
+      step = Array.new(bound_shape.size, 1)
       last = Array.new(bound_shape.size, T.zero)
       shape = Array.new(bound_shape.size, T.zero)
       degeneracy = Array(Bool).new(bound_shape.size, false)
@@ -105,7 +105,7 @@ module Phase
     # Gets the region including all coordinates in the given bound_shape
     def self.cover(bound_shape : Indexable(T), *, drop : Bool = DROP_BY_DEFAULT, degeneracy : Array(Bool)? = nil)
       first = Array.new(bound_shape.size, T.zero)
-      step = Array.new(bound_shape.size, T.zero + 1)
+      step = Array.new(bound_shape.size, 1)
       last = bound_shape.map &.pred
       shape = bound_shape.dup
       new(first, step, last, shape, drop, degeneracy)
@@ -115,7 +115,7 @@ module Phase
     def self.new(region_literal : Enumerable, drop : Bool = DROP_BY_DEFAULT)
       dims = region_literal.size
       first = Array(T).new(dims, T.zero)
-      step = Array(T).new(dims, T.zero)
+      step = Array(Int32).new(dims, 0)
       last = Array(T).new(dims, T.zero)
       shape = Array(T).new(dims, T.zero)
       degeneracy = Array(Bool).new(dims, false)

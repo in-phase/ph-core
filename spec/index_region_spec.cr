@@ -85,7 +85,7 @@ step_conflict = [
 
 valid = fully_defined.merge(negative_indices).merge(implicit_bounds)
 
-describe "IndexRegion" do
+describe "Phase::IndexRegion(I)" do
     
     # TODO: Need to test multi-dimensional ranges!
     describe ".new" do 
