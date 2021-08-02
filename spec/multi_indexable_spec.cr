@@ -14,6 +14,8 @@ test_shape = [3, 4]
 test_buffer = Slice[1, 2, 3, 4, 'a', 'b', 'c', 'd', 1f64, 2f64, 3f64, 4f64]
 r_narr = uninitialized RONArray(Int32 | Char | Float64)
 
+test_slices = [[[1, 'a', 1f64], [2, 'b', 2f64], [3, 'c', 3f64], [4, 'd', 4f64]], [[1, 2, 3, 4], ['a', 'b', 'c', 'd'], [1f64, 2f64, 3f64, 4f64]]]
+
 Spec.before_each do
   r_narr = RONArray.new(test_shape, test_buffer)
 end
@@ -84,6 +86,34 @@ macro test_get_chunk(method)
   end
 
   pending "test this more exhaustively" do
+  end
+end
+
+# this method allows 
+def compare_slices(expected, actual, axis)
+  # e_s = expected.size
+  # a_s = actual.size
+  # e_s.should(eq(a_s), "number of slices (#{a_s}) was different than expected (#{e_s})")
+
+  expected.each_with_index do |el, idx|
+    actual_el = actual[idx].to_a
+    puts actual_el
+    actual_el.should(eq(el.to_a), "expected slice #{el.to_a} did not match #{actual_el} (slice axis = #{axis})")
+    exit
+  end
+end
+
+# each_slice and slices return the same data, but each_slice is just in iterator form.
+# this method is used to test both.
+macro test_each_slice(method)
+  it "returns the row collection by default" do
+    compare_slices(r_narr.{{method.id}}.to_a, test_slices[0], 0)
+  end
+
+  it "returns the correct slices along all axes" do
+    r_narr.dimensions.times do |axis|
+      compare_slices(r_narr.{{method.id}}(axis).to_a, test_slices[axis], axis)
+    end
   end
 end
 
@@ -456,21 +486,40 @@ describe Phase::MultiIndexable do
   end
 
   describe "#each_slice" do
+    test_each_slice(:each_slice)
+
+    it "works with a block" do
+      r_narr.dimensions.times do |axis|
+        slices = [] of Array(typeof(r_narr.sample))
+
+        r_narr.each_slice(axis) do |slice|
+          slices << slice
+        end
+
+        compare_slices(test_slices[axis], slices, axis)
+      end
+    end
   end
 
   describe "#slices" do
+    test_each_slice(:slices)
   end
 
   describe "#reshape" do
+    pending "returns a View with a ReshapeTransform applied over this MultiIndexable" do
+    end
   end
 
   describe "#permute" do
+    pending "returns a View with a PermuteTransform applied over this MultiIndexable" do
+    end
   end
 
   describe "#reverse", tags: ["yikes"] do
-    it "returns a View with a ReverseTransform applied over this MultiIndexable" do
+    pending "returns a View with a ReverseTransform applied over this MultiIndexable" do
       # puts r_narr
-      puts r_narr.permute
+      # puts r_narr.permute
+      # checkout the branch "nightmare" for why this isn't present
     end
   end
 

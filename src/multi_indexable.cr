@@ -2,6 +2,10 @@ module Phase
   # Assumptions:
   # - length along every axis is finite and positive, and each element is positively indexed
   # - size is stored as an Int32, i.e. there are no more than Int32::MAX elements.
+
+  # The `MultiIndexable` module provides a unified interface for multidimensional
+  # array types, much like how `Indexable` provides a standard corpus of methods for
+  # one-dimensional collections.
   module MultiIndexable(T)
     # add search, traversal methods
     include Enumerable(T)
@@ -12,9 +16,7 @@ module Phase
     # -fast: for performance
     # -transform functions: reshape, permute, reverse; for performance
     # -unsafe_fetch_chunk: for performance and return type (defaults to NArray)
-
-    # Returns the number of elements in the `{{@type}}`; generally equal to `shape.product`.
-    abstract def size
+    # -size: if you can precompute size or get it via a buffer size, it's a big performance boost
 
     # Returns the length of the `{{@type}}` in each dimension.
     # For a `coord` to specify an element of the `{{@type}}` it must satisfy `coord[i] < shape[i]` for each `i`.
@@ -24,14 +26,17 @@ module Phase
     # For full specification of canonical form see `RegionHelpers` documentation. TODO: make this actually happen
     abstract def unsafe_fetch_element(coord : Coord) : T
 
-    # Stuff that we can implement without knowledge of internals
-
     protected def shape_internal : Shape
       # NOTE: Some implementations might not have a well defined @shape, but
       # instead generate it with a function. We leave shape_internal to be
       # overridden with @shape for a small performance boost if the implementer
       # offers that.
       shape
+    end
+
+    # Returns the number of elements in the `{{@type}}`; generally equal to `shape.product`.
+    def size
+      shape_internal.product
     end
 
     # Checks that the `{{@type}}` contains no elements.
@@ -164,7 +169,7 @@ module Phase
     end
 
     # Copies the elements in `region` to a new `{{@type}}`, or returns false if `region` is out-of-bounds for this `{{@type}}`.
-    def []?(region : Indexable | IndexRegion, drop : Bool = MultiIndexable::DROP_BY_DEFAULT) : self?
+    def []?(region : Indexable | IndexRegion, drop : Bool = MultiIndexable::DROP_BY_DEFAULT) : MultiIndexable(T)?
       if has_region?(region)
         return get_chunk(region)
       end
@@ -335,10 +340,13 @@ module Phase
       hasher
     end
 
+    # TODO: These macro-generated methods are currently nodoc because there are so many.
+    # we need to figure out a way to document these without spamming :p
     {% begin %}
       # Implements most binary operations
       {% for name in %w(+ - * / // > < >= <= &+ &- &- ** &** % & | ^ <=>) %}
 
+        # :nodoc:
         # Invokes `#{{name.id}}` element-wise between `self` and *other*, returning
         # an `NArray` that contains the results.
         def {{name.id}}(other : MultiIndexable(U)) forall U 
@@ -354,6 +362,7 @@ module Phase
           end
         end
 
+        # :nodoc:
         # Invokes `#{{name.id}}(other)` on each element in `self`, returning an
         # `NArray` that contains the results.
         def {{name.id}}(other)

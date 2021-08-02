@@ -25,7 +25,7 @@ module Phase
     def initialize(@src : MultiIndexable(E), @region_iter : RegionIterator(I))
     end
 
-    def next
+    def next : Stop | Tuple(MultiIndexable(E), IndexRegion(I))
       case region = @region_iter.next
       when Stop
         return stop

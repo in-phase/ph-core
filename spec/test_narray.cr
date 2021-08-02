@@ -66,6 +66,8 @@ module ReadUtils(T)
       iter.next.as(T)
     end
 
+    {% puts "thing" %}
+    {% puts @type %}
     {{@type}}.new(idx_region.shape, buffer)
   end
 
