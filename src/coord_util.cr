@@ -36,7 +36,7 @@ module Phase
     # that the index be validated before or after this method is called.
     protected def canonicalize_index_unsafe(index, size : Int)
       if index < 0
-        return size + index
+        return index + size
       else
         return index
       end

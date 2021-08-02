@@ -99,12 +99,12 @@ module Phase
 
       # Infer endpoints
       if step.nil?
-        first     = f.nil? ? T.zero    : conv(CoordUtil.canonicalize_index_unsafe(f, bound), T)
+        first     = f.nil? ? T.zero    : CoordUtil.canonicalize_index_unsafe(f, bound)
         temp_last = l.nil? ? bound - 1 : CoordUtil.canonicalize_index_unsafe(l, bound)
 
         step = (temp_last >= first) ? 1 : -1
       else
-        first     = f.nil? ? (step > 0 ? T.zero : bound - 1) : conv(CoordUtil.canonicalize_index_unsafe(f, bound), T)
+        first     = f.nil? ? (step > 0 ? T.zero : bound - 1) : CoordUtil.canonicalize_index_unsafe(f, bound)
         temp_last = l.nil? ? (step > 0 ? bound - 1 : T.zero) : CoordUtil.canonicalize_index_unsafe(l, bound)
       end
 
@@ -126,6 +126,8 @@ module Phase
       end
 
       begin
+        first = conv(first, T)
+
         # Align temp_last to an integer number of steps from first
         size = conv(get_size(first, temp_last, step), T)
         last = first + step * (size - 1)

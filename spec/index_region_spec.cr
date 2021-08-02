@@ -85,14 +85,16 @@ step_conflict = [
 
 valid = fully_defined.merge(negative_indices).merge(implicit_bounds)
 
-describe "Phase::IndexRegion(I)" do
-    
-    # TODO: Need to test multi-dimensional ranges!
+
+
+
+
+macro test_on(type, bound)
     describe ".new" do 
 
         context "(range_literal, bound_shape)" do
             valid.each do |r,v|
-                it "parses a legal range literal (#{r}, bound: #{bound})" do 
+                it "parses a legal range literal (#{r}, bound: #{{{bound}}})" do 
                     idx_r = IndexRegion.new([r], [bound])
 
                     idx_r.first[0].should eq v[:first]
@@ -103,9 +105,9 @@ describe "Phase::IndexRegion(I)" do
             end
 
             out_of_bounds.each do |r|
-                it "throws an error when range is out of bounds (#{r}, bound: #{bound})" do 
+                it "throws an error when range is out of bounds (#{r}, bound: #{{{bound}}})" do 
                     expect_raises IndexError do
-                        idx_r = IndexRegion.new([r], [bound])
+                        idx_r = IndexRegion.new([r], [{{bound}}])
                     end
                 end
             end
@@ -113,14 +115,14 @@ describe "Phase::IndexRegion(I)" do
             step_conflict.each do |r|
                 it "throws an error when given a step conflict (#{r})" do 
                     expect_raises IndexError do
-                        idx_r = IndexRegion.new([r], [bound])
+                        idx_r = IndexRegion.new([r], [{{bound}}])
                     end
                 end
             end
 
             empty.each do |r|
                 it "gives size 0 when range spans no integers (#{r})" do 
-                    IndexRegion.new([r], [bound]).size.should eq 0
+                    IndexRegion.new([r], [{{bound}}]).size.should eq 0
                 end
             end
 
@@ -135,7 +137,7 @@ describe "Phase::IndexRegion(I)" do
         context "(range_literal)" do 
             fully_defined.each do |r, v|
                 it "correctly parses a fully defined range literal (#{r})" do 
-                    idx_r = IndexRegion(Int32).new([r])
+                    idx_r = IndexRegion({{type}}).new([r])
 
                     idx_r.first[0].should eq v[:first]
                     idx_r.step[0].should eq v[:step] 
@@ -148,7 +150,7 @@ describe "Phase::IndexRegion(I)" do
                 it "throws an error if an endpoint cannot be inferred (#{r})" do 
                     # TODO: make this a better error type
                     expect_raises Exception do
-                        IndexRegion(Int32).new([r])
+                        IndexRegion({{type}}).new([r])
                     end
                 end
             end
@@ -156,7 +158,7 @@ describe "Phase::IndexRegion(I)" do
             negative_indices.each do |r,v|
                 it "throws an error on negative (relative) indices (#{r})" do 
                     expect_raises IndexError do
-                        IndexRegion(Int32).new([r])
+                        IndexRegion({{type}}).new([r])
                     end
                 end
             end
@@ -164,14 +166,14 @@ describe "Phase::IndexRegion(I)" do
             step_conflict.each do |r|
                 it "throws an error when given a step conflict (#{r})" do 
                     expect_raises IndexError do
-                        IndexRegion(Int32).new([r])
+                        IndexRegion({{type}}).new([r])
                     end
                 end
             end
 
             empty.each do |r|
                 it "gives size 0 when range spans no integers (#{r})" do 
-                    IndexRegion.new([r], [bound]).size.should eq 0
+                    IndexRegion.new([r], [{{bound}}]).size.should eq 0
                 end
             end
         end
@@ -179,8 +181,8 @@ describe "Phase::IndexRegion(I)" do
         context "(index_region, bound_shape)" do 
             valid.each do |r,v|
                 it "copies an IndexRegion that is in bounds (#{r})" do 
-                    idx_r = IndexRegion.new([r],[bound])
-                    copy = IndexRegion.new(idx_r, [bound + 5])
+                    idx_r = IndexRegion.new([r],[{{bound}}])
+                    copy = IndexRegion.new(idx_r, [{{bound}} + 5])
                     
                     pointerof(idx_r).should_not (eq pointerof(copy)), "Equal references; copy not made"
                     idx_r.first.should eq copy.first
@@ -192,8 +194,8 @@ describe "Phase::IndexRegion(I)" do
                 end
 
                 it "throws an error for an IndexRegion that is out of bounds" do 
-                    idx_r = IndexRegion.new([r],[bound])
-                    new_bound = {v[:first], v[:last]}.max - 1
+                    idx_r = IndexRegion.new([r],[{{bound}}])
+                    new_bound = {{type}}.zero + {v[:first], v[:last]}.max - 1
                     expect_raises IndexError do 
                         copy = IndexRegion.new(idx_r, [new_bound])
                     end
@@ -232,7 +234,7 @@ describe "Phase::IndexRegion(I)" do
     describe "#includes?" do 
 
         it "detects coordinates outside the region's bounds" do 
-            r = IndexRegion(Int32).new([3..5, 10..-2..2])
+            r = IndexRegion({{type}}).new([3..5, 10..-2..2])
 
             r.includes?([6, 4]).should be_false
             r.includes?([2, 4]).should be_false
@@ -242,13 +244,13 @@ describe "Phase::IndexRegion(I)" do
         end
 
         it "detects coordinates that do not align with the region's step" do 
-            r = IndexRegion(Int32).new([3..5, 10..-2..2])
+            r = IndexRegion({{type}}).new([3..5, 10..-2..2])
 
             r.includes?([4, 5]).should be_false
         end
 
         it "returns true for coordinates in the region" do 
-            r = IndexRegion(Int32).new([3..5, 10..-2..2])
+            r = IndexRegion({{type}}).new([3..5, 10..-2..2])
 
             (3..5).each do |a|
                 10.step(by: -2, to: 2).each do |b|
@@ -261,12 +263,12 @@ describe "Phase::IndexRegion(I)" do
     describe "#fits_in?" do 
         valid.each do |r,v|
             it "returns true if the region fits in shape" do 
-                IndexRegion.new([r],[bound]).fits_in?([bound]).should be_true
+                IndexRegion.new([r],[{{bound}}]).fits_in?([{{bound}}]).should be_true
             end
 
             it "returns false if the region does not fit in shape" do 
-                new_bound = {v[:first], v[:last]}.max - 1
-                IndexRegion.new([r],[bound]).fits_in?([new_bound]).should be_false
+                new_bound = {{type}}.zero + {v[:first], v[:last]}.max - 1
+                IndexRegion.new([r],[{{bound}}]).fits_in?([new_bound]).should be_false
             end
         end
     end
@@ -279,14 +281,14 @@ describe "Phase::IndexRegion(I)" do
 
     describe "#reverse!" do 
         it "can operate in-place" do 
-            idx_r = IndexRegion(Int32).new([2..6, 8..-2..1])
+            idx_r = IndexRegion({{type}}).new([2..6, 8..-2..1])
             idx_r.reverse!
 
             idx_r.first.should eq [6, 2]
         end
 
         it "swaps first and last" do 
-            idx_r = IndexRegion(Int32).new([2..6, 8..-2..1])
+            idx_r = IndexRegion({{type}}).new([2..6, 8..-2..1])
             reverse = idx_r.clone.reverse!
 
             reverse.first.should eq idx_r.last 
@@ -294,14 +296,14 @@ describe "Phase::IndexRegion(I)" do
         end
 
         it "negates step" do 
-            idx_r = IndexRegion(Int32).new([2..6, 8..-2..1])
+            idx_r = IndexRegion({{type}}).new([2..6, 8..-2..1])
             reverse = idx_r.clone.reverse!
 
             reverse.step.zip(idx_r.step).each {|rev, fwd| rev.should eq -fwd} 
         end
 
         it "preserves shape and degeneracy" do 
-            idx_r = IndexRegion(Int32).new([2..6, 8..-2..1])
+            idx_r = IndexRegion({{type}}).new([2..6, 8..-2..1])
             reverse = idx_r.clone.reverse!
 
             idx_r.shape.should eq reverse.shape 
@@ -321,8 +323,18 @@ end
 
 
 
-
-
-
     
     
+describe "Phase::IndexRegion" do
+    context "(Int32)" do 
+        test_on(Int32, bound.to_i32)
+    end
+
+    context "(UInt8)" do
+        test_on(Int32, bound.to_u8)
+    end
+
+    context "(BigInt)" do 
+        test_on(BigInt, bound.to_big_i)
+    end
+end
