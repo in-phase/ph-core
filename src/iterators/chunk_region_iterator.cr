@@ -29,6 +29,7 @@ module Phase
       case region = @region_iter.next
       in IndexRegion
         chunk = @src.unsafe_fetch_chunk(region, drop: true)
+        # HACK: mitigates virtual type issues https://forum.crystal-lang.org/t/virtual-types-causing-unexpected-behaviour/3584
         {chunk.unsafe_as(MultiIndexable(E)), region}
       in Stop
         stop

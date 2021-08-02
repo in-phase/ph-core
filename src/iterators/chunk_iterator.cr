@@ -24,6 +24,7 @@ module Phase
     def next : MultiIndexable(E) | Stop
       case val = @chunk_and_region_iterator.next_value
       when MultiIndexable(E)
+        # HACK: mitigates virtual type issues https://forum.crystal-lang.org/t/virtual-types-causing-unexpected-behaviour/3584
         val.unsafe_as(MultiIndexable(E))
       else
         stop
