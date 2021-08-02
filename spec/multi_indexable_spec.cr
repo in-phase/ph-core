@@ -484,7 +484,7 @@ describe Phase::MultiIndexable do
     end
   end
 
-  pending "#each_slice" do
+  describe "#each_slice" do
     test_each_slice(:each_slice)
 
     it "works with a block" do
@@ -500,7 +500,7 @@ describe Phase::MultiIndexable do
     end
   end
 
-  pending "#slices" do
+  describe "#slices" do
     test_each_slice(:slices)
   end
 
@@ -568,7 +568,26 @@ describe Phase::MultiIndexable do
     end
   end
 
-  describe "#eq_elem" do
+  describe "#eq" do
+    it "returns an NArray containing elementwise equality with another MultiIndexable" do
+      altered_buffer = Slice[1, 2, "string", 4, 'a', 'b', 9, 'd', 1f64, 2f64, 3f64, 4f64]
+      altered_r_narr = RONArray.new(test_shape, altered_buffer)
+      equality = altered_r_narr.eq(r_narr)
+      equality.@buffer.should eq Slice[true, true, false, true, true, true, false, true, true, true, true, true]
+    end
+
+    it "raises a DimensionError for an NArray of a different shape" do
+      altered_r_narr = RONArray.new([test_buffer.size], test_buffer)
+      expect_raises(DimensionError) do
+        altered_r_narr.eq(r_narr)
+      end
+    end
+
+    it "returns an NArray containing elementwise equality with a scalar" do
+      comparison_el = 'b'
+      expected_buffer = test_buffer.map &.==(comparison_el)
+      r_narr.eq(comparison_el).@buffer.should eq expected_buffer
+    end
   end
 
   describe "#hash" do
