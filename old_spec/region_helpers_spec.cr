@@ -256,7 +256,7 @@ describe Phase::RegionHelpers do
       it "preserves size" do
       end
     end
-    pending ".local_to_absolute" do
+    pending ".local_to_absolute_unsafe" do
       # for inputs n between begin and end,
     end
     pending ".compose" do

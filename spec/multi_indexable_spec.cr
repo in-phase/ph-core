@@ -484,7 +484,7 @@ describe Phase::MultiIndexable do
     end
   end
 
-  describe "#each_slice" do
+  pending "#each_slice" do
     test_each_slice(:each_slice)
 
     it "works with a block" do
@@ -500,7 +500,7 @@ describe Phase::MultiIndexable do
     end
   end
 
-  describe "#slices" do
+  pending "#slices" do
     test_each_slice(:slices)
   end
 

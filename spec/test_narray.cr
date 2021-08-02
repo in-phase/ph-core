@@ -7,6 +7,8 @@ include Phase
 
 # Defines instance variables, constructors, and general utils for a buffer-backed multi-array.
 abstract class TestNArray(T)
+  # include MultiIndexable(T)
+
   getter buffer : Slice(T)
   getter size : Int32
   @shape : Array(Int32)
@@ -106,6 +108,7 @@ end
 # Write only NArray
 class WONArray(T) < TestNArray(T)
   include WriteUtils(T)
+  include ReadUtils(T)
 end
 
 # Read-Write NArray

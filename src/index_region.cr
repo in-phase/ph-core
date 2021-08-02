@@ -40,7 +40,7 @@ module Phase
     def self.new(region_literal : Enumerable, bound_shape : Indexable? = nil, drop : Bool = DROP_BY_DEFAULT,
                  *, trim_to : Indexable(T))
       first = Array.new(trim_to.size, T.zero)
-      step = Array.new(trim_to.size, T.zero + 1)
+      step = Array.new(trim_to.size, 1)
       last = Array.new(trim_to.size, T.zero)
       shape = Array.new(trim_to.size, T.zero)
       degeneracy = Array(Bool).new(trim_to.size, false)
@@ -75,7 +75,7 @@ module Phase
     # Main constructor
     def self.new(region_literal : Enumerable, bound_shape : Indexable(T), drop : Bool = DROP_BY_DEFAULT) : IndexRegion(T)
       first = Array.new(bound_shape.size, T.zero)
-      step = Array.new(bound_shape.size, T.zero + 1)
+      step = Array.new(bound_shape.size, 1)
       last = Array.new(bound_shape.size, T.zero)
       shape = Array.new(bound_shape.size, T.zero)
       degeneracy = Array(Bool).new(bound_shape.size, false)
@@ -105,7 +105,7 @@ module Phase
     # Gets the region including all coordinates in the given bound_shape
     def self.cover(bound_shape : Indexable(T), *, drop : Bool = DROP_BY_DEFAULT, degeneracy : Array(Bool)? = nil)
       first = Array.new(bound_shape.size, T.zero)
-      step = Array.new(bound_shape.size, T.zero + 1)
+      step = Array.new(bound_shape.size, 1)
       last = bound_shape.map &.pred
       shape = bound_shape.dup
       new(first, step, last, shape, drop, degeneracy)
@@ -115,7 +115,7 @@ module Phase
     def self.new(region_literal : Enumerable, drop : Bool = DROP_BY_DEFAULT)
       dims = region_literal.size
       first = Array(T).new(dims, T.zero)
-      step = Array(T).new(dims, T.zero)
+      step = Array(Int32).new(dims, 0)
       last = Array(T).new(dims, T.zero)
       shape = Array(T).new(dims, T.zero)
       degeneracy = Array(Bool).new(dims, false)
@@ -198,8 +198,8 @@ module Phase
 
       # get the indexes where its true
       # remove the elements at those indexes and shrink all the arrays accordingly
-      new_first = local_to_absolute(region.first)
-      new_last = local_to_absolute(region.last)
+      new_first = local_to_absolute_unsafe(region.first)
+      new_last = local_to_absolute_unsafe(region.last)
 
       new_step = @step.zip(region.step).map do |outer, inner|
         outer * inner
@@ -209,7 +209,7 @@ module Phase
 
     # gets absolute coordinate of a coord in the region's local reference frame
     def unsafe_fetch_element(coord : Coord) : Array(T)
-      local_to_absolute(coord)
+      local_to_absolute_unsafe(coord)
     end
 
     # ========================== Other =====================================
@@ -292,8 +292,12 @@ module Phase
       end
     end
 
-    # TODO: in general, maybe use immediate methods rather than zip?
     def local_to_absolute(coord)
+      get(coord)
+    end
+
+    # TODO: in general, maybe use immediate methods rather than zip?
+    def local_to_absolute_unsafe(coord)
       if @drop
         local_axis = 0
         degeneracy.map_with_index do |degenerate, i|
@@ -312,6 +316,13 @@ module Phase
     end
 
     def absolute_to_local(coord)
+      if !includes?(coord)
+        raise IndexError.new("Could not convert coordinate: #{coord} does not exist in region #{self}")
+      end
+      absolute_to_local_unsafe(coord)
+    end
+
+    def absolute_to_local_unsafe(coord)
       local = coord.zip(@first, @step).map do |idx, first, step|
         (idx - first) // step
       end
@@ -323,7 +334,11 @@ module Phase
       end
     end
 
-    def drop_degenerate(arr : Array, &when_full : -> Array(T)) : Array(T)
+    def each : CoordIterator(T)
+      LexIterator.new(self)
+    end
+
+    protected def drop_degenerate(arr : Array, &when_full : -> Array(T)) : Array(T)
       new_arr = Array(T).new(arr.size)
       arr.each_with_index do |value, idx|
         new_arr << value unless @degeneracy[idx]
@@ -331,10 +346,6 @@ module Phase
       # If every axis was dropped, you must have a scalar
       return yield if new_arr.empty?
       new_arr
-    end
-
-    def each : CoordIterator(T)
-      LexIterator.new(self)
     end
 
     protected def package_range(axis)

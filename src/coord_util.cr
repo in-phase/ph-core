@@ -34,9 +34,9 @@ module Phase
     # Performs a conversion as in `#canonicalize_index`, but does not guarantee the result is actually a canonical index.
     # This may be useful if additional manipulations must be performed on the result before use, but it is strongly advised
     # that the index be validated before or after this method is called.
-    protected def canonicalize_index_unsafe(index, size : Int32)
+    protected def canonicalize_index_unsafe(index, size : Int)
       if index < 0
-        return size + index
+        return index + size
       else
         return index
       end
@@ -45,7 +45,7 @@ module Phase
     # Converts a `coord` into canonical form, such that each index in `coord` is positive.
     # Throws an `IndexError` if at least one index specified in `coord` is out of range for the
     # corresponding axis of `shape`.
-    def canonicalize_coord(coord, shape) : Array(Int32)
+    def canonicalize_coord(coord, shape) : Coord
       coord.to_a.map_with_index { |index, axis| canonicalize_index(index, shape, axis).to_i32 }
     end
   end
