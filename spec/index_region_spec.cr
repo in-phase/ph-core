@@ -3,6 +3,7 @@ require "./test_narray"
 
 include Phase
 
+# Test on: Int32, Uint8, BigInt
 
 bound = 10
 mid = 7
@@ -229,13 +230,31 @@ describe "IndexRegion" do
     end
 
     describe "#includes?" do 
-        it "detects coordinates out of the region's bounds" do 
+
+        it "detects coordinates outside the region's bounds" do 
+            r = IndexRegion(Int32).new([3..5, 10..-2..2])
+
+            r.includes?([6, 4]).should be_false
+            r.includes?([2, 4]).should be_false
+            r.includes?([4, 11]).should be_false 
+            r.includes?([4, 0]).should be_false 
+            r.includes?([0, 0]).should be_false
         end
 
         it "detects coordinates that do not align with the region's step" do 
+            r = IndexRegion(Int32).new([3..5, 10..-2..2])
+
+            r.includes?([4, 5]).should be_false
         end
 
         it "returns true for coordinates in the region" do 
+            r = IndexRegion(Int32).new([3..5, 10..-2..2])
+
+            (3..5).each do |a|
+                10.step(by: -2, to: 2).each do |b|
+                    r.includes?([a,b]).should be_true 
+                end
+            end
         end
     end
 

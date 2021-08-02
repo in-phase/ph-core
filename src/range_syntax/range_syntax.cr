@@ -81,7 +81,7 @@ module Phase
       ensure_nonnegative(vals[:last])
     end
 
-    def infer_range(index : Int32, bound)
+    def infer_range(index : Int, bound)
       canonical = CoordUtil.canonicalize_index_unsafe(index, bound)
       {first: canonical, step: 1, last: canonical, size: 1}
     end
