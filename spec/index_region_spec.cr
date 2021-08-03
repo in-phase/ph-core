@@ -3,12 +3,12 @@ require "./test_narray"
 
 include Phase
 
-# Test on: Int32, Uint8, BigInt
+# This test suite is a little bloated - may be useful to eventually redo it in a more targeted fashion.
+
 
 bound = 10
 mid = 7
 full = {first: 0, step: 1, last: bound - 1}
-
 
 
 fully_defined = {
@@ -95,7 +95,9 @@ macro test_on(type, bound)
         context "(range_literal, bound_shape)" do
             valid.each do |r,v|
                 it "parses a legal range literal (#{r}, bound: #{{{bound}}})" do 
-                    idx_r = IndexRegion.new([r], [bound])
+                    idx_r = IndexRegion.new([r], [{{bound}}])
+
+                    idx_r.should be_a IndexRegion({{type}})
 
                     idx_r.first[0].should eq v[:first]
                     idx_r.step[0].should eq v[:step] 
@@ -122,7 +124,10 @@ macro test_on(type, bound)
 
             empty.each do |r|
                 it "gives size 0 when range spans no integers (#{r})" do 
-                    IndexRegion.new([r], [{{bound}}]).size.should eq 0
+                    idx_r = IndexRegion.new([r], [{{bound}}])
+                    
+                    idx_r.size.should eq 0
+                    idx_r.should be_a IndexRegion({{type}})
                 end
             end
 
@@ -138,6 +143,7 @@ macro test_on(type, bound)
             fully_defined.each do |r, v|
                 it "correctly parses a fully defined range literal (#{r})" do 
                     idx_r = IndexRegion({{type}}).new([r])
+                    idx_r.should be_a IndexRegion({{type}})
 
                     idx_r.first[0].should eq v[:first]
                     idx_r.step[0].should eq v[:step] 
@@ -173,7 +179,10 @@ macro test_on(type, bound)
 
             empty.each do |r|
                 it "gives size 0 when range spans no integers (#{r})" do 
-                    IndexRegion.new([r], [{{bound}}]).size.should eq 0
+                idx_r = IndexRegion({{type}}).new([r])
+                    
+                idx_r.size.should eq 0
+                idx_r.should be_a IndexRegion({{type}})
                 end
             end
         end
@@ -195,9 +204,13 @@ macro test_on(type, bound)
 
                 it "throws an error for an IndexRegion that is out of bounds" do 
                     idx_r = IndexRegion.new([r],[{{bound}}])
-                    new_bound = {{type}}.zero + {v[:first], v[:last]}.max - 1
-                    expect_raises IndexError do 
-                        copy = IndexRegion.new(idx_r, [new_bound])
+
+                    max_val = {v[:first], v[:last]}.max
+                    if max_val > 0
+                        new_bound = {{type}}.zero + max_val - 1
+                        expect_raises IndexError do 
+                            copy = IndexRegion.new(idx_r, [new_bound])
+                        end
                     end
                 end
             end
@@ -267,8 +280,11 @@ macro test_on(type, bound)
             end
 
             it "returns false if the region does not fit in shape" do 
-                new_bound = {{type}}.zero + {v[:first], v[:last]}.max - 1
-                IndexRegion.new([r],[{{bound}}]).fits_in?([new_bound]).should be_false
+                max_val = {v[:first], v[:last]}.max
+                if max_val > 0
+                    new_bound = {{type}}.zero + max_val - 1
+                    IndexRegion.new([r],[{{bound}}]).fits_in?([new_bound]).should be_false
+                end
             end
         end
     end
@@ -331,7 +347,7 @@ describe "Phase::IndexRegion" do
     end
 
     context "(UInt8)" do
-        test_on(Int32, bound.to_u8)
+        test_on(UInt8, bound.to_u8)
     end
 
     context "(BigInt)" do 
