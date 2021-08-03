@@ -4,6 +4,8 @@ module Phase
     @last : Array(T)
     getter size : BigInt
 
+    getter coord = [] of T
+
     def self.cover(shape : Shape)
       new(IndexRegion.cover(shape))
     end
@@ -13,9 +15,6 @@ module Phase
     end
 
     protected def initialize(@first, @last, @step, @size)
-      # TODO: When crystal 1.1.0 comes out, move the @coord initializer up to `getter coord = [] of T`.
-      # this is a known bug
-      @coord = [] of T
       @empty = @size == 0
       reset
     end

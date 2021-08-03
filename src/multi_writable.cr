@@ -1,6 +1,6 @@
 module Phase
   module MultiWritable(T)
-    # TODO: discuss: should mutators explicitly return the object itself, for chaining purposes?
+    # DISCUSS: should mutators explicitly return the object itself, for chaining purposes?
 
     # For performance gains, we recommend the user to consider overriding the following methods when including MultiWritable(T):
     # - `#unsafe_set_element` - while behaviour is identical to setting a one-element region, there may be optimizations for setting a single element.

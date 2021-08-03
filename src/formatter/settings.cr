@@ -43,7 +43,7 @@ module Phase::MultiIndexable
       # TODO: document properly once this is set in stone
       # tries to read from PHASE_CONFIG_DIR - if the file isn't there,
       # reads from XDG_CONFIG_DIR/phase. if still not there, tries ~/.config
-      # TODO: Better error message for failed read
+      # BETTER_ERROR: Better error message for failed read
       def self.user_settings : self?
         return nil if @@disable_user_settings
         return @@cached_user_settings if @@cached_user_settings

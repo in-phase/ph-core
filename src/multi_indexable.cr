@@ -284,7 +284,7 @@ module Phase
     end
 
     # Copies the elements in `region` to a new `{{@type}}`, assuming that `region` is in canonical form and in-bounds for this `{{@type}}`.
-    # For full specification of canonical form see `RegionHelpers` documentation. TODO: make this actually happen
+    # For full specification of canonical form see `IndexRegion` documentation.
     def unsafe_fetch_chunk(region : IndexRegion)
       NArray.build(region.shape) do |coord|
         unsafe_fetch_element(region.local_to_absolute_unsafe(coord))
@@ -293,7 +293,7 @@ module Phase
 
     # Copies the elements in `region` to a new `{{@type}}`, and throws an error if `region` is out-of-bounds for this `{{@type}}`.
     def get_chunk(region : IndexRegion) : MultiIndexable(T)
-      # TODO: Write good error messages
+      # BETTER_ERROR
       raise DimensionError.new if region.proper_dimensions != dimensions
       raise ShapeError.new unless region.fits_in?(shape_internal)
       unsafe_fetch_chunk(region)
@@ -413,9 +413,6 @@ module Phase
       ElemIterator.of(self)
     end
 
-    # # TODO: Each methods should exist that allow:
-    # # - Some way to handle slice iteration? (how do we pass in the axis? etc)
-
     def each_slice(axis = 0) : Iterator
       chunk_shape = shape
       chunk_shape[axis] = 1
@@ -468,7 +465,6 @@ module Phase
     end
 
     def view(region : Indexable? | IndexRegion = nil) : View(self, T)
-      # TODO: Try to infer T from B?
       View.of(self, region)
     end
 

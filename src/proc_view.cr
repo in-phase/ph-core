@@ -2,7 +2,7 @@ module Phase
   class ProcView(S, T, R) < ReadonlyView(S, R)
     @proc : Proc(T, R)
 
-    # # TODO: document
+    # DOCUMENT
     def self.of(src : S, proc : (T -> R)) : ProcView(S, T, R) forall T, R
       {% begin %}
                 {% unless S < MultiIndexable(T) %}

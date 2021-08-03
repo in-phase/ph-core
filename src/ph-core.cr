@@ -33,7 +33,7 @@ require "./formatter/formatter.cr"
 
 require "./patches/*"
 
-# TODO: Write documentation for `Phase::Core`
+# DOCUMENT: Write documentation for `Phase::Core`
 module Phase
   VERSION = "0.1.0"
 end
