@@ -89,6 +89,11 @@ module Phase
     # If this `MultiIndexable` is a scalar (see `#scalar?`), `to_scalar` will
     # return the sole element that it contains. This method will raise a
     # `ShapeError` if `self.scalar?` returns `false`.
+    #
+    # ```crystal
+    # NArray.new(['a']).to_scalar # => 'a'
+    # NArray.new([['a', 'b'], ['c', 'd']]).to_scalar # raises ShapeError
+    # ```
     def to_scalar : T
       if scalar?
         first
@@ -98,6 +103,11 @@ module Phase
     end
 
     # Identical to `#to_scalar`, but returns `nil` in case of an error.
+    #
+    # ```crystal
+    # NArray.new(['a']).to_scalar # => 'a'
+    # NArray.new([['a', 'b'], ['c', 'd']]).to_scalar # => nil
+    # ```
     def to_scalar? : T?
       return first if scalar?
       false
@@ -106,6 +116,12 @@ module Phase
     # Returns `to_scalar.to_f`.
     # This method allows single-element MultiIndexables to be treated like
     # numerics in many cases.
+    #
+    # ```crystal
+    # NArray.new([[0.5f32]]).to_f # => 0.5
+    # NArray.new([[1], [2]]).to_f # raises ShapeError
+    # NArray.new(["test"]).to_f # will not compile, as String has no #to_f method.
+    # ```
     def to_f : Float
       to_scalar.to_f
     end
