@@ -6,50 +6,89 @@ module Phase
   # The `MultiIndexable` module provides a unified interface for multidimensional
   # array types, much like how `Indexable` provides a standard corpus of methods for
   # one-dimensional collections.
+  #
+  # Implementing `MultiIndexable` will require that you provide a `#shape` and `#unsafe_fetch_element`
+  # method, however this is the bare minimum. For a performant implementation, you should consider
+  # overriding `#unsafe_fetch_chunk`, `#fast`, and `#size` in that order of importance (and more as you see fit).
   module MultiIndexable(T)
-    # add search, traversal methods
+    # provides search, traversal methods
     include Enumerable(T)
 
+    # :nodoc:
+    # Dictates whether `Phase` removes (drops) axes that are indexed by an
+    # integer literal.  For example, given a 3x3 identity matrix, `mat[0, ..]`
+    # will be either the matrix slice `[[1, 0, 0]]` (drop disabled by default)
+    # or the vector `[1, 0, 0]` (dropping enabled).  See `IndexRegion#new`
+    # (anything accepting `region_literal`) for more information about this
+    # behaviour.
     DROP_BY_DEFAULT = true
 
+    # TODO: remove this comment block
     # Please consider overriding:
     # -fast: for performance
     # -transform functions: reshape, permute, reverse; for performance
     # -unsafe_fetch_chunk: for performance and return type (defaults to NArray)
     # -size: if you can precompute size or get it via a buffer size, it's a big performance boost
 
-    # Returns the length of the `{{@type}}` in each dimension.
-    # For a `coord` to specify an element of the `{{@type}}` it must satisfy `coord[i] < shape[i]` for each `i`.
+    # Returns the capacity of each axis spanned by `self`.
+    # For example, a matrix with 4 rows and 2 columns will have the shape
+    # [4, 2]. This must always return a clone of the actual shape, and is
+    # safe to mutate without affecting the MultiIndexable.
     abstract def shape : Array
 
-    # Retrieves the element specified by `coord`, assuming that `coord` is in canonical form and in-bounds for this `{{@type}}`.
-    # For full specification of canonical form see `RegionHelpers` documentation. TODO: make this actually happen
+    # Returns the element at the provided *coord*, without canonicalizing or bounds-checking it.
+    # This method cannot be used with negative coordinates, and is not safe
+    # unless you are certain your coordinate is already canonicalized.
     abstract def unsafe_fetch_element(coord : Coord) : T
 
+    # By default, this is an alias of `shape` - however, `MultiIndexable` will
+    # never mutate it, so it's safe to override this so that it returns a direct
+    # reference to a shape variable. Doing so will make most operations faster,
+    # because `shape` performs an often useless clone for safety.
+    #
+    # You do not have to override this method, but unless you have a very strange
+    # use case, you almost certainly should.
     protected def shape_internal : Shape
-      # NOTE: Some implementations might not have a well defined @shape, but
-      # instead generate it with a function. We leave shape_internal to be
-      # overridden with @shape for a small performance boost if the implementer
-      # offers that.
       shape
     end
 
-    # Returns the number of elements in the `{{@type}}`; generally equal to `shape.product`.
+    # Returns the total number of elements in this `MultiIndexable`.
+    # This quantity is always equal to `shape.product`. However, this method is
+    # almost always more performant than computing the product directly.
+    #
+    # ```crystal
+    # NArray.new(['a', 'b', 'c']).size # => 3
+    # NArray.new([[0, 1], [1, 0]]).size # => 4
+    # ```
     def size
       shape_internal.product
     end
 
-    # Checks that the `{{@type}}` contains no elements.
+    # Returns `true` if and only if this `MultiIndexable` spans no elements.
+    #
+    # ```crystal
+    # NArray.new([1, 2, 3]).empty? # => false
+    # NArray.new([]).empty? # => true
+    # ```
     def empty? : Bool
       size == 0
     end
 
-    # Checks that this `{{@type}}` is one-dimensional, and contains a single element.
+    # Returns `true` if this `MultiIndexable` contains only a single element.
+    # 
+    # ```crystal
+    # NArray.new([1]).scalar? # => true
+    # NArray.new([1, 2]).scalar? # => false
+    # NArray.new([[1]]).scalar? # => true
+    # NArray.new([]).scalar? # => false
+    # ```
     def scalar? : Bool
       size == 1
     end
 
-    # Maps a single-element 1D `{{@type}}` to the element it contains.
+    # If this `MultiIndexable` is a scalar (see `#scalar?`), `to_scalar` will
+    # return the sole element that it contains. This method will raise a
+    # `ShapeError` if `self.scalar?` returns `false`.
     def to_scalar : T
       if scalar?
         first
@@ -58,16 +97,31 @@ module Phase
       end
     end
 
+    # Identical to `#to_scalar`, but returns `nil` in case of an error.
     def to_scalar? : T?
       return first if scalar?
       false
     end
 
+    # Returns `to_scalar.to_f`.
+    # This method allows single-element MultiIndexables to be treated like
+    # numerics in many cases.
     def to_f : Float
       to_scalar.to_f
     end
 
-    # Returns the element at position `0` along every axis.
+    # Returns the element at the zero coordinate (position `0` along every axis).
+    # For example:
+    #
+    # ```crystal
+    # # create the following matrix:
+    # # [5 2]
+    # # [8 3]
+    # narr = NArray.new([[5, 2], [8, 3]])
+    # 
+    # # extract the top-left element (coordinate [0, 0])
+    # narr.first # => 5
+    # ```
     def first : T
       if size == 0
         raise IndexError.new("{{@type}} has zero elements (shape: #{shape_internal}).")
@@ -188,7 +242,7 @@ module Phase
     {% begin %}
       {% functions_with_drop = %w(get_chunk get_available [] []?) %}
       {% for name in functions_with_drop %}
-          # Tuple-accepting overload of `#{{name}}`.
+          # Tuple-accepting overload of `#{{name.id}}`.
           def {{name.id}}(*tuple, drop : Bool = MultiIndexable::DROP_BY_DEFAULT)
             self.{{name.id}}(tuple, drop)
           end
@@ -196,7 +250,7 @@ module Phase
 
       {% functions_without_drop = %w(get get_element has_coord? has_region?) %}
       {% for name in functions_without_drop %}
-          # Tuple-accepting overload of `#{{name}}`.
+          # Tuple-accepting overload of `#{{name.id}}`.
           def {{name.id}}(*tuple)
             self.{{name.id}}(tuple)
           end
@@ -267,7 +321,7 @@ module Phase
     end
 
     {% for name in %w(each each_coord each_with_coord fast) %}
-      # Block accepting form of {{name}}.
+      # Block accepting form of `#{{name.id}}`.
       def {{name.id}}(&block) : Nil
         {{name.id}}.each {|arg| yield arg}
       end
