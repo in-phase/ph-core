@@ -11,7 +11,7 @@ module Phase
 
     # getter size : Int32
     # TODO: iter inputs, etc
-    def self.new(src_shape : Indexable(I), chunk_shape = nil, strides = nil, degeneracy = nil,
+    def self.new(src_shape : Shape(I), chunk_shape : Shape(I), strides : Coord? = nil, degeneracy = nil,
                  fringe_behaviour : FringeBehaviour = FringeBehaviour::DISCARD, &block : IndexRegion(I) -> CoordIterator(I))
       # convert strides into an iterable region
       strides ||= chunk_shape
@@ -26,7 +26,7 @@ module Phase
       new(src_shape, chunk_shape, coord_iter, degeneracy, fringe_behaviour)
     end
 
-    def self.new(src_shape : Indexable(I), chunk_shape, strides = nil, degeneracy = nil,
+    def self.new(src_shape : Indexable(I), chunk_shape : Shape(I), strides : Coord? = nil, degeneracy = nil,
                  fringe_behaviour : FringeBehaviour = FringeBehaviour::DISCARD)
       new(src_shape, chunk_shape, strides, degeneracy, fringe_behaviour) do |region|
         LexIterator.new(region)
@@ -96,7 +96,7 @@ module Phase
       end
     end
 
-    protected def compute_region(coord)
+    protected def compute_region(coord : Coord)
       region = IndexRegion.cover(@chunk_shape, drop: true, degeneracy: @degeneracy.clone)
       region.translate!(coord)
 
@@ -118,7 +118,7 @@ module Phase
     end
 
     def unsafe_next
-      compute_region(@coord_iter.next)
+      compute_region(@coord_iter.unsafe_next)
     end
 
     def reset

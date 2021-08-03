@@ -46,6 +46,10 @@ module Phase
     # Throws an `IndexError` if at least one index specified in `coord` is out of range for the
     # corresponding axis of `shape`.
     def canonicalize_coord(coord, shape) : Coord
+      if coord.size != shape.size
+        raise DimensionError.new("Could not canonicalize coordinate #{coord} to fit in shape #{shape}: shape has #{shape.size} dimensions, while coord has #{coord.size}.")
+      end
+
       coord.to_a.map_with_index { |index, axis| canonicalize_index(index, shape, axis).to_i32 }
     end
   end

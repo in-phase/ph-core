@@ -14,7 +14,7 @@ test_shape = [3, 4]
 test_buffer = Slice[1, 2, 3, 4, 'a', 'b', 'c', 'd', 1f64, 2f64, 3f64, 4f64]
 r_narr = uninitialized RONArray(Int32 | Char | Float64)
 
-test_slices = [[[1, 'a', 1f64], [2, 'b', 2f64], [3, 'c', 3f64], [4, 'd', 4f64]], [[1, 2, 3, 4], ['a', 'b', 'c', 'd'], [1f64, 2f64, 3f64, 4f64]]]
+test_slices = [[[1, 2, 3, 4], ['a', 'b', 'c', 'd'], [1f64, 2f64, 3f64, 4f64]], [[1, 'a', 1f64], [2, 'b', 2f64], [3, 'c', 3f64], [4, 'd', 4f64]]]
 
 Spec.before_each do
   r_narr = RONArray.new(test_shape, test_buffer)
@@ -55,6 +55,26 @@ macro test_get_element(method)
       end
     end
   end
+
+  it "raises for coordinates with too many dimensions" do
+    expect_raises(DimensionError) do
+      r_narr.{{method.id}}([1, 1, 1, 1, 1])
+    end
+
+    expect_raises(DimensionError) do
+      r_narr.{{method.id}}(1, 1, 1, 1, 1)
+    end
+  end
+
+  it "raises for coordinates with too few dimensions" do
+    expect_raises(DimensionError) do
+      r_narr.{{method.id}}([1])
+    end
+
+    expect_raises(DimensionError) do
+      r_narr.{{method.id}}(1)
+    end
+  end
 end
 
 # get_chunk and [] are aliases, so this prevents testing redundancy.
@@ -90,30 +110,28 @@ macro test_get_chunk(method)
 end
 
 # this method allows 
-def compare_slices(expected, actual, axis)
-  # e_s = expected.size
-  # a_s = actual.size
-  # e_s.should(eq(a_s), "number of slices (#{a_s}) was different than expected (#{e_s})")
+def compare_slices(expected, result, axis)
+  e_s = expected.size
+  r_s = result.size
+  e_s.should(eq(r_s), "number of slices computed (#{r_s}) was different than the number expected (#{e_s}) (slice axis = #{axis})")
 
   expected.each_with_index do |el, idx|
-    actual_el = actual[idx].to_a
-    puts actual_el
-    actual_el.should(eq(el.to_a), "expected slice #{el.to_a} did not match #{actual_el} (slice axis = #{axis})")
-    exit
+    result_el = result[idx].to_a
+    result_el.should(eq(el.to_a), "computed slice #{result_el.to_a} does not match the expected value #{el} (slice axis = #{axis})")
   end
 end
 
 # each_slice and slices return the same data, but each_slice is just in iterator form.
 # this method is used to test both.
 macro test_each_slice(method)
-
-  it "returns the row collection by default" do
-    compare_slices(r_narr.{{method.id}}.to_a, test_slices[0], 0)
+  it "returns the axis 0 slices by default" do
+    compare_slices(test_slices[0], r_narr.{{method.id}}.to_a, 0)
   end
 
   it "returns the correct slices along all axes" do
     r_narr.dimensions.times do |axis|
-      compare_slices(r_narr.{{method.id}}(axis).to_a, test_slices[axis], axis)
+      slices = r_narr.{{method.id}}(axis: axis).to_a
+      compare_slices(test_slices[axis], slices, axis)
     end
   end
 end
@@ -486,15 +504,15 @@ describe Phase::MultiIndexable do
     end
   end
 
-  pending "#each_slice" do
+  describe "#each_slice" do
     test_each_slice(:each_slice)
 
     it "works with a block" do
       r_narr.dimensions.times do |axis|
-        slices = [] of Array(typeof(r_narr.sample))
+        slices = [] of MultiIndexable(typeof(r_narr.sample))
 
         r_narr.each_slice(axis) do |slice|
-          slices << slice
+          slices.push(slice)
         end
 
         compare_slices(test_slices[axis], slices, axis)
@@ -502,7 +520,7 @@ describe Phase::MultiIndexable do
     end
   end
 
-  pending "#slices" do
+  describe "#slices" do
     test_each_slice(:slices)
   end
 
@@ -530,25 +548,30 @@ describe Phase::MultiIndexable do
 
       pointerof(narr.@buffer).should_not(eq(pointerof(r_narr.@buffer)), "buffer was not safely duplicated")
 
-      narr.equals?(r_narr).should(be_true, "data was not equivalent")
+      narr.equals?(r_narr) { |x, y| x == y }.should(be_true, "data was not equivalent")
     end
   end
 
   describe "#equals?" do
     it "returns true for equivalent MultiIndexables" do
       copy_narr = RONArray.new(test_shape.clone, test_buffer.clone)
-      r_narr.equals?(copy_narr).should be_true
+      r_narr.should eq copy_narr
     end
 
     it "returns false for MultiIndexables with the same elements in a different shape" do
       other_narr = RONArray.new([test_shape[0], 1, 1, test_shape[1]], test_buffer.clone)
-      r_narr.equals?(other_narr).should be_false
+      r_narr.should_not eq other_narr
     end
 
     it "returns false for MultiIndexables with different elements but the same shape" do
       new_buffer = test_buffer.map &.hash
       other_narr = RONArray.new(test_shape, new_buffer)
-      r_narr.equals?(other_narr).should be_false
+      r_narr.should_not eq other_narr
+    end
+
+    it "returns false for MultiIndexables of a different class" do
+      copy_narr = r_narr.to_narr
+      r_narr.should_not eq copy_narr
     end
   end
 
@@ -570,13 +593,49 @@ describe Phase::MultiIndexable do
     end
   end
 
-  describe "#eq_elem" do
+  describe "#eq" do
+    it "returns an NArray containing elementwise equality with another MultiIndexable" do
+      altered_buffer = Slice[1, 2, "string", 4, 'a', 'b', 9, 'd', 1f64, 2f64, 3f64, 4f64]
+      altered_r_narr = RONArray.new(test_shape, altered_buffer)
+      equality = altered_r_narr.eq(r_narr)
+      equality.@buffer.should eq Slice[true, true, false, true, true, true, false, true, true, true, true, true]
+    end
+
+    it "raises a DimensionError for an NArray of a different shape" do
+      altered_r_narr = RONArray.new([test_buffer.size], test_buffer)
+      expect_raises(DimensionError) do
+        altered_r_narr.eq(r_narr)
+      end
+    end
+
+    it "returns an NArray containing elementwise equality with a scalar" do
+      comparison_el = 'b'
+      expected_buffer = test_buffer.map &.==(comparison_el)
+      r_narr.eq(comparison_el).@buffer.should eq expected_buffer
+    end
   end
 
   describe "#hash" do
+    it "returns different hashes for different MultiIndexables", tags: ["probabilistic"] do
+      h1 = RONArray.new([2, 2], Slice[1, 1, 4, 9]).hash
+      h2 = RONArray.new([2], Slice[3, 4]).hash
+      h1.should_not eq h2
+    end
+
+    it "returns the same hash for identical MultiIndexables" do
+      h1 = RONArray.new([2, 2], Slice[1, 1, 4, 9]).hash
+      h2 = RONArray.new([2, 2], Slice[1, 1, 4, 9]).hash
+      h1.should eq h2
+    end
   end
 
-  pending "#tile" do
+  describe "#tile" do
+    it "tiles a MultiIndexable into a larger NArray" do
+      tile = RONArray.new([2, 2], Slice[1, 0, 0, 1])
+      tiled = tile.tile([2, 3])
+      expected = NArray.new([[1, 0, 1, 0, 1, 0], [0, 1, 0, 1, 0, 1], [1, 0, 1, 0, 1, 0], [0, 1, 0, 1, 0, 1]])
+      tiled.should eq expected
+    end
   end
 
   describe "arithmetic" do
