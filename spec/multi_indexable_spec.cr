@@ -528,25 +528,30 @@ describe Phase::MultiIndexable do
 
       pointerof(narr.@buffer).should_not(eq(pointerof(r_narr.@buffer)), "buffer was not safely duplicated")
 
-      narr.equals?(r_narr).should(be_true, "data was not equivalent")
+      narr.equals?(r_narr) { |x, y| x == y }.should(be_true, "data was not equivalent")
     end
   end
 
   describe "#equals?" do
     it "returns true for equivalent MultiIndexables" do
       copy_narr = RONArray.new(test_shape.clone, test_buffer.clone)
-      r_narr.equals?(copy_narr).should be_true
+      r_narr.should eq copy_narr
     end
 
     it "returns false for MultiIndexables with the same elements in a different shape" do
       other_narr = RONArray.new([test_shape[0], 1, 1, test_shape[1]], test_buffer.clone)
-      r_narr.equals?(other_narr).should be_false
+      r_narr.should_not eq other_narr
     end
 
     it "returns false for MultiIndexables with different elements but the same shape" do
       new_buffer = test_buffer.map &.hash
       other_narr = RONArray.new(test_shape, new_buffer)
-      r_narr.equals?(other_narr).should be_false
+      r_narr.should_not eq other_narr
+    end
+
+    it "returns false for MultiIndexables of a different class" do
+      copy_narr = r_narr.to_narr
+      r_narr.should_not eq copy_narr
     end
   end
 
@@ -591,9 +596,26 @@ describe Phase::MultiIndexable do
   end
 
   describe "#hash" do
+    it "returns different hashes for different MultiIndexables", tags: ["probabilistic"] do
+      h1 = RONArray.new([2, 2], Slice[1, 1, 4, 9]).hash
+      h2 = RONArray.new([2], Slice[3, 4]).hash
+      h1.should_not eq h2
+    end
+
+    it "returns the same hash for identical MultiIndexables" do
+      h1 = RONArray.new([2, 2], Slice[1, 1, 4, 9]).hash
+      h2 = RONArray.new([2, 2], Slice[1, 1, 4, 9]).hash
+      h1.should eq h2
+    end
   end
 
-  pending "#tile" do
+  describe "#tile" do
+    it "tiles a MultiIndexable into a larger NArray" do
+      tile = RONArray.new([2, 2], Slice[1, 0, 0, 1])
+      tiled = tile.tile([2, 3])
+      expected = NArray.new([[1, 0, 1, 0, 1, 0], [0, 1, 0, 1, 0, 1], [1, 0, 1, 0, 1, 0], [0, 1, 0, 1, 0, 1]])
+      tiled.should eq expected
+    end
   end
 
   describe "arithmetic" do

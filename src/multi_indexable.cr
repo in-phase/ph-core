@@ -52,6 +52,24 @@ module Phase
       shape
     end
 
+    # Returns true if both the shape and elements of `self` and *other* are equal.
+    #
+    # ```crystal
+    # NArray.new([1, 2]) == NArray.new([1, 2]) # => true
+    # NArray.new([[1], [2]]) == NArray.new([1, 2]) # => false
+    # NArray.new([8, 2]) == NArray.new([1, 2]) # => false
+    # ```
+    def ==(other : self) : Bool
+      equals?(other) do |this_elem, other_elem|
+        this_elem == other_elem
+      end
+    end
+
+    # :nodoc:
+    def ==(other) : Bool
+      false
+    end
+
     # Returns the total number of elements in this `MultiIndexable`.
     # This quantity is always equal to `shape.product`. However, this method is
     # almost always more performant than computing the product directly.
@@ -349,7 +367,7 @@ module Phase
       end
     {% end %}
 
-    def tile(counts : Enumerable) : self
+    def tile(counts : Enumerable) : MultiIndexable
       NArray.tile(self, counts)
     end
 
@@ -359,17 +377,13 @@ module Phase
       end
     end
 
-    def equals?(other : MultiIndexable) : Bool
-      equals?(other) do |this_elem, other_elem|
-        this_elem == other_elem
-      end
-    end
-
     def equals?(other : MultiIndexable, &block) : Bool
       return false if shape_internal != other.shape_internal
+
       each_with_coord do |elem, coord|
         return false unless yield(elem, other.unsafe_fetch_element(coord))
       end
+
       true
     end
 
@@ -411,7 +425,7 @@ module Phase
     def hash(hasher)
       hasher = shape_internal.hash(hasher)
       each do |el|
-        hasher = elem.hash(hasher)
+        hasher = el.hash(hasher)
       end
       hasher
     end
