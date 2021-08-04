@@ -55,6 +55,26 @@ macro test_get_element(method)
       end
     end
   end
+
+  it "raises for coordinates with too many dimensions" do
+    expect_raises(DimensionError) do
+      r_narr.{{method.id}}([1, 1, 1, 1, 1])
+    end
+
+    expect_raises(DimensionError) do
+      r_narr.{{method.id}}(1, 1, 1, 1, 1)
+    end
+  end
+
+  it "raises for coordinates with too few dimensions" do
+    expect_raises(DimensionError) do
+      r_narr.{{method.id}}([1])
+    end
+
+    expect_raises(DimensionError) do
+      r_narr.{{method.id}}(1)
+    end
+  end
 end
 
 # get_chunk and [] are aliases, so this prevents testing redundancy.

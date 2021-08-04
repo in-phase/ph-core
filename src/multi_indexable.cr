@@ -3,13 +3,16 @@ module Phase
   # - length along every axis is finite and positive, and each element is positively indexed
   # - size is stored as an Int32, i.e. there are no more than Int32::MAX elements.
 
-  # The `MultiIndexable` module provides a unified interface for multidimensional
-  # array types, much like how `Indexable` provides a standard corpus of methods for
-  # one-dimensional collections.
+  # The `MultiIndexable` module provides a unified interface for
+  # multidimensional array types, much like how `Indexable` provides a standard
+  # corpus of methods for one-dimensional collections.
   #
-  # Implementing `MultiIndexable` will require that you provide a `#shape` and `#unsafe_fetch_element`
-  # method, however this is the bare minimum. For a performant implementation, you should consider
-  # overriding `#unsafe_fetch_chunk`, `#fast`, and `#size` in that order of importance (and more as you see fit).
+  # ### How to Implement a `MultiIndexable`
+  # Implementing `MultiIndexable` will require that you provide a `#shape` and
+  # `#unsafe_fetch_element` method, however this is the bare minimum. For a
+  # performant implementation, you should consider overriding
+  # `#unsafe_fetch_chunk`, `#fast`, and `#size` in that order of importance
+  # (and more as you see fit).
   module MultiIndexable(T)
     # provides search, traversal methods
     include Enumerable(T)
@@ -164,8 +167,21 @@ module Phase
       get_element(Array.new(shape_internal.size, 0))
     end
 
-    # Returns a random element from the `{{@type}}`. Note that this might not return
-    # distinct elements if the random number generator returns the same coordinate twice.
+    # Returns a random element from the `{{@type}}`. Note that this might not
+    # return distinct elements if the random number generator returns the same
+    # coordinate twice.
+
+    # Returns a collection of *n* elements picked at random from this
+    # MultiIndexable.  This method works by randomly generating coordinates and
+    # returning the elements at those coordinates. There is no guarantee that
+    # the coordinates generated will be distinct from one another.
+    #
+    # ```crystal
+    # NArray.new([[1, 2], [3, 4]]).sample(5) # => Enumerable(Int32)
+    # NArray.new([[1, 2], [3, 4]]).sample(5).to_a # => [4, 2, 4, 3, 2]
+    # NArray.new([[1, 2], [3, 4]]).sample(5).to_a # => [1, 3, 2, 4, 1]
+    # NArray.new([[1, 2], [3, 4]]).sample(5).to_a # => [2, 3, 1, 1, 3]
+    # ```
     def sample(n : Int, random = Random::DEFAULT) : Enumerable(T)
       if n < 0
         raise ArgumentError.new("Can't sample a negative number of elements. (n = #{n}, which is negative)")
@@ -174,18 +190,52 @@ module Phase
       Array(T).new(n) { sample(random) }
     end
 
-    # Returns a random element from the `{{@type}}`.
+    # Returns an element picked at random from this `MultiIndexable`.
+    #
+    # ```crystal
+    # NArray.new([[1, 2], [3, 4]]).sample # => 3
+    # NArray.new([[1, 2], [3, 4]]).sample # => 1
+    # NArray.new([[1, 2], [3, 4]]).sample # => 2
+    # ```
     def sample(random = Random::DEFAULT) : T
       raise ShapeError.new("Can't sample empty collection. (shape: #{shape_internal})") if empty?
       unsafe_fetch_element(shape_internal.map { |dim| random.rand(dim) })
     end
 
-    # Returns the number of indices required to specify an element in `{{@type}}`.
+    # Returns the number of dimensions that this MultiIndexable is embedded in.
+    # This can equally be seen by the number of indices required to uniquely
+    # specify a coordinate into this `MultiIndexable`, and is always equal to
+    # `shape.size`
+    #
+    # ```crystal
+    # NArray.new([1, 2]).dimensions # => 1
+    # NArray.new([[1, 2], [3, 4]]).dimensions # => 2
+    # NArray.new([[[1]]]).dimensions # => 3
+    # ```
     def dimensions : Int
       shape_internal.size
     end
 
-    # Checks that `coord` is in-bounds for this `{{@type}}`.
+    # Returns true if *coord* is a valid coordinate in this `MultiIndexable`.
+    # Any coordinate for which `#has_coord?` returns `true` can be used in
+    # `#get`. A coordinate for which `#has_coord?` returns `false` is out of
+    # bounds.
+    #
+    # ```crystal
+    # # creates the following matrix:
+    # # [1 2 3]
+    # # [4 5 6]
+    # narr = NArray.build([2, 3]) { |_, idx| idx + 1 }
+    #
+    # narr.has_coord?([0, 0]) # => true
+    # narr.get([0, 0]) # => 1
+    #
+    # narr.has_coord?([-2, 1]) # => true
+    # narr.get(-2, 1) # => 2
+    #
+    # narr.has_coord?([-2]) # => true
+    # narr.get(-2) # => DimensionError
+    # ```
     def has_coord?(coord : Indexable) : Bool
       CoordUtil.has_coord?(coord, shape_internal)
     end
