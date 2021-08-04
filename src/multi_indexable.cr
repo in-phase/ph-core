@@ -240,14 +240,44 @@ module Phase
       CoordUtil.has_coord?(coord, shape_internal)
     end
 
-    # Checks that the `IndexRegion` *region* is in-bounds for this `{{@type}}`.
+    # IndexRegion accepting form of `#has_region?(region_literal)`
     def has_region?(region : IndexRegion) : Bool
       region.fits_in?(shape_internal)
     end
 
-    # Checks that *region* is in-bounds for this `{{@type}}`.
-    def has_region?(region : Indexable) : Bool
-      IndexRegion.new(region, shape_internal)
+    # Returns true if all the coordinates spanned by *region_literal* are valid coordiantes in this `MultiIndexable`.
+    # In a more geometric sense, an `IndexRegion` can be considered as a lattice
+    # of points (coordinates), and `#shape` can be considered as a bounding box
+    # for those coordinates. If every coordinate within *region* (each point
+    # on that lattice) is inside of the bounding box, then `#has_region` will
+    # return true.
+    #
+    # ```crystal
+    # narr = NArray.build([10, 3]) { |_, idx| idx }
+    # 
+    # # First, we'll make an IndexRegion that fits in the above. This IndexRegion
+    # # contains all coordinates with a row equal to 2, 3, or 4, and a column
+    # # equal to 0, 1, or 2.
+    # valid = [2..4, 0...3]
+    # 
+    # # narr has 10 rows and 3 columns, so that region is definitely
+    # # contained in it.
+    # narr.has_region?(valid) # => true
+    # 
+    # # now, we can use that IndexRegion safely.
+    # LexIterator(Int32).new(valid).each do |coord|
+    #   narr.unsafe_fetch_element(coord) # this is definitely defined!
+    # end
+    # 
+    # # Now we'll create an IndexRegion that's way too big for narr:
+    # invalid = [100, 2..8]
+    # narr.has_region?(invalid) # => false
+    # 
+    # # The region doesn't fit - so:
+    # narr.get_chunk(invalid) # => raises an IndexError
+    # ```
+    def has_region?(region_literal : Indexable) : Bool
+      IndexRegion.new(region_literal, shape_internal)
       true
     rescue ex : IndexError
       false
