@@ -178,9 +178,9 @@ module Phase
     #
     # ```crystal
     # NArray.new([[1, 2], [3, 4]]).sample(5) # => Enumerable(Int32)
-    # NArray.new([[1, 2], [3, 4]]).sample(5).to_a # => [4, 2, 4, 3, 2]
-    # NArray.new([[1, 2], [3, 4]]).sample(5).to_a # => [1, 3, 2, 4, 1]
-    # NArray.new([[1, 2], [3, 4]]).sample(5).to_a # => [2, 3, 1, 1, 3]
+    # NArray.new([[1, 2], [3, 4]]).sample(5).to_a # => NArray[4, 2, 4, 3, 2]
+    # NArray.new([[1, 2], [3, 4]]).sample(5).to_a # => NArray[1, 3, 2, 4, 1]
+    # NArray.new([[1, 2], [3, 4]]).sample(5).to_a # => NArray[2, 3, 1, 1, 3]
     # ```
     def sample(n : Int, random = Random::DEFAULT) : Enumerable(T)
       if n < 0
@@ -320,6 +320,26 @@ module Phase
     # an improper number of dimensions) or a `ShapeError` (in the case where
     # the number of dimensions is correct, but the region is not meaningful
     # for this MultiIndexable's shape.
+    #
+    # ```crystal
+    # narr = NArray.new([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
+    # 
+    # # Select only the first row:
+    # narr.get_chunk([0]) # => NArray[1, 2, 3]
+    # 
+    # # Select only the first column:
+    # narr.get_chunk([.., 0]) # => NArray[1, 2, 3]
+    # 
+    # # Select only the first column, without dropping dimensions:
+    # narr.get_chunk([.., 0], drop: false) # => NArray[[1], [2], [3]]
+    # 
+    # # Equivalently to the above, using anything other than an integer will bypass
+    # # dropping:
+    # narr.get_chunk([.., 0..0]) # => NArray[[1], [2], [3]]
+    # 
+    # # Select only elements from both even-numbered rows and columns:
+    # narr.get_chunk([0..2.., 0..2..]) # => NArray[[1, 3], [7, 9]]
+    # ```
     def get_chunk(region_literal : Indexable, drop : Bool = DROP_BY_DEFAULT)
       unsafe_fetch_chunk IndexRegion.new(region_literal, shape_internal, drop)
     end
