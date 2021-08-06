@@ -5,9 +5,6 @@
 module Phase
   class NArray(T)
     module BufferUtil
-      # TODO: decide
-      # move coord_to_index/index_to_coord here? at least static versions?
-      # move out of NArray? To own namespace?
 
       # Given an array of step sizes in each coordinate axis, returns the offset in the buffer
       # that a step of that size represents.
@@ -29,7 +26,6 @@ module Phase
         {{@type}}.coord_to_index_fast(coord, @shape, @axis_strides)
       end
 
-      # TODO: Talk about what this should be named
       def self.coord_to_index(coord, shape) : Int
         coord = CoordUtil.canonicalize_coord(coord, shape)
         steps = axis_strides(shape)
@@ -144,7 +140,6 @@ module Phase
         end
       end
 
-      # TODO: Make generic coord
       # TODO: this should probably have S be a type parameter because it
       # doesn't actually work for all MultiIndexables
       class BufferedECIterator(T, I) < ElemAndCoordIterator(T, I)
@@ -171,7 +166,7 @@ module Phase
           if (src = @src).responds_to?(:buffer)
             src.buffer.unsafe_fetch(@coord_iter.unsafe_as(IndexedCoordIterator(I)).current_index)
           else
-            # TODO
+            # BETTER_ERROR
             raise "bad error"
           end
         end

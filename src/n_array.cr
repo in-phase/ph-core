@@ -52,8 +52,7 @@ module Phase
     # Creates an `{{@type}}` out of a shape and a pre-populated buffer.
     # Frequently used internally (for example, this is used in
     # `reshape` as of Feb 5th 2021).
-    # TODO: Should be protected, had to remove for testing
-    def initialize(shape, @buffer : Slice(T))
+    protected def initialize(shape, @buffer : Slice(T))
       if shape.product != @buffer.size
         raise ArgumentError.new("Cannot create {{@type}}: Given shape does not match number of elements in buffer.")
       end
@@ -343,14 +342,14 @@ module Phase
     end
 
     # Copies the elements in `region` to a new `{{@type}}`, assuming that `region` is in canonical form and in-bounds for this `{{@type}}`.
-    # For full specification of canonical form see `RegionHelpers` documentation. TODO: make this actually happen
+    # For full specification of canonical form see `IndexRegion` documentation.
     def unsafe_fetch_chunk(region : IndexRegion)
       iter = BufferedECIterator.new(self, IndexedLexIterator.new(region, @shape))
       typeof(self).new(region.shape) { iter.unsafe_next_value }
     end
 
     # Retrieves the element specified by `coord`, assuming that `coord` is in canonical form and in-bounds for this `{{@type}}`.
-    # For full specification of canonical form see `RegionHelpers` documentation. TODO: make this actually happen
+    # For full specification of canonical form see `IndexRegion` documentation.
     def unsafe_fetch_element(coord) : T
       @buffer.unsafe_fetch(BufferUtil.coord_to_index_fast(coord, @shape, @axis_strides))
     end
@@ -362,7 +361,7 @@ module Phase
     # invoke `#to_scalar`.
     # TODO: Either make the type restriction here go away (it was getting called when indexing
     # with a single range), or remove this method entirely in favor of read only views
-    def [](index : Int32) : self
+    def [](index : Int) : self
       index = CoordUtil.canonicalize_index(index, @shape, axis = 0)
 
       if dimensions == 1

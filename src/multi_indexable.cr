@@ -433,9 +433,6 @@ module Phase
       ElemIterator.of(self)
     end
 
-    # # TODO: Each methods should exist that allow:
-    # # - Some way to handle slice iteration? (how do we pass in the axis? etc)
-
     def each_slice(axis = 0) : Iterator
       chunk_shape = shape
       chunk_shape[axis] = 1
@@ -488,7 +485,6 @@ module Phase
     end
 
     def view(region : Indexable? | IndexRegion = nil) : View(self, T)
-      # TODO: Try to infer T from B?
       View.of(self, region)
     end
 

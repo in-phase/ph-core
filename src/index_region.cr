@@ -123,6 +123,7 @@ module Phase
       region_literal.each_with_index do |range, i|
         RangeSyntax.ensure_nonnegative(range)
         if !RangeSyntax.bounded?(range)
+          # BETTER_ERROR
           raise "Cannot create IndexRegion without an explicit upper bound unless you provide a bounding shape"
         end
 
@@ -201,8 +202,8 @@ module Phase
       new_first = local_to_absolute_unsafe(region.first)
       new_last = local_to_absolute_unsafe(region.last)
 
-      new_step = @step.zip(region.step).map do |outer, inner|
-        outer * inner
+      new_step = @step.map_with_index do |outer_step, i|
+        outer_step * region.step.unsafe_fetch(i)
       end
       IndexRegion(T).new(new_first, new_step, new_last, region.shape)
     end
@@ -217,27 +218,34 @@ module Phase
     def_clone
 
     def includes?(coord)
-      coord.each_with_index do |value, i|
-        bounds = (@step[i] > 0) ? (@first[i]..@last[i]) : (@last[i]..@first[i])
-        return false unless bounds.includes?(value)
-        return false unless (value - @first[i]) % @step[i] == 0
+      # DISCUSS: DimensionError or return false?
+      return false unless coord.size == proper_dimensions
+      coord.each_with_index do |ord, i|
+        if @step.unsafe_fetch(i) > 0
+          bounds = @first.unsafe_fetch(i)..@last.unsafe_fetch(i)
+        else
+          bounds = @last.unsafe_fetch(i)..@first.unsafe_fetch(i)
+        end
+        return false unless bounds.includes?(ord)
+        return false unless (ord - @first.unsafe_fetch(i)) % @step.unsafe_fetch(i) == 0
       end
       true
     end
 
-    # TODO: check dimensions
-    def fits_in?(bound_shape) : Bool
-      bound_shape.zip(@first, @last).each do |bound, a, b|
-        return false if bound <= {a, b}.max
+    def fits_in?(bound_shape) : Bool 
+      if bound_shape.size != proper_dimensions
+        # DISCUSS: DimensionError or return false?
+        return false
+      end
+      bound_shape.map_with_index do |bound, i|
+        return false if bound <= {@first.unsafe_fetch(i), @last.unsafe_fetch(i)}.max
       end
       true
     end
 
-    # TODO
     def trim!(bound_shape) : self
-      dims = @reduced_shape.size
-
-      if bound_shape.size != dims
+      if bound_shape.size != proper_dimensions
+        # BETTER_ERROR
         raise DimensionError.new("invalid error :)")
       end
 
@@ -296,21 +304,21 @@ module Phase
       get(coord)
     end
 
-    # TODO: in general, maybe use immediate methods rather than zip?
     def local_to_absolute_unsafe(coord)
       if @drop
         local_axis = 0
         degeneracy.map_with_index do |degenerate, i|
           if degenerate
-            @first[i]
+            @first.unsafe_fetch(i)
           else
+            @first.unsafe_fetch(i) + coord.unsafe_fetch(local_axis) * @step.unsafe_fetch(i)
             local_axis += 1
-            @first[i] + coord[local_axis - 1] * @step[i]
           end
         end
       else
-        coord.zip(@first, @step).map do |idx, first, step|
-          first + idx * step
+
+        coord.map_with_index do |ord, i|
+          @first[i] + ord * @step[i]
         end
       end
     end
@@ -323,8 +331,8 @@ module Phase
     end
 
     def absolute_to_local_unsafe(coord)
-      local = coord.zip(@first, @step).map do |idx, first, step|
-        (idx - first) // step
+      local = coord.map_with_index do |ord, i|
+        (ord - @first.unsafe_fetch(i)) // @step.unsafe_fetch(i)
       end
 
       if @drop

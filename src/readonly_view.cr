@@ -52,8 +52,10 @@ module Phase
     end
 
     def reshape!(new_shape) : self
-      # TODO:
-      # check if number of elements is still valid
+      if new_shape.product != @shape.product
+        # BETTER_ERROR
+        raise "number of elements can't change on reshape."
+      end
       @transform.compose!(ReshapeTransform.new(@shape, new_shape))
       @shape = new_shape
       self
