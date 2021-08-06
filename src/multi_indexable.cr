@@ -283,25 +283,45 @@ module Phase
       false
     end
 
-    # Copies the elements in `region` to a new `{{@type}}`, assuming that `region` is in canonical form and in-bounds for this `{{@type}}`.
-    # For full specification of canonical form see `RegionHelpers` documentation. TODO: make this actually happen
-    def unsafe_fetch_chunk(region : IndexRegion)
+    # Copies the elements described by *region* into a new `MultiIndexable` without performing any bounds checking.
+    # Unless you are sure that your *region* will fit inside of this
+    # `MultiIndexable`, you should opt to use `#get_chunk` instead.
+    #
+    # This method may return any `MultiIndexable` - the default implementation
+    # will return an `NArray`, however implementers of other `MultiIndexable`s
+    # are encouraged to override this method where it makes sense to do so.
+    #
+    # This method's usage is identical to `#get_chunk(region : IndexRegion)`,
+    # but it is slightly faster.
+    def unsafe_fetch_chunk(region : IndexRegion) : MultiIndexable(T)
       NArray.build(region.shape) do |coord|
         unsafe_fetch_element(region.local_to_absolute_unsafe(coord))
       end
     end
 
-    # Copies the elements in `region` to a new `{{@type}}`, and throws an error if `region` is out-of-bounds for this `{{@type}}`.
+    # IndexRegion accepting form of `#get_chunk(region_literal : Indexable, drop : Bool)`.
+    # Note that the `IndexRegion` is what controls the dimension dropping behaviour, here.
     def get_chunk(region : IndexRegion) : MultiIndexable(T)
       # TODO: Write good error messages
-      raise DimensionError.new if region.proper_dimensions != dimensions
-      raise ShapeError.new unless region.fits_in?(shape_internal)
+      if region.proper_dimensions != dimensions
+        raise DimensionError.new("'region' was #{region.proper_dimensions}-dimensional, but this MultiIndexable is #{dimensions}-dimensional.")
+      end
+
+      unless region.fits_in?(shape_internal)
+        raise ShapeError.new("'region' (#{region}) cannot fit into a MultiIndexable with shape #{shape}.")
+      end
+
       unsafe_fetch_chunk(region)
     end
 
-    # Copies the elements in `region` to a new `{{@type}}`, and throws an error if `region` is out-of-bounds for this `{{@type}}`.
-    def get_chunk(region : Indexable, drop : Bool = DROP_BY_DEFAULT)
-      unsafe_fetch_chunk IndexRegion.new(region, shape_internal, drop)
+    # Copies the elements described by *region* into a new `MultiIndexable`.
+    # If *region* does not describe a valid region of this `MultiIndexable`,
+    # `#get_chunk` will raise either a `DimensionError` (in the case of
+    # an improper number of dimensions) or a `ShapeError` (in the case where
+    # the number of dimensions is correct, but the region is not meaningful
+    # for this MultiIndexable's shape.
+    def get_chunk(region_literal : Indexable, drop : Bool = DROP_BY_DEFAULT)
+      unsafe_fetch_chunk IndexRegion.new(region_literal, shape_internal, drop)
     end
 
     # "drags out" a region of shape region_shape with coord as the top left corner
