@@ -345,8 +345,42 @@ module Phase
     end
 
     # "drags out" a region of shape region_shape with coord as the top left corner
-    def get_chunk(coord : Indexable, region_shape : Indexable)
-      get_chunk(IndexRegion.new(region_shape).translate!(coord))
+
+    # Extracts a chunk given a shape (*region_shape*) and the *coord* in that region with the smallest value in each axis.
+    #
+    # ```crystal
+    # narr = NArray.new([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
+    # 
+    # narr.get_chunk([1, 1], [2, 2]) # => NArray[[5, 6], [8, 9]]
+    # narr.get_chunk([1, 0], [1, 3]) # => NArray[[4, 5, 6]]
+    # narr.get_chunk([1, 0], [10, 10]) # => ShapeError
+    # narr.get_chunk([0], [1]) # => DimensionError
+    # ```
+    def get_chunk(coord : Indexable, region_shape : Indexable(I)) forall I
+      if coord.size != region_shape.size
+        raise DimensionError.new("'coord' (#{coord}) and 'region_shape' #{region_shape} had a different number of dimensions. Note that you must fully specify your coordinate and region shape for this overload of get_chunk.")
+      end
+
+      if coord.size != dimensions
+        raise DimensionError.new("'coord' (#{coord}) had a different number of dimensions than this MultiIndexable (must have #{dimensions}, but has #{coord.size}).")
+      end
+
+      coord.each_with_index do |c, idx|
+        r = region_shape.unsafe_fetch(idx)
+        if c.negative?
+          raise ArgumentError.new("'coord' #{coord} was negative on axis #{idx}, but must be strictly nonnegative.")
+        end
+
+        if r.negative?
+          raise ArgumentError.new("'region_shape' #{region_shape} was negative on axis #{idx}, but must be strictly nonnegative.")
+        end
+
+        if c + r > shape_internal.unsafe_fetch(idx)
+          raise ShapeError.new("The region defined by shape #{region_shape} and lowermost coordinate #{coord} is not contained within this MultiIndexable on axis #{idx} (this MultiIndexable has #{shape_internal[idx]} elements on axis #{idx}).")
+        end
+      end
+
+      get_chunk(IndexRegion(I).cover(region_shape).translate!(coord))
     end
 
     def get_available(region : IndexRegion, drop : Bool = DROP_BY_DEFAULT)
