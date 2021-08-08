@@ -80,17 +80,53 @@ end
 # get_chunk and [] are aliases, so this prevents testing redundancy.
 macro test_get_chunk(method)
   it "returns a chunk for each valid region" do
-    VALID_REGIONS.each do |region|
-      # Really, all we can test for sensibly is that it doesn't
-      # raise.
-      r_narr.{{method.id}}(region)
+    {true, false}.each do |drop|
+      VALID_REGIONS.each do |region_literal|
+        # All we currently test for is that the shape returned is correct.
+        result = r_narr.{{method.id}}(region_literal, drop: drop)
+
+        # this indexregion is only used to compute the shape of the region.
+        idx_r = IndexRegion.new(region_literal, bound_shape: r_narr.shape, drop: drop)
+        expected_shape = drop ? idx_r.shape : idx_r.@proper_shape
+
+        if result.shape != expected_shape
+          fail <<-ERR
+          Expected shape #{expected_shape}, but got #{result.shape}.
+          drop: #{drop}
+          ERR
+        end
+      end
     end
   end
 
   it "returns a chunk for each valid indexregion" do
+    {true, false}.each do |drop|
+      VALID_REGIONS.each do |region_literal|
+        idx_r = IndexRegion.new(region_literal, bound_shape: r_narr.shape, drop: drop)
+        result = r_narr.{{method.id}}(idx_r)
+        expected_shape = drop ? idx_r.shape : idx_r.@proper_shape
+
+        if result.shape != expected_shape
+          fail <<-ERR
+          Expected shape #{expected_shape}, but got #{result.shape}.
+          drop: #{drop}
+          IndexRegion: #{idx_r.pretty_inspect}
+          ERR
+        end
+      end
+    end
+  end
+
+  pending "does something appropriate when you pass an IndexRegion but also give drop" do
+    # right now, this gives a very confusing error because it gets caught by the tuple
+    # accepting overload of #get_chunk (get_chunk(*tuple, drop)), and then tries
+    # to canonicalize IndexRegion :p
+    #
+    # I propose we either add a get_chunk(_ : IndexRegion, drop : Bool) that either
+    # does { % raise % } or overrides the degeneracy of the IndexRegion.
     VALID_REGIONS.each do |region_literal|
       idx_r = IndexRegion.new(region_literal, r_narr.shape)
-      r_narr.{{method.id}}(idx_r)
+      r_narr.{{method.id}}(idx_r, drop: true)
     end
   end
 
@@ -99,6 +135,29 @@ macro test_get_chunk(method)
     expected = Slice['a', 'c', 1f64, 3f64]
 
     chunk.buffer.size.should eq expected.size
+    chunk.shape.should eq [2, 2]
+
+    chunk.buffer.each_with_index do |value, idx|
+      value.should eq expected[idx]
+    end
+  end
+
+  it "returns the correct output for a simple slice (with dropping)" do
+    chunk = r_narr.{{method.id}}([1, ...], drop: true)
+    expected = Slice['a', 'b', 'c', 'd']
+
+    chunk.shape.should eq [4]
+
+    chunk.buffer.each_with_index do |value, idx|
+      value.should eq expected[idx]
+    end
+  end
+
+  it "returns the correct output for a simple slice (without dropping)" do
+    chunk = r_narr.{{method.id}}([1, ...], drop: false)
+    expected = Slice['a', 'b', 'c', 'd']
+
+    chunk.shape.should eq [1, 4]
 
     chunk.buffer.each_with_index do |value, idx|
       value.should eq expected[idx]
