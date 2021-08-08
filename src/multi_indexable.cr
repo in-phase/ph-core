@@ -295,7 +295,10 @@ module Phase
     # but it is slightly faster.
     def unsafe_fetch_chunk(region : IndexRegion) : MultiIndexable(T)
       NArray.build(region.shape) do |coord|
-        unsafe_fetch_element(region.local_to_absolute_unsafe(coord))
+        el = unsafe_fetch_element(region.local_to_absolute_unsafe(coord))
+        puts coord
+        puts region.local_to_absolute_unsafe(coord)
+        el
       end
     end
 
@@ -406,12 +409,25 @@ module Phase
     end
 
     # Copies the elements in `region` to a new `{{@type}}`, and throws an error if `region` is out-of-bounds for this `{{@type}}`.
-    def [](region : Indexable | IndexRegion, drop : Bool = MultiIndexable::DROP_BY_DEFAULT)
+    def [](region : Indexable, drop : Bool = MultiIndexable::DROP_BY_DEFAULT)
+      get_chunk(region, drop)
+    end
+
+    # Copies the elements in `region` to a new `{{@type}}`, and throws an error if `region` is out-of-bounds for this `{{@type}}`.
+    def [](region : IndexRegion)
       get_chunk(region)
     end
 
     # Copies the elements in `region` to a new `{{@type}}`, or returns false if `region` is out-of-bounds for this `{{@type}}`.
-    def []?(region : Indexable | IndexRegion, drop : Bool = MultiIndexable::DROP_BY_DEFAULT) : MultiIndexable(T)?
+    def []?(region : Indexable, drop : Bool = MultiIndexable::DROP_BY_DEFAULT) : MultiIndexable(T)?
+      if has_region?(region)
+        return get_chunk(region, drop)
+      end
+      nil
+    end
+
+    # Copies the elements in `region` to a new `{{@type}}`, or returns false if `region` is out-of-bounds for this `{{@type}}`.
+    def []?(region : IndexRegion) : MultiIndexable(T)?
       if has_region?(region)
         return get_chunk(region)
       end

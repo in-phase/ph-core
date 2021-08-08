@@ -161,7 +161,7 @@ module Phase
     protected def initialize(@first, @step, @last, @proper_shape : Indexable(T), @drop : Bool, degeneracy : Array(Bool)? = nil)
       @degeneracy = degeneracy || Array(Bool).new(@proper_shape.size, false)
 
-      if degeneracy.nil? || drop
+      if degeneracy.nil? || !drop
         @reduced_shape = @proper_shape.dup
       else
         @reduced_shape = drop_degenerate(@proper_shape) { [T.zero + 1] }
@@ -311,12 +311,11 @@ module Phase
           if degenerate
             @first.unsafe_fetch(i)
           else
-            @first.unsafe_fetch(i) + coord.unsafe_fetch(local_axis) * @step.unsafe_fetch(i)
             local_axis += 1
+            @first.unsafe_fetch(i) + coord.unsafe_fetch(local_axis - 1) * @step.unsafe_fetch(i)
           end
         end
       else
-
         coord.map_with_index do |ord, i|
           @first[i] + ord * @step[i]
         end

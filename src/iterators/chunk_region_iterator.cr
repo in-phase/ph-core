@@ -31,7 +31,7 @@ module Phase
     def next : Stop | Tuple(C, IndexRegion(I))
       case region = @region_iter.next
       in IndexRegion
-        chunk = @src.unsafe_fetch_chunk(region, drop: true).as(C)
+        chunk = @src.unsafe_fetch_chunk(region).as(C)
         {chunk, region}
       in Stop
         stop
