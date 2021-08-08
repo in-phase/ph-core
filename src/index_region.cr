@@ -58,7 +58,7 @@ module Phase
         shape[i] = r[:size]
 
         if range.is_a? Int
-          degeneracy[i] = true
+          degeneracy[i] = drop
         end
       end
 
@@ -88,7 +88,7 @@ module Phase
         shape[i] = r[:size]
 
         if range.is_a? Int
-          degeneracy[i] = true
+          degeneracy[i] = drop
         end
       end
 
