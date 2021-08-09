@@ -431,7 +431,7 @@ describe Phase::MultiIndexable do
     test_get_chunk(:[])
   end
 
-  describe "#[]?" do
+  describe "#[]?(region)" do
     it "returns a chunk for each valid region" do
       VALID_REGIONS.each do |region|
         # All we're testing for here is that it doesn't raise.
@@ -465,6 +465,31 @@ describe Phase::MultiIndexable do
     it "returns nil for invalid regions" do
       INVALID_REGIONS.each do |region_literal|
         r_narr[region_literal]?.should be_nil
+      end
+    end
+  end
+
+  describe "#[]?(mask)" do
+    it "raises a ShapeError for mismatched mask size" do
+      mask_buf = Slice.new(10, false)
+      mask = RONArray.new([10], mask_buf)
+
+      expect_raises ShapeError do
+        r_narr[mask]?
+      end
+    end
+
+    it "returns nil where the mask is false and the copied element where the mask is true" do
+      mask_buf = Slice[true, false, true, false, false, true, false, true, true, false, true, false]
+      mask = RONArray.new(r_narr.shape, mask_buf)
+      masked_copy = r_narr[mask]?
+
+      masked_copy.@buffer.each_with_index do |value, idx|
+        if mask_buf[idx]
+          value.should eq test_buffer[idx]
+        else
+          value.should eq nil
+        end
       end
     end
   end

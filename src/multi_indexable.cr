@@ -295,15 +295,12 @@ module Phase
     # but it is slightly faster.
     def unsafe_fetch_chunk(region : IndexRegion) : MultiIndexable(T)
       NArray.build(region.shape) do |coord|
-        el = unsafe_fetch_element(region.local_to_absolute_unsafe(coord))
-        puts coord
-        puts region.local_to_absolute_unsafe(coord)
-        el
+        unsafe_fetch_element(region.local_to_absolute_unsafe(coord))
       end
     end
 
-    # IndexRegion accepting form of `#get_chunk(region_literal : Indexable, drop : Bool)`.
-    # Note that the `IndexRegion` is what controls the dimension dropping behaviour, here.
+    # `IndexRegion` accepting form of `#get_chunk(region_literal : Indexable, drop : Bool)`.
+    # Note that *region* is what controls the dimension dropping behaviour, here.
     def get_chunk(region : IndexRegion) : MultiIndexable(T)
       # TODO: Write good error messages
       if region.proper_dimensions != dimensions
@@ -386,18 +383,105 @@ module Phase
       get_chunk(IndexRegion(I).cover(region_shape).translate!(coord))
     end
 
+    # `IndexRegion` accepting overload of `get_available(region : Indexable, drop : Bool)`
     def get_available(region : IndexRegion, drop : Bool = DROP_BY_DEFAULT)
       unsafe_fetch_chunk(region.trim!(shape_internal))
     end
 
-    def get_available(region : Indexable, drop : Bool = DROP_BY_DEFAULT)
-      unsafe_fetch_chunk(IndexRegion.new(region, shape_internal, drop, trim_to: shape))
+    # Returns a `MultiIndexable` containing elements whose coordinates belong both to `shape` and *region_literal*.
+    # This method is very similar to `get_chunk(region_literal : Indexable, drop : Bool)`,
+    # except that it trims the *region_literal* down to a valid size automatically.
+    #
+    # ```crystal
+    # narr = NArray.new([[1, 2, 3], [4, 5, 6]])
+    # 
+    # narr.get_chunk(1..5, 1) # => ShapeError (this chunk is not contained in a 2x3 MultiIndexable
+    # narr.get_available(1..5, 1) # => NArray[5]
+    # ```
+    def get_available(region_literal : Indexable, drop : Bool = DROP_BY_DEFAULT)
+      unsafe_fetch_chunk(IndexRegion.new(region_literal, shape_internal, drop, trim_to: shape_internal))
     end
 
+    # :nodoc:
+    # This method allows operations of the form `narr[mask] += 5` - it's listed here to minimize confusion, but you should never use it.
+    #
+    # In Crystal, expressions of the form `#{op}=` are not actually overridable
+    # functions - instead, the complier expands them as such:
+    #
+    # ```crystal
+    # a += b # => expands to a = a + b
+    # ```
+    #
+    # In Phase, this is generally fine, as all meaningful operators have been implemented:
+    # ```crystal
+    # narr += 1 # => narr = narr + 1
+    # ```
+    #
+    # However, when boolean masks are involved, this syntax is problematic.
+    # Consider the following example, which does not involve much complication:
+    # ```crystal
+    # narr = NArray[3, 4, 5]
+    # mask = NArray[false, true, true]
+    # narr[mask] = 1
+    # puts narr # => NArray[3, 1, 1] (every location where mask was true got assigned, but other locations were not changed)
+    # ```
+    #
+    # And now the final example, which shows the issue:
+    # ```crystal
+    # narr = NArray[3, 4, 5]
+    # mask = NArray[false, true, true]
+    # narr[mask] += 1
+    # ```
+    #
+    # It is perfectly clear what `narr` ought to be, now - the spots where the mask
+    # is true should get one added to them. But look at what the compiler expands that
+    # last line to:
+    #
+    # ```crystal
+    # narr[mask] += 1 # => narr[mask] = narr[mask] + 1
+    # ```
+    #
+    # So, we have a problem - until now, `NArray` only needed to implement the setter
+    # `MultiWritable#[]=(bool_mask : MultiIndexable(Bool), value)` - but now,
+    # it must also implement the getter `#[](bool_mask : MultiIndexable(Bool))`.
+    #
+    # Because `#[](bool_mask)` does not have a particularly meaningful definition,
+    # we opted to simply make it return `self`, which allows our problematic
+    # example to work:
+    #
+    # ```crystal
+    # narr[mask] += 1
+    #   # Crystal expands this to:
+    #   # narr[mask] = narr[mask] + 1
+    #   # MultiIndexable#[](bool_mask) just returns self:
+    #   # narr[mask] = self + 1
+    # ```
+    #
+    # As you can see, this fixes the problem. However, it is not very efficient,
+    # because it creates a full copy of `self` and adds one to every element.
+    #
+    # To recap - this method is only used internally, and you should never need
+    # to use it explicitly.
+    #
+    # TODO: Try to optimize this use case, possibly with a ProcView over self
+    # instead of self
     def [](bool_mask : MultiIndexable(Bool)) : self
       self
     end
 
+    # Returns a `MultiIndexable` that draws from `self` where *bool_mask* is true, but contains `nil` where *bool_mask* is false.
+    # If *bool_mask* has a different shape than `self`, this method will raise
+    # a `ShapeError`.
+    #
+    #
+    # ```crystal
+    # narr = NArray[3, 4, 5]
+    # mask = NArray[false, true, true]
+    # narr[mask]? # => NArray[nil, 4, 5]
+    # 
+    # oversized_mask = NArray[false, true, true, false]
+    # narr[oversized_mask]? # => ShapeError
+    # ```
     def []?(bool_mask : MultiIndexable(Bool)) : MultiIndexable(T?)
       if bool_mask.shape != shape_internal
         raise ShapeError.new("Could not use mask: mask shape #{bool_mask.shape} does not match this MultiIndexable's shape (#{shape_internal}).")
