@@ -60,16 +60,16 @@ end
 module ReadUtils(T)
   include MultiIndexable(T)
 
-  def unsafe_fetch_chunk(idx_region : IndexRegion, drop = MultiIndexable::DROP_BY_DEFAULT)
-    shape = idx_region.shape # RegionUtil.measure_canonical_region(region)
-    iter = ElemIterator.of(self, idx_region)
+  # def unsafe_fetch_chunk(idx_region : IndexRegion)
+  #   shape = idx_region.shape # RegionUtil.measure_canonical_region(region)
+  #   iter = ElemIterator.of(self, idx_region)
 
-    buffer = Slice(T).new(shape.product) do |idx|
-      iter.next.as(T)
-    end
+  #   buffer = Slice(T).new(shape.product) do |idx|
+  #     iter.next.as(T)
+  #   end
 
-    {{@type}}.new(idx_region.shape, buffer)
-  end
+  #   {{@type}}.new(idx_region.shape, buffer)
+  # end
 
   def unsafe_fetch_element(coord) : T
     @buffer.[](unsafe_coord_to_index(coord))

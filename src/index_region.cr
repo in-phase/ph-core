@@ -61,7 +61,7 @@ module Phase
         shape[i] = r[:size]
 
         if range.is_a? Int
-          degeneracy[i] = true
+          degeneracy[i] = drop
         end
       end
 
@@ -91,7 +91,7 @@ module Phase
         shape[i] = r[:size]
 
         if range.is_a? Int
-          degeneracy[i] = true
+          degeneracy[i] = drop
         end
       end
 
@@ -164,6 +164,7 @@ module Phase
     protected def initialize(@first, @step, @last, @proper_shape : Indexable(T), @drop : Bool, degeneracy : Array(Bool)? = nil)
       @degeneracy = degeneracy || Array(Bool).new(@proper_shape.size, false)
 
+<<<<<<< HEAD
       @reduced_shape = @proper_shape.dup
       unless degeneracy.nil?
         reduce_shape
@@ -173,6 +174,10 @@ module Phase
     protected def reduce_shape 
       if @drop
         @reduced_shape = drop_degenerate(@proper_shape) { [@proper_shape.product == 0 ? T.zero : T.zero + 1] }
+=======
+      if degeneracy.nil? || !drop
+        @reduced_shape = @proper_shape.dup
+>>>>>>> 83afc3a62c9c04e7cec47137d08722781655ef8a
       else
         @reduced_shape = @proper_shape.dup 
       end
@@ -315,12 +320,11 @@ module Phase
           if degenerate
             @first.unsafe_fetch(i)
           else
-            @first.unsafe_fetch(i) + coord.unsafe_fetch(local_axis) * @step.unsafe_fetch(i)
             local_axis += 1
+            @first.unsafe_fetch(i) + coord.unsafe_fetch(local_axis - 1) * @step.unsafe_fetch(i)
           end
         end
       else
-
         coord.map_with_index do |ord, i|
           @first[i] + ord * @step[i]
         end

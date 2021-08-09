@@ -37,7 +37,7 @@ module Phase
           dim.to_s.colorize(color)
         end
 
-        io << "#{display_shape.join('x')} #{"element " if narr.shape.size == 1} #{narr.class}\n"
+        io << "#{display_shape.join('x')} #{"element " if narr.shape.size == 1}#{narr.class}\n"
         Formatter(E, typeof(narr.shape[0])).new(narr, io, settings).print
       end
 
@@ -130,7 +130,7 @@ module Phase
           end
         else
           @shape[depth].times do |i|
-            @io << @iter.unsafe_next
+            @io << @iter.unsafe_next.inspect
             @io << ", " unless i == @shape[depth] - 1
           end
         end
