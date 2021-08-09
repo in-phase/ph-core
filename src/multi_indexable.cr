@@ -69,6 +69,7 @@ module Phase
     end
 
     # :nodoc:
+    # Returns `false` for any *other* that is not the same type as `self`
     def ==(other) : Bool
       false
     end

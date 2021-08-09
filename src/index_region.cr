@@ -26,6 +26,9 @@ module Phase
     property degeneracy : Array(Bool)
     getter drop : Bool
 
+    def_equals_and_hash @first, @step, @last, @degeneracy, @drop
+    def_clone
+
     # =========================== Constructors ==============================
 
     def self.new(region : IndexRegion, bound_shape)
@@ -161,10 +164,17 @@ module Phase
     protected def initialize(@first, @step, @last, @proper_shape : Indexable(T), @drop : Bool, degeneracy : Array(Bool)? = nil)
       @degeneracy = degeneracy || Array(Bool).new(@proper_shape.size, false)
 
-      if degeneracy.nil?
-        @reduced_shape = @proper_shape.dup
+      @reduced_shape = @proper_shape.dup
+      unless degeneracy.nil?
+        reduce_shape
+      end
+    end
+
+    protected def reduce_shape 
+      if @drop
+        @reduced_shape = drop_degenerate(@proper_shape) { [@proper_shape.product == 0 ? T.zero : T.zero + 1] }
       else
-        @reduced_shape = drop_degenerate(@proper_shape) { [T.zero + 1] }
+        @reduced_shape = @proper_shape.dup 
       end
     end
 
@@ -215,8 +225,6 @@ module Phase
 
     # ========================== Other =====================================
 
-    def_clone
-
     def includes?(coord)
       # DISCUSS: DimensionError or return false?
       return false unless coord.size == proper_dimensions
@@ -254,11 +262,7 @@ module Phase
           IndexRegion.trim_axis(container_size, @first[axis], @step[axis], @last[axis], @proper_shape[axis])
       end
 
-      if @drop
-        @reduced_shape = drop_degenerate(@proper_shape) { [T.zero + 1] }
-      else
-        @reduced_shape = @proper_shape.dup
-      end
+      reduce_shape
       self
     end
 
@@ -360,25 +364,25 @@ module Phase
       {first: @first[axis], step: @step[axis], last: @last[axis], size: @proper_shape[axis]}
     end
 
-    protected def self.trim_axis(new_bound, first, step, last, size)
+    protected def self.trim_axis(new_bound, first : T, step, last, size) forall T
       if first >= new_bound
         if last >= new_bound # both out of bounds
-          return {0, 0, 0, 0}
+          return {T.zero, 0, T.zero, T.zero}
         elsif step < 0 # We started too high, but terminate inside the bounds
           span = (new_bound - 1) - last
           size = span // step.abs + 1
           span -= span % step.abs
 
-          return {last + span, step, last, size}
+          return {last + span, step, last, T.zero + size}
         end
       elsif step > 0 && last >= new_bound # first in bounds, increase past bound
         span = (new_bound - 1) - first
         span -= span % step.abs
         size = span // step.abs + 1
 
-        return {first, step, first + span, size}
+        return {first, step, first + span, T.zero + size}
       end
-      {first, step, last, size}
+      {first, step, last, T.zero + size}
     end
   end
 end

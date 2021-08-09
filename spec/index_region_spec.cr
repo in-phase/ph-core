@@ -3,128 +3,54 @@ require "./test_narray"
 
 include Phase
 
+include TestRanges
+
 # This test suite is a little bloated - may be useful to eventually redo it in a more targeted fashion.
 
 
 bound = 10
-mid = 7
-full = {first: 0, step: 1, last: bound - 1}
+valid = TestRanges.fully_defined(bound).merge(TestRanges.negative_indices(bound)).merge(TestRanges.implicit_bounds(bound))
+
+def checkIndexRegion(idx_r, vals)
+    idx_r.first[0].should eq vals[:first]
+    idx_r.step[0].should eq vals[:step] 
+    idx_r.last[0].should eq vals[:last]
+    idx_r.shape[0].should eq ((vals[:last] - vals[:first]) // vals[:step] + 1)
+end
 
 
-fully_defined = {
-    mid..mid    => {first: mid, step: 1, last: mid},
-
-    # implicit start
-    ..mid       => {first: 0, step: 1, last: mid},
-    ...mid      => {first: 0, step: 1, last: mid - 1},
-
-    # integer
-    0           => {first: 0, step: 1, last: 0},
-    bound - 1   => {first: bound - 1, step: 1, last: bound - 1},
-
-    # Backward iteration
-    mid..0      => {first: mid, step: -1, last: 0},
-    mid..-1..   => {first: mid, step: -1, last: 0},
-
-    # Explicit step
-    # these catch both the case where the step evenly divides to the end, and not
-    0..2...bound        => {first: 0, step: 2, last: bound - 1 - ((bound - 1) % 2) },
-    0..2...(bound - 1)  => {first: 0, step: 2, last: bound - 2 - (bound % 2)},
-    # Order should matter, associativity should not
-    (5..-3)..1  => {first: 5, step: -3, last: 2},
-    5..(-3..1)  => {first: 5, step: -3, last: 2},
-
-    # Steppable::StepIterator
-    (bound - 1).step(by: -1, to: 0)  =>  {first: bound - 1, step: -1, last: 0},
-    0.step(by: 2, to: bound, exclusive: true)         => {first: 0, step: 2, last: bound - 1 - ((bound - 1) % 2) },
-    0.step(by: 2, to: bound - 1, exclusive: true)     => {first: 0, step: 2, last: bound - 2 - (bound % 2)},
-}
-
-# these may only be used when a bounding shape is provided
-negative_indices = {
-    -bound..    => full,
-    ..-bound    => {first: 0, step: 1, last: 0},
-    ..-1        => full,
-    -mid..(-mid + 2) => {first: bound - mid, step: 1, last: bound - mid + 2},
-    -mid        => {first: bound - mid, step: 1, last: bound - mid},
-}
-
-# these may only be used on trimmed regions
-implicit_bounds = {
-    ..          => full, 
-    ...         => full,
-    mid..       => {first: mid, step: 1, last: bound - 1},
-
-    # explicit step
-    ..-1..      => {first: bound - 1, step: -1, last: 0},
-    ..-1...2    => {first: bound - 1, step: -1, last: 3},
-    (..-4)..    => {first: bound - 1, step: -4, last: (bound - 1) % 4},
-    ..(-4..)    => {first: bound - 1, step: -4, last: (bound - 1) % 4},
-}
-
-out_of_bounds = [
-    ..bound,
-    bound..,
-    (-bound - 1)..,
-    ..(-bound - 1),
-    ...(bound + 1)
-]
-
-empty = [
-    ...0,
-    3...3
-]
-
-step_conflict = [
-    4..1..2,
-    2..-1..4,
-    4.step(by: 1, to: 2),
-    2.step(by: -1, to: 4),
-    # 3.step(by: 0, to: 5), # throws ArgumentError on creation
-]
-
-valid = fully_defined.merge(negative_indices).merge(implicit_bounds)
-
-
-
-
-
-macro test_on(type, bound)
+macro test_on(type, cast)
     describe ".new" do 
 
         context "(range_literal, bound_shape)" do
             valid.each do |r,v|
-                it "parses a legal range literal (#{r}, bound: #{{{bound}}})" do 
-                    idx_r = IndexRegion.new([r], [{{bound}}])
+                it "parses a legal range literal (#{r}, bound: #{bound.{{cast}}})" do 
+                    idx_r = IndexRegion.new([r], [bound.{{cast}}])
 
                     idx_r.should be_a IndexRegion({{type}})
-
-                    idx_r.first[0].should eq v[:first]
-                    idx_r.step[0].should eq v[:step] 
-                    idx_r.last[0].should eq v[:last]
-                    idx_r.shape[0].should eq ((v[:last] - v[:first]) // v[:step] + 1)
+                    checkIndexRegion(idx_r, v)
                 end
             end
 
-            out_of_bounds.each do |r|
-                it "throws an error when range is out of bounds (#{r}, bound: #{{{bound}}})" do 
+            TestRanges.out_of_bounds(bound).each do |r|
+                it "throws an error when range is out of bounds (#{r}, bound: #{bound.{{cast}}})" do 
                     expect_raises IndexError do
-                        idx_r = IndexRegion.new([r], [{{bound}}])
+                        idx_r = IndexRegion.new([r], [bound.{{cast}}])
                     end
                 end
             end
 
-            step_conflict.each do |r|
+            TestRanges.step_conflict.each do |r|
                 it "throws an error when given a step conflict (#{r})" do 
                     expect_raises IndexError do
-                        idx_r = IndexRegion.new([r], [{{bound}}])
+                        idx_r = IndexRegion.new([r], [bound.{{cast}}])
                     end
                 end
             end
 
-            empty.each do |r|
+            TestRanges.empty.each do |r|
                 it "gives size 0 when range spans no integers (#{r})" do 
-                    idx_r = IndexRegion.new([r], [{{bound}}])
+                    idx_r = IndexRegion.new([r], [bound.{{cast}}])
                     
                     idx_r.size.should eq 0
                     idx_r.should be_a IndexRegion({{type}})
@@ -140,7 +66,7 @@ macro test_on(type, bound)
         end
 
         context "(range_literal)" do 
-            fully_defined.each do |r, v|
+            TestRanges.fully_defined(bound).each do |r, v|
                 it "correctly parses a fully defined range literal (#{r})" do 
                     idx_r = IndexRegion({{type}}).new([r])
                     idx_r.should be_a IndexRegion({{type}})
@@ -152,7 +78,7 @@ macro test_on(type, bound)
                 end
             end
 
-            implicit_bounds.each do |r, v|
+            TestRanges.implicit_bounds(bound).each do |r, v|
                 it "throws an error if an endpoint cannot be inferred (#{r})" do 
                     # TODO: make this a better error type
                     expect_raises Exception do
@@ -161,7 +87,7 @@ macro test_on(type, bound)
                 end
             end
 
-            negative_indices.each do |r,v|
+            TestRanges.negative_indices(bound).each do |r,v|
                 it "throws an error on negative (relative) indices (#{r})" do 
                     expect_raises IndexError do
                         IndexRegion({{type}}).new([r])
@@ -169,7 +95,7 @@ macro test_on(type, bound)
                 end
             end
 
-            step_conflict.each do |r|
+            TestRanges.step_conflict.each do |r|
                 it "throws an error when given a step conflict (#{r})" do 
                     expect_raises IndexError do
                         IndexRegion({{type}}).new([r])
@@ -177,7 +103,7 @@ macro test_on(type, bound)
                 end
             end
 
-            empty.each do |r|
+            TestRanges.empty.each do |r|
                 it "gives size 0 when range spans no integers (#{r})" do 
                 idx_r = IndexRegion({{type}}).new([r])
                     
@@ -190,8 +116,8 @@ macro test_on(type, bound)
         context "(index_region, bound_shape)" do 
             valid.each do |r,v|
                 it "copies an IndexRegion that is in bounds (#{r})" do 
-                    idx_r = IndexRegion.new([r],[{{bound}}])
-                    copy = IndexRegion.new(idx_r, [{{bound}} + 5])
+                    idx_r = IndexRegion.new([r],[bound.{{cast}}])
+                    copy = IndexRegion.new(idx_r, [bound.{{cast}} + 5])
                     
                     pointerof(idx_r).should_not (eq pointerof(copy)), "Equal references; copy not made"
                     idx_r.first.should eq copy.first
@@ -203,7 +129,7 @@ macro test_on(type, bound)
                 end
 
                 it "throws an error for an IndexRegion that is out of bounds" do 
-                    idx_r = IndexRegion.new([r],[{{bound}}])
+                    idx_r = IndexRegion.new([r],[bound.{{cast}}])
 
                     max_val = {v[:first], v[:last]}.max
                     if max_val > 0
@@ -275,21 +201,48 @@ macro test_on(type, bound)
 
     describe "#fits_in?" do 
         valid.each do |r,v|
-            it "returns true if the region fits in shape" do 
-                IndexRegion.new([r],[{{bound}}]).fits_in?([{{bound}}]).should be_true
+            it "returns true if the region fits in shape (#{r}, bound: #{bound.{{cast}}})" do 
+                IndexRegion.new([r],[bound.{{cast}}]).fits_in?([bound.{{cast}}]).should be_true
             end
 
             it "returns false if the region does not fit in shape" do 
                 max_val = {v[:first], v[:last]}.max
-                if max_val > 0
-                    new_bound = {{type}}.zero + max_val - 1
-                    IndexRegion.new([r],[{{bound}}]).fits_in?([new_bound]).should be_false
-                end
+                new_bound = {{type}}.zero + max_val
+                IndexRegion.new([r],[bound.{{cast}}]).fits_in?([new_bound]).should be_false
             end
         end
     end
 
     describe "#trim!" do 
+        valid.each do |r,v|
+            it "preserves regions that fit in shape (#{r}, bound: #{bound.{{cast}}})" do 
+                idx_r = IndexRegion.new([r], [bound.{{cast}}])
+                idx_r.trim!([bound])
+
+                checkIndexRegion(idx_r, v)
+            end
+
+            idx_r = IndexRegion.new([r], [bound.{{cast}}])
+
+            if v[:last] > v[:first]
+                it "trims from the end if only last is out of bounds (#{idx_r})" do 
+                    idx_r.trim!([v[:last]])
+                    new_last = v[:last] - v[:step]
+                    checkIndexRegion(idx_r, {first: v[:first], step: v[:step], last: new_last})
+                end
+            elsif v[:first] > v[:last]
+                it "trims from the start if only first is out of bounds (#{idx_r})" do 
+                    idx_r.trim!([v[:first]])
+                    new_first = v[:first] + v[:step]
+                    checkIndexRegion(idx_r, {first: new_first, step: v[:step], last: v[:last]})
+                end
+            else
+                it "returns an empty region if both are out of bounds (#{idx_r})" do 
+                    idx_r.trim!([v[:last]])
+                    idx_r.shape.should eq [0]
+                end
+            end
+        end
     end
 
     describe "#translate!" do 
@@ -343,14 +296,14 @@ end
     
 describe "Phase::IndexRegion" do
     context "(Int32)" do 
-        test_on(Int32, bound.to_i32)
+        test_on(Int32, to_i32)
     end
 
     context "(UInt8)" do
-        test_on(UInt8, bound.to_u8)
+        test_on(UInt8, to_u8)
     end
 
     context "(BigInt)" do 
-        test_on(BigInt, bound.to_big_i)
+        test_on(BigInt, to_big_i)
     end
 end
