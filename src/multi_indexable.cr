@@ -314,37 +314,12 @@ module Phase
       unsafe_fetch_chunk(region)
     end
 
-    # Copies the elements described by *region* into a new `MultiIndexable`.
-    # If *region* does not describe a valid region of this `MultiIndexable`,
-    # `#get_chunk` will raise either a `DimensionError` (in the case of
-    # an improper number of dimensions) or a `ShapeError` (in the case where
-    # the number of dimensions is correct, but the region is not meaningful
-    # for this MultiIndexable's shape.
-    #
-    # ```crystal
-    # narr = NArray.new([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
-    # 
-    # # Select only the first row:
-    # narr.get_chunk([0]) # => NArray[1, 2, 3]
-    # 
-    # # Select only the first column:
-    # narr.get_chunk([.., 0]) # => NArray[1, 2, 3]
-    # 
-    # # Select only the first column, without dropping dimensions:
-    # narr.get_chunk([.., 0], drop: false) # => NArray[[1], [2], [3]]
-    # 
-    # # Equivalently to the above, using anything other than an integer will bypass
-    # # dropping:
-    # narr.get_chunk([.., 0..0]) # => NArray[[1], [2], [3]]
-    # 
-    # # Select only elements from both even-numbered rows and columns:
-    # narr.get_chunk([0..2.., 0..2..]) # => NArray[[1, 3], [7, 9]]
-    # ```
+    # A more verbose overload of `#[](region_literal : Indexable, drop : Bool)`.
+    # This is just syntactic sugar, and can be more readable in certain
+    # applications.
     def get_chunk(region_literal : Indexable, drop : Bool = DROP_BY_DEFAULT)
       unsafe_fetch_chunk IndexRegion.new(region_literal, shape_internal, drop)
     end
-
-    # "drags out" a region of shape region_shape with coord as the top left corner
 
     # Extracts a chunk given a shape (*region_shape*) and the *coord* in that region with the smallest value in each axis.
     #
@@ -492,37 +467,96 @@ module Phase
       end
     end
 
-    # Copies the elements in `region` to a new `{{@type}}`, and throws an error if `region` is out-of-bounds for this `{{@type}}`.
-    def [](region : Indexable, drop : Bool = MultiIndexable::DROP_BY_DEFAULT)
-      get_chunk(region, drop)
+    # Copies the elements described by *region* into a new `MultiIndexable`.
+    # If *region* does not describe a valid region of this `MultiIndexable`,
+    # this method will raise either a `DimensionError` (in the case of
+    # an improper number of dimensions) or a `ShapeError` (in the case where
+    # the number of dimensions is correct, but the region is not meaningful
+    # for this MultiIndexable's shape.
+    #
+    # Note: this method has a tuple accepting overload, as well, which makes
+    # the syntax much more intuitive. The following example contains both
+    # versions, but please note the difference.
+    #
+    # ```crystal
+    # narr = NArray.new([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
+    # 
+    # # Select only the first row:
+    # narr[[0], drop: true] # => NArray[1, 2, 3]
+    #
+    # # Unless you need to explicitly disable dropping, use the tuple overload:
+    # narr[0] # => NArray[1, 2, 3] (drop is true by default)
+    # 
+    # # Select only the first column:
+    # narr[.., 0] # => NArray[1, 2, 3]
+    # 
+    # # Select only the first column, without dropping dimensions:
+    # # (in this case, we can't use the tuple accepting overload, hence the extra brackets)
+    # narr[[.., 0], drop: false] # => NArray[[1], [2], [3]]
+    # 
+    # # Equivalently to the above, using anything other than an integer will bypass
+    # # dropping:
+    # narr[.., 0..0] # => NArray[[1], [2], [3]]
+    # 
+    # # Select only elements from both even-numbered rows and columns:
+    # narr[0..2.., 0..2..] # => NArray[[1, 3], [7, 9]]
+    #
+    # # This method raises a DimensionError when there is a dimensions mismatch:
+    # narr[0, 1, 2, 3] # => DimensionError
+    #
+    # # This method raises a ShapeError when there is a shape mismatch:
+    # narr[1..100, 2..30] # => ShapeError
+    # ```
+    def [](region_literal : Indexable, drop : Bool = MultiIndexable::DROP_BY_DEFAULT)
+      get_chunk(region_literal, drop)
     end
 
-    # Copies the elements in `region` to a new `{{@type}}`, and throws an error if `region` is out-of-bounds for this `{{@type}}`.
+    # `IndexRegion` accepting form of `#[](region_literal : Indexable, drop : Bool)`.
+    # Note that *region* is what controls the dimension dropping behaviour, here.
     def [](region : IndexRegion)
       get_chunk(region)
     end
 
-    # Copies the elements in `region` to a new `{{@type}}`, or returns false if `region` is out-of-bounds for this `{{@type}}`.
+    # Copies the elements in *region* to a new `MultiIndexable` if `#has_region?(region)` is true, and returns `nil` otherwise.
+    #
+    # ```crystal
+    # narr = NArray[[1, 2, 3], [4, 5, 6]]
+    # narr[1.., 10..12]? # => nil
+    # narr[0.., 1..2]? # => NArray[[2, 3], [5, 6]]
+    # ```
     def []?(region : Indexable, drop : Bool = MultiIndexable::DROP_BY_DEFAULT) : MultiIndexable(T)?
       if has_region?(region)
         return get_chunk(region, drop)
       end
+
       nil
     end
 
-    # Copies the elements in `region` to a new `{{@type}}`, or returns false if `region` is out-of-bounds for this `{{@type}}`.
+    # `IndexRegion` accepting overload of `#[]?(region : Indexable, drop : Bool)`.
     def []?(region : IndexRegion) : MultiIndexable(T)?
       if has_region?(region)
         return get_chunk(region)
       end
+
       nil
     end
 
-    # Retrieves the element specified by `coord`, and throws an error if `coord` is out-of-bounds for this `{{@type}}`.
+    # Retrieves the element specified by *coord*, throwing an error if *coord* is out-of-bounds for `self`.
+    #
+    #
+    # ```crystal
+    # narr = NArray[['a', 'b'], ['c', 'd']]
+    # narr.get_element([0, 1]) # => 'b'
+    # narr.get_element([1, 0]) # => 'c'
+    # narr.get_element([0]) # => DimensionError
+    # narr.get_element([0, 10]) # => IndexError
+    # ```
     def get_element(coord : Indexable) : T
       unsafe_fetch_element CoordUtil.canonicalize_coord(coord, shape_internal)
     end
 
+    # Shorthand for `#get_element`.
+    # :ditto:
     def get(coord : Indexable) : T
       get_element(coord)
     end
@@ -530,7 +564,7 @@ module Phase
     {% begin %}
       {% functions_with_drop = %w(get_chunk get_available [] []?) %}
       {% for name in functions_with_drop %}
-          # Tuple-accepting overload of `#{{name.id}}`.
+          # Tuple-accepting overload of `#{{name.id}}(region_literal : Indexable, drop : Bool)`.
           def {{name.id}}(*tuple, drop : Bool = MultiIndexable::DROP_BY_DEFAULT)
             self.{{name.id}}(tuple, drop)
           end
@@ -545,48 +579,134 @@ module Phase
       {% end %}
     {% end %}
 
-    # Iterators ====================================================================
-    def each_coord : Iterator # (Coord)
+    # Returns an iterator that will yield each coordinate of `self` in lexicographic (row-major) order.
+    #
+    # ```crystal
+    # narr = NArray[[1, 2, 3], [4, 5, 6]]
+    # iter = narr.each_coord
+    # iter.next # => [0, 0]
+    # iter.next # => [0, 1]
+    # iter.next # => [0, 2]
+    # iter.next # => [1, 0]
+    # iter.next # => [1, 1]
+    # iter.next # => [1, 2]
+    # iter.next # => Iterator::Stop
+    # ```
+    def each_coord : Iterator
       LexIterator.cover(shape)
     end
 
-    # The default iterator must be lexicographic
+    # Returns an iterator that will yield each element of `self` in lexicographic (row-major) order.
+    #
+    # ```crystal
+    # narr = NArray[[1, 2, 3], [4, 5, 6]]
+    # iter = narr.each
+    # iter.next # => 1
+    # iter.next # => 2
+    # iter.next # => 3
+    # iter.next # => 4
+    # iter.next # => 5
+    # iter.next # => 6
+    # iter.next # => Iterator::Stop
+    # ```
     def each : Iterator(T)
       each(each_coord)
     end
 
+    # An overload of `#each` that allows you to provide a coordinate iterator in place of the default lexicographic iterator.
+    #
+    # ```crystal
+    # narr = NArray[[1, 2, 3], [4, 5, 6]]
+    # coord_iter = ColexIterator.cover(narr.shape).reverse!
+    # iter = narr.each(coord_iter)
+    # iter.next # => 6
+    # iter.next # => 3
+    # iter.next # => 5
+    # iter.next # => 2
+    # iter.next # => 4
+    # iter.next # => 1
+    # iter.next # => Iterator::Stop
+    # ```
     def each(iter : CoordIterator(I)) : Iterator(T) forall I
       ElemIterator.of(self, iter)
     end
 
+    # Returns an iterator that will yield tuples of the elements and coords comprising `self` in lexicographic (row-major) order.
+    #
+    # ```crystal
+    # narr = NArray[[1, 2, 3], [4, 5, 6]]
+    # iter = narr.each_with_coord
+    # iter.next # => {1, [0, 0]}
+    # iter.next # => {2, [0, 1]}
+    # iter.next # => {3, [0, 2]}
+    # iter.next # => {4, [1, 0]}
+    # iter.next # => {5, [1, 1]}
+    # iter.next # => {6, [1, 2]}
+    # iter.next # => Iterator::Stop
+    # ```
     def each_with_coord : Iterator # Iterator(Tuple(T, Coord)) # "Error: can't use Indexable(T) as a generic type argument yet"
       each_with_coord(each_coord)
     end
 
+    # An overload of `#each_with_coord` that allows you to provide a coordinate iterator in place of the default lexicographic iterator.
+    #
+    # ```crystal
+    # narr = NArray[[1, 2, 3], [4, 5, 6]]
+    # coord_iter = ColexIterator.cover(narr.shape).reverse!
+    # iter = narr.each_with_coord(coord_iter)
+    # puts iter.next # => {6, [1, 2]}
+    # puts iter.next # => {3, [0, 2]}
+    # puts iter.next # => {5, [1, 1]}
+    # puts iter.next # => {2, [0, 1]}
+    # puts iter.next # => {4, [1, 0]}
+    # puts iter.next # => {1, [0, 0]}
+    # ```
     def each_with_coord(iter : CoordIterator(I)) : Iterator forall I # Iterator(Tuple(T, Coord))
       ElemAndCoordIterator.of(self, iter)
     end
 
+    # Returns a `MultiIndexable` with the results of running the block against each element and coordinate comprising `self`.
+    #
+    # ```crystal
+    # narr = NArray[[1, 2, 3], [4, 5, 6]]
+    # narr.map_with_coord do |el, coord|
+    #   el + coord.sum
+    # end # => NArray[[1, 3, 5], [5, 7, 9]]
+    # ```
     def map_with_coord(&block) # : (T, U -> R)) : MultiIndexable(R) forall R,U
       NArray.build(shape_internal) do |coord, i|
         yield unsafe_fetch_element(coord), coord
       end
     end
 
-    # By default, gives an NArray
+    # Returns a `MultiIndexable` with the results of running the block against each element of `self`.
+    #
+    # ```crystal
+    # narr = NArray[[1, 2, 3], [4, 5, 6]]
+    # res = narr.map { |el| el.to_s } # => NArray[["1", "2", "3"], ["4", "5", "6"]]
+    # ```
     def map(&block : (T -> R)) : MultiIndexable(R) forall R
       map_with_coord do |el, coord|
         yield el
       end
     end
 
-    # A method to get all elements in this `{{@type}}` when order is irrelevant.
-    # Recommended that implementers override this method to take advantage of
-    # the storage scheme the implementation uses
+    # Returns an Iterator over the elements in this `MultiIndexable` that will iterate in the fastest order possible.
+    # For most implementations, it is very likely that `#each` will be just as fast.
+    # However, certain implementations of `MultiIndexable` may have substantial
+    # performance differences. As a rule of thumb, this method is only worth using
+    # if the `MultiIndexable` you call it on explicitly mentions that you should.
+    #
+    # ```crystal
+    # NArray[1, 2, 3].fast.each do |el|
+    #   # ...
+    # end
+    # ```
     def fast : Iterator(T)
       ElemIterator.of(self)
     end
 
+    # Returns an Iterator equivalent to the method `#each_slice(axis, &block)`.
     def each_slice(axis = 0) : Iterator
       chunk_shape = shape
       chunk_shape[axis] = 1
@@ -595,13 +715,41 @@ module Phase
       ChunkIterator.new(self, chunk_shape, degeneracy: degeneracy)
     end
 
+    # Yields the slices of this `MultiIndexable` along a given *axis* to the provided block.
+    # The elements returned in each slice are the ones with a constant index
+    # along the specified *axis*.
+    # 
+    # ```crystal
+    # narr = NArray[[1, 2, 3], [4, 5, 6]]
+    #
+    # #          axis one ->
+    # #
+    # # axis      0 1 2
+    # # zero   0 [1 2 3]
+    # #  |     1 [4 5 6]
+    # #  v
+    #
+    # # defaults to axis = 0, so the slices will be the rows.
+    # narr.each_slice do |slice|
+    #   # in loop 0, slice will be NArray[1, 2, 3], because those elements have coords [0, ...]
+    #   # in loop 1, slice will be NArray[4, 5, 6], because those elements have coords [1, ...]
+    # end
+    #
+    # # here we pick axis = 1, so the slices will be the columns.
+    # narr.each_slice(axis: 1) do |slice|
+    #   # in loop 0, slice will be NArray[1, 4], because those elements have coords [..., 0]
+    #   # in loop 1, slice will be NArray[2, 5], because those elements have coords [..., 1]
+    #   # in loop 0, slice will be NArray[3, 6], because those elements have coords [..., 2]
+    # end
+    # ```
     def each_slice(axis = 0, &block)
       each_slice(axis).each do |slice|
         yield slice
       end
     end
 
-    def slices(axis = 0) : Enumerable
+    # Returns an Indexable collection of the slices returned by `#each_slice`.
+    def slices(axis = 0) : Indexable
       each_slice(axis).to_a
     end
 
@@ -618,10 +766,19 @@ module Phase
       end
     {% end %}
 
+    # Using `self` as a tile, creates a larger `MultiIndexable` by translating and copying that tile in multiple axes.
+    # *counts* specifies how many times to copy the tile in each axis. If it is the wrong
+    # size, `#tile` will return a `DimensionError`.
+    # TODO: Add code sample, write test for this
     def tile(counts : Enumerable) : MultiIndexable
       NArray.tile(self, counts)
     end
 
+    # Creates an `NArray` duplicate of this `MultiIndexable`.
+    #
+    # ```crystal
+    # not_an_narray.to_narr # => NArray
+    # ```
     def to_narr : NArray(T)
       NArray.build(@shape.dup) do |coord, _|
         unsafe_fetch_element(coord)
