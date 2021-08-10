@@ -26,6 +26,13 @@ module Phase
     # Cached version of `.axis_strides`.
     protected getter axis_strides : Array(Int32)
 
+    # TODO: Doc
+    protected def self.ensure_valid(shape : Array(Int32), buffer : Slice)
+      if shape.product != buffer.size
+        raise ArgumentError.new("Cannot create {{@type}}: Given shape does not match number of elements in buffer.")
+      end
+    end
+
     # Creates an `{{@type}}` using only a shape (see `shape`) and a packed index.
     # This is used internally to make code faster - converting from a packed
     # index to an unpacked index isn't needed for many constructors, and generating
@@ -52,13 +59,14 @@ module Phase
     # Creates an `{{@type}}` out of a shape and a pre-populated buffer.
     # Frequently used internally (for example, this is used in
     # `reshape` as of Feb 5th 2021).
-    protected def initialize(shape, @buffer : Slice(T))
-      if shape.product != @buffer.size
-        raise ArgumentError.new("Cannot create {{@type}}: Given shape does not match number of elements in buffer.")
-      end
-
+    protected def initialize(shape : Array(Int32), @buffer : Slice(T))
       @shape = shape.dup
       @axis_strides = BufferUtil.axis_strides(@shape)
+    end
+
+    def self.of_buffer(shape : Array(Int32), buffer : Slice(T))
+      NArray.ensure_valid(shape, buffer)
+      new(shape.dup, buffer)
     end
 
     # Constructs an `{{@type}}` using a user-provided *shape* (see `shape`) and a callback.
@@ -141,7 +149,7 @@ module Phase
       # fill elements
       buffer = Slice.new(flattened.to_unsafe, flattened.size)
 
-      # Do the typical `new` stuff
+      NArray.ensure_valid(shape, buffer)
       new(shape, buffer)
     end
 
@@ -297,6 +305,10 @@ module Phase
       {{@type}}.new(@shape, @buffer.dup)
     end
 
+    def slices(axis = 0) : Array(T)
+      previous_def(axis)
+    end
+
     # TODO any way to avoid copying these out yet, too? Iterator magic?
     # def slices(axis = 0) : Array(self)
     #   region = [] of (Int32 | Range(Int32, Int32))
@@ -324,7 +336,9 @@ module Phase
     end
 
     def reshape(new_shape : Enumerable)
-      {{@type}}.new(new_shape.to_a, @buffer)
+      shape_arr = new_shape.to_a
+      NArray.ensure_valid(shape_arr, @buffer)
+      {{@type}}.new(shape_arr, @buffer)
     end
 
     def reshape(*splat)
@@ -361,20 +375,21 @@ module Phase
     # invoke `#to_scalar`.
     # TODO: Either make the type restriction here go away (it was getting called when indexing
     # with a single range), or remove this method entirely in favor of read only views
-    def [](index : Int) : self
-      index = CoordUtil.canonicalize_index(index, @shape, axis = 0)
+    # TODO: benchmark against normal implementation
+    # def [](index : Int) : self
+    #   index = CoordUtil.canonicalize_index(index, @shape, axis = 0)
 
-      if dimensions == 1
-        new_shape = [1]
-      else
-        new_shape = @shape[1..]
-      end
-      # The "step size" of the top level dimension (row) is the product of the lower dimensions.
-      step = new_shape.product
+    #   if dimensions == 1
+    #     new_shape = [1]
+    #   else
+    #     new_shape = @shape[1..]
+    #   end
+    #   # The "step size" of the top level dimension (row) is the product of the lower dimensions.
+    #   step = new_shape.product
 
-      new_buffer = @buffer[index * step, step]
-      typeof(self).new(new_shape, new_buffer.clone)
-    end
+    #   new_buffer = @buffer[index * step, step]
+    #   typeof(self).new(new_shape, new_buffer.clone)
+    # end
 
     # Copies the elements from a MultiIndexable `src` into `region`, assuming that `region` is in canonical form and in-bounds for this `{{type}}`
     # and the shape of `region` matches the shape of `src`.

@@ -179,9 +179,9 @@ module Phase
     #
     # ```crystal
     # NArray.new([[1, 2], [3, 4]]).sample(5) # => Enumerable(Int32)
-    # NArray.new([[1, 2], [3, 4]]).sample(5).to_a # => NArray[4, 2, 4, 3, 2]
-    # NArray.new([[1, 2], [3, 4]]).sample(5).to_a # => NArray[1, 3, 2, 4, 1]
-    # NArray.new([[1, 2], [3, 4]]).sample(5).to_a # => NArray[2, 3, 1, 1, 3]
+    # NArray.new([[1, 2], [3, 4]]).sample(5).to_a # => [4, 2, 4, 3, 2]
+    # NArray.new([[1, 2], [3, 4]]).sample(5).to_a # => [1, 3, 2, 4, 1]
+    # NArray.new([[1, 2], [3, 4]]).sample(5).to_a # => [2, 3, 1, 1, 3]
     # ```
     def sample(n : Int, random = Random::DEFAULT) : Enumerable(T)
       if n < 0
@@ -850,13 +850,13 @@ module Phase
         def {{name.id}}(other : MultiIndexable(U)) forall U 
           if shape_internal != other.shape_internal
             if scalar? || other.scalar?
-              raise DimensionError.new("The shape of this MultiIndexable (#{shape_internal}) does not match the shape of the one provided (#{other.shape_internal}), so '{{name.id}}' cannot be applied element-wise. Did you mean to call to_scalar on one of the arguments?")
+              raise ShapeError.new("The shape of this MultiIndexable (#{shape_internal}) does not match the shape of the one provided (#{other.shape_internal}), so '{{name.id}}' cannot be applied element-wise. Did you mean to call to_scalar on one of the arguments?")
             end
-            raise DimensionError.new("The shape of this MultiIndexable (#{shape_internal}) does not match the shape of the one provided (#{other.shape_internal}), so '{{name.id}}' cannot be applied element-wise.")
+            raise ShapeError.new("The shape of this MultiIndexable (#{shape_internal}) does not match the shape of the one provided (#{other.shape_internal}), so '{{name.id}}' cannot be applied element-wise.")
           end
 
-          map_with_coord do |elem, coord|
-            elem.{{name.id}} other.unsafe_fetch_element(coord)
+          map_with(other) do |elem, other_elem|
+            elem.{{name.id}} other_elem
           end
         end
 
@@ -874,5 +874,132 @@ module Phase
         end
       {% end %}
     {% end %}
+
+    def each_with(*args, &block)
+      MultiIndexable.each_with(self, *args) do |*elems|
+        yield *elems
+      end
+    end
+
+    # def map_with(*args, &block)
+    #   map_with(*args, block: block)
+    # end
+
+    # def map_with(*args, proc : P) forall P
+    #   {% begin %}
+    #   buffer = Pointer({{P.type_vars[1]}}).malloc(size)
+    #   MultiIndexable.each_with(self, *args) do |*elems|
+    #     proc.call(*elems)
+    #   end
+    #   {% end %}
+    # end
+
+    def map_with(*args, &block)
+      MultiIndexable.map_with(self, *args) do |*elems|
+        yield *elems
+      end
+    end
+
+    def map_with(*args : *U, &block) forall U
+      {% begin %}
+
+      # NOTE: To determine the return type 
+      {% for i in 0...(U.size) %}
+        {% if U[i] < MultiIndexable %}
+          dummy{{i}} = uninitialized typeof(args[{{i}}].first)
+        {% else %}
+          dummy{{i}} = uninitialized typeof(args[{{i}}])
+        {% end %}
+      {% end %}
+
+      buffer = Pointer(typeof(yield(self.first, {% for i in 0...(U.size) %}dummy{{i}},{% end %}))).malloc(size)
+      idx = 0
+
+      MultiIndexable.each_with(self, *args) do |*elems|
+        buffer[idx] = yield *elems
+        idx += 1
+      end
+
+      slice = Slice.new(buffer, size)
+      NArray.of_buffer(shape, slice)
+      {% end %}
+    end
+    
+    def self.each_with(*args : *U, &block) forall U
+      {% begin %}
+        {% found_first = false %}
+        {% for i in 0...(U.size) %}
+          {% if U[i] < MultiIndexable %}
+            {% if found_first == false %}
+              {% found_first = true %}
+              first = args[{{i}}]
+            {% else %}
+              raise ShapeError.new("Could not simultaneously map MultiIndexables with shapes #{args[{{i}}].shape} and #{first.shape}.") unless args[{{i}}].shape == first.shape
+            {% end %}
+          {% end %}
+        {% end %}
+        
+        first.each_coord do |coord|
+          yield(
+            {% for i in 0...(U.size) %}
+              {% if U[i] < NArray %} args[{{i}}].unsafe_fetch_element(coord) {% else %} args[{{i}}]{% end %},
+            {% end %}
+          )
+        end
+      {% end %}
+    end
+
+
+    def apply : ApplyProxy
+      ApplyProxy.of(self)
+    end
+
+    # def apply! : ApplyProxy
+    # end
+
+    # def map(*others : MultiIndexable)
+    # end
+
+    # def NArray::map(*others : NArray)
+    # end
+
+    private class ApplyProxy(S, T)
+      @src : S
+  
+      def self.of(src : S) forall S
+        ApplyProxy(S, typeof(src.first)).new(src)
+      end
+      
+      protected def initialize(@src)
+      end
+  
+      # If a method signature not defined on {{@type}} is called, then `method_missing` will attempt
+      # to apply the method to every element contained in the {{@type}}. Any argument to the method call
+      # that is also an {{@type}} will be applied element-wise.
+      # For example:
+      # ```arr = {{@type}}(Int32).new([2,2,2]) { |i| i }
+      # arr > 4```
+      # will give: [[[false, false], [false, false]], [[false, true], [true true]]]
+      # WARNING: fully exhaustive testing is not possible for this method; use at your own risk.
+      # If a method is defined on both {{@type}} and the type parameter T, precedence will be
+      # given to {{@type}}. Complex overloading may cause problems.
+      macro method_missing(call)
+              def {{call.name.id}}(*args : *U) forall U
+              \{% if !@type.type_vars[1].has_method?({{call.name.id.stringify}}) %}
+                  \{% raise( <<-ERROR
+                              undefined method '{{call.name.id}}' for #{@type.type_vars[1]}.
+                              Phase is attempting to apply `{{call.name.id}}`, an unknown method, to each element of an `#{@type.type_vars[0]}`. 
+                              (See the documentation of `#{@type}#method_missing` for more info). 
+                              For the source of the error, use `--error-trace`.
+                              ERROR
+                              ) %}
+                  \{% end %}
+                
+                  @src.map_with(*args) do |elem, *arg_elems|
+                    elem.{{call.name.id}}(*arg_elems)
+                  end
+              end
+          end
+    end
   end
 end

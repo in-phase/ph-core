@@ -164,7 +164,6 @@ module Phase
     protected def initialize(@first, @step, @last, @proper_shape : Indexable(T), @drop : Bool, degeneracy : Array(Bool)? = nil)
       @degeneracy = degeneracy || Array(Bool).new(@proper_shape.size, false)
 
-<<<<<<< HEAD
       @reduced_shape = @proper_shape.dup
       unless degeneracy.nil?
         reduce_shape
@@ -174,10 +173,6 @@ module Phase
     protected def reduce_shape 
       if @drop
         @reduced_shape = drop_degenerate(@proper_shape) { [@proper_shape.product == 0 ? T.zero : T.zero + 1] }
-=======
-      if degeneracy.nil? || !drop
-        @reduced_shape = @proper_shape.dup
->>>>>>> 83afc3a62c9c04e7cec47137d08722781655ef8a
       else
         @reduced_shape = @proper_shape.dup 
       end

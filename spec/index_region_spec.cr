@@ -3,8 +3,6 @@ require "./test_narray"
 
 include Phase
 
-include TestRanges
-
 # This test suite is a little bloated - may be useful to eventually redo it in a more targeted fashion.
 
 
