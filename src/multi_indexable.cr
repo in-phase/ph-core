@@ -770,22 +770,63 @@ module Phase
     # Using `self` as a tile, creates a larger `MultiIndexable` by translating and copying that tile in multiple axes.
     # *counts* specifies how many times to copy the tile in each axis. If it is the wrong
     # size, `#tile` will return a `DimensionError`.
-    # TODO: Add code sample, write test for this
-    def tile(counts : Enumerable) : MultiIndexable
+    #
+    # ```crystal
+    # unit = NArray[[1, 2], [3, 4]]
+    # 
+    # puts unit.tile([2, 3])
+    # # 4x6 Phase::NArray(Int32)
+    # # [[1, 2, 1, 2, 1, 2],
+    # #  [3, 4, 3, 4, 3, 4],
+    # #  [1, 2, 1, 2, 1, 2],
+    # #  [3, 4, 3, 4, 3, 4]]
+    # ```
+    def tile(counts : Enumerable(Int)) : MultiIndexable
       NArray.tile(self, counts)
+    end
+
+    # Tuple-accepting overload of `#tile(counts : Enumerable)`.
+    #
+    # ```crystal
+    # unit = NArray[[1, 2], [3, 4]]
+    # 
+    # puts unit.tile(2, 3)
+    # # 4x6 Phase::NArray(Int32)
+    # # [[1, 2, 1, 2, 1, 2],
+    # #  [3, 4, 3, 4, 3, 4],
+    # #  [1, 2, 1, 2, 1, 2],
+    # #  [3, 4, 3, 4, 3, 4]]
+    # ```
+    def tile(*counts : Int)
+      tile(counts)
     end
 
     # Creates an `NArray` duplicate of this `MultiIndexable`.
     #
     # ```crystal
-    # not_an_narray.to_narr # => NArray
+    # # not_an_narray : MultiIndexable
+    # narr = not_an_narray.to_narr # => NArray
+    # not_an_narray.equals?(narr) { |el_1, el_2| el_1 == el_2 } # => true
     # ```
     def to_narr : NArray(T)
-      NArray.build(@shape.dup) do |coord, _|
+      NArray.build(@shape.dup) do |coord|
         unsafe_fetch_element(coord)
       end
     end
 
+    # Returns true if the block returns true for each pair of elements (that share a coordinate) from `self` and `other`.
+    #
+    # ```crystal
+    # narr_1 = NArray[[1, 2], [3, 4]]
+    # narr_2 = NArray[[2, 3], [4, 5]]
+    # 
+    # narr_1.equals?(narr_1.clone) { |a, b| a == b } # => true
+    # narr_1.equals?(narr_2) { |a, b| a == b } # => false
+    # 
+    # # The block doesn't neccessarily have to involve equality,
+    # # just any pairwise comparison you want to evaluate globally.
+    # narr_1.equals?(narr_2) { |a, b| a < b } # => true
+    # ```
     def equals?(other : MultiIndexable, &block) : Bool
       return false if shape_internal != other.shape_internal
 
@@ -812,7 +853,7 @@ module Phase
       ProcView.of(self, proc)
     end
 
-    # TODO: rename!
+    # TODO: rename to elem_eq
     # Produces an NArray(Bool) (by default) describing which elements of self and other are equal.
     def eq(other : MultiIndexable(U)) : MultiIndexable(Bool) forall U
       if shape_internal != other.shape_internal
@@ -984,22 +1025,22 @@ module Phase
       # If a method is defined on both {{@type}} and the type parameter T, precedence will be
       # given to {{@type}}. Complex overloading may cause problems.
       macro method_missing(call)
-              def {{call.name.id}}(*args : *U) forall U
-              \{% if !@type.type_vars[1].has_method?({{call.name.id.stringify}}) %}
-                  \{% raise( <<-ERROR
-                              undefined method '{{call.name.id}}' for #{@type.type_vars[1]}.
-                              Phase is attempting to apply `{{call.name.id}}`, an unknown method, to each element of an `#{@type.type_vars[0]}`. 
-                              (See the documentation of `#{@type}#method_missing` for more info). 
-                              For the source of the error, use `--error-trace`.
-                              ERROR
-                              ) %}
-                  \{% end %}
-                
-                  @src.map_with(*args) do |elem, *arg_elems|
-                    elem.{{call.name.id}}(*arg_elems)
-                  end
-              end
+        def {{call.name.id}}(*args : *U) forall U
+          \{% if !@type.type_vars[1].has_method?({{call.name.id.stringify}}) %}
+            \{% raise( <<-ERROR
+              undefined method '{{call.name.id}}' for #{@type.type_vars[1]}.
+              Phase is attempting to apply `{{call.name.id}}`, an unknown method, to each element of an `#{@type.type_vars[0]}`. 
+              (See the documentation of `#{@type}#method_missing` for more info). 
+              For the source of the error, use `--error-trace`.
+              ERROR
+              ) %}
+          \{% end %}
+
+          @src.map_with(*args) do |elem, *arg_elems|
+            elem.{{call.name.id}}(*arg_elems)
           end
+        end
+      end
     end
   end
 end
