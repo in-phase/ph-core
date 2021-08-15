@@ -916,25 +916,39 @@ module Phase
       {% end %}
     {% end %}
 
+    # Iterates over tuples of elements drawn from `self` and *args*, where *args* contains other `MultiIndexable`s you wish to access.
+    # This is effectively an n-dimensional analogue of `Enumerable#zip`.
+    #
+    # ```crystal
+    # narr_1 = NArray[[1, 2], [3, 4]]
+    # narr_2 = NArray[[:a, :b], [:c, :d]]
+    # 
+    # narr_1.each_with(narr_2) { |el_1, el_2| print el_1, el_2 }
+    # print "\n"
+    # # Output: 1a2b3c4d
+    # 
+    # # When an argument that is not a MultiIndexable is passed,
+    # # #each_with behaves like Object#tap, passing the value into the block.
+    # narr_1.each_with(narr_2, "some other value I want in the block") do |*els|
+    #     puts els 
+    # end
+    # 
+    # # Output:
+    # # {1, :a, "some other value I want in the block"}
+    # # {2, :b, "some other value I want in the block"}
+    # # {3, :c, "some other value I want in the block"}
+    # # {4, :d, "some other value I want in the block"}
+    # 
+    # narr_3 = NArray[[1, 2]] # This has a different shape than narr_1!
+    # narr_1.each_with(narr_3) {} # ShapeError
+    # ```
     def each_with(*args, &block)
       MultiIndexable.each_with(self, *args) do |*elems|
         yield *elems
       end
     end
 
-    # def map_with(*args, &block)
-    #   map_with(*args, block: block)
-    # end
-
-    # def map_with(*args, proc : P) forall P
-    #   {% begin %}
-    #   buffer = Pointer({{P.type_vars[1]}}).malloc(size)
-    #   MultiIndexable.each_with(self, *args) do |*elems|
-    #     proc.call(*elems)
-    #   end
-    #   {% end %}
-    # end
-
+    # Iterates over tuples of elements from `self` and *args*, and creating a `MultiIndexable` containing the output of the block to which those tuples are provided.
     def map_with(*args, &block)
       MultiIndexable.map_with(self, *args) do |*elems|
         yield *elems

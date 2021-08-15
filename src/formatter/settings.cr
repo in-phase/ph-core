@@ -3,6 +3,27 @@ require "yaml"
 
 module Phase::MultiIndexable
   class Formatter(E, I)
+    # Every instance of `Settings` stores configuration options that can
+    # be provided to `MultiIndexable::Formatter`. Additionally, `Settings`
+    # can store a project-wide formatter configuration (via `.project_settings`
+    # and `.project_settings=`), and load system-wide configuration (via `self.user_settings`).
+    #
+    # ### Where does `Settings` get it's data from?
+    # All user-configurable printing methods in `Formatter` will accept an
+    # optional *settings* parameter. If you provide an instance of `Settings`
+    # to that formatter method, it will always be used, no matter what project
+    # or system-wide configuration is enabled. If you do not provide a
+    # `Settings` instance in the call to `Formatter`, `Formatter` will load its
+    # configuration from `Settings.new`.
+    #
+    # `Settings.new` will check everything on this list (starting at the top)
+    # until it finds suitable settings, and then returns those.
+    # - `Settings.project_settings` (`nil` by default, but can be altered via
+    # `.project_settings=`)
+    # - `Settings.user_settings` (attempts to cache and return settings from a
+    # `formatter.yaml` file. See `.user_settings` for details)
+    # - `Settings.default` (the default configuration that we, the developers
+    # of Phase, think is nice)
     class Settings
       include YAML::Serializable
 
@@ -13,14 +34,57 @@ module Phase::MultiIndexable
 
       class_property project_settings : self?
 
+      # Controls the number of spaces that will be used to produce each indentation.
       property indent_width : Int32
+
+      # Controls the maximum number of characters to display for each element.
+      # Elements that stringify to something longer than this will be
+      # truncated, and numbers that are too long will be put into scientific
+      # notation to attempt to fit them into this length.
       property max_element_width : Int32
 
+      # The maximum number of elements to display in a single row before truncating output.
       @[YAML::Field(key: "omit_after")]
       property display_limit : Array(Int32)
 
+      # The formatter is capable of using different brackets for different structures - this may help disambiguate rows, columns, and higher dimensional arrays.
+      # 
+      # ```crystal
+      # narr = NArray.build([2, 2, 2, 2]) { |_, idx| idx }
+      # 
+      # settings = MultiIndexable::Formatter::Settings.default
+      # settings.brackets = [{"<", ">"}, {"begin", "end"}]
+      # 
+      # MultiIndexable::Formatter.print(narr, settings: settings)
+      # 
+      # # Output (note how the 0th element in brackets was used for the innermost arrays)
+      # # begin
+      # #     <
+      # #         begin< 0,  1>,
+      # #              < 2,  3>end,
+      # #         
+      # #         begin< 4,  5>,
+      # #              < 6,  7>end
+      # #     >,
+      # #     <
+      # #         begin< 8,  9>,
+      # #              <10, 11>end,
+      # #         
+      # #         begin<12, 13>,
+      # #              <14, 15>end
+      # #     >
+      # # end
+      # ```
       property brackets : Array(Tuple(String, String))
 
+      # The formatter output can be colorized according to its nesting level -
+      # the brackets around sets of elements are colored with `colors[0]`, the
+      # brackets around sets of rows are colored with `colors[1]`, and so on.
+      # Note that this array can be whatever length you want - the formatter
+      # will restart the color cycle after reaching the end of the color array.
+      #
+      # For a list of valid colors, see the `Colorize` module in the standard
+      # library.
       @[YAML::Field(converter: YAML::ArrayConverter(Phase::MultiIndexable::Formatter::Settings::ColorConverter))]
       property colors : Array(Colorize::ColorRGB | Symbol)
 

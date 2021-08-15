@@ -5,6 +5,16 @@ require "big"
 # when you first print an narray, it loads whatever it should find from file, and then saves it in a static variable on FormatterSettings
 module Phase
   module MultiIndexable
+    # Used to print `MultiIndexable`s in a user-readable fashion. The most
+    # common usage of `Formatter` is the class method `Formatter.print(narr,
+    # io, settings)`.
+    #
+    # `Formatter` can be configured at multiple different levels:
+    # - Per invocation
+    # - Program wide
+    # - System wide
+    #
+    # For detailed information about how that all works, see `Formatter::Settings`.
     class Formatter(E, I)
       private enum Flags
         ELEM
