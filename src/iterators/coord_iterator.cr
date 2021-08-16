@@ -2,9 +2,11 @@ module Phase
   # Strictly finite regions
   abstract class CoordIterator(T) < GeneralCoordIterator(T)
     @last : Array(T)
-    getter size : BigInt
 
+    getter size : BigInt
     getter coord = [] of T
+
+    def_clone
 
     def self.cover(shape : Shape)
       new(IndexRegion.cover(shape))

@@ -5,6 +5,8 @@ module Phase
     include Iterator(E)
 
     getter ec_iter : ElemAndCoordIterator(E, I)
+    
+    delegate :reset, :reverse!, :coord_iter, to: @ec_iter
 
     # def self.of(*args)
     #   pp args
@@ -45,20 +47,8 @@ module Phase
       @ec_iter.unsafe_next_value
     end
 
-    def reset
-      @ec_iter.reset
-    end
-
-    def coord_iter
-      @ec_iter.coord_iter
-    end
-
     def reverse
       new(@src, @ec_iter.reverse)
-    end
-
-    def reverse!
-      @ec_iter.reverse!
     end
   end
 end

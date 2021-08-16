@@ -222,7 +222,7 @@ module Phase
 
     def fit(new_shape, *, align : Hash(Int32, NArray::Alignment | Int32)? = nil, pad_with value = nil)
       if new_shape.size != @shape.size
-        raise "Cannot not fit a #{@shape.size} dimensional {{@type}} into a #{new_shape.size} dimensional shape. Consider calling `reshape` if you wish to change dimensionality."
+        raise "Cannot fit a #{@shape.size} dimensional {{@type}} into a #{new_shape.size} dimensional shape. Consider calling `reshape` if you wish to change dimensionality."
       end
       # otherwise:
     end
@@ -246,9 +246,10 @@ module Phase
     # Requires that shape is equal to coord + self.shape in each dimension
     protected def unsafe_pad(new_shape, value, coord)
       padded = NArray.fill(new_shape, value.as(T))
-      padded.unsafe_set_chunk(RegionUtil.translate_shape(@shape, coord), self)
+      padded.unsafe_set_chunk(IndexRegion.cover(@shape).translate!(coord), self)
       padded
     end
+
 
     # Adds a dimension at highest level, where each "row" is an input {{@type}}.
     # If pad is false, then throw error if shapes of objects do not match;

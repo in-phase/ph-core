@@ -955,6 +955,12 @@ module Phase
       end
     end
 
+    def ensure_writable
+      {% unless @type < MultiWritable %}
+        {% raise "ensure_writable failed: #{@type} is not a MultiWritable." %}
+      {% end %}
+    end
+
     def map_with(*args : *U, &block) forall U
       {% begin %}
 
@@ -980,6 +986,23 @@ module Phase
       {% end %}
     end
     
+
+    def map_with!(*args : *U, &block) forall U 
+      {% begin %}
+      ensure_writable
+      each_coord do |coord|
+        unsafe_set_element(coord, 
+          yield(
+            unsafe_fetch_element(coord),
+            {% for i in 0...(U.size) %}
+              {% if U[i] < NArray %} args[{{i}}].unsafe_fetch_element(coord) {% else %} args[{{i}}]{% end %},
+            {% end %}
+          ))
+      end
+      {% end %}
+    end
+
+
     def self.each_with(*args : *U, &block) forall U
       {% begin %}
         {% found_first = false %}
@@ -1004,19 +1027,13 @@ module Phase
       {% end %}
     end
 
-
     def apply : ApplyProxy
       ApplyProxy.of(self)
     end
 
-    # def apply! : ApplyProxy
-    # end
-
-    # def map(*others : MultiIndexable)
-    # end
-
-    # def NArray::map(*others : NArray)
-    # end
+    def apply! : InPlaceApplyProxy
+      InPlaceApplyProxy.of(self)
+    end
 
     private class ApplyProxy(S, T)
       @src : S
@@ -1056,5 +1073,29 @@ module Phase
         end
       end
     end
+
+    private class InPlaceApplyProxy(S,T) < ApplyProxy(S,T)
+      def self.of(src : S) forall S
+        InPlaceApplyProxy(S, typeof(src.first)).new(src)
+      end
+      
+      macro method_missing(call)
+        def {{call.name.id}}(*args : *U) forall U
+          \{% if !@type.type_vars[1].has_method?({{call.name.id.stringify}}) %}
+            \{% raise( <<-ERROR
+              undefined method '{{call.name.id}}' for #{@type.type_vars[1]}.
+              Phase is attempting to apply `{{call.name.id}}`, an unknown method, to each element of an `#{@type.type_vars[0]}`. 
+              (See the documentation of `#{@type}#method_missing` for more info). 
+              For the source of the error, use `--error-trace`.
+              ERROR
+              ) %}
+          \{% end %}
+
+          @src.map_with!(*args) do |elem, *arg_elems|
+            elem.{{call.name.id}}(*arg_elems)
+          end
+        end
+      end
+    end    
   end
 end

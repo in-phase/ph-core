@@ -7,8 +7,9 @@ module Phase
     getter coord_iter : CoordIterator(I)
     @src : MultiIndexable(E)
 
-    # discussed on signal: have an overload where iter is a mandatory named param
+    delegate :reset, :reverse!, to: @coord_iter
 
+    # discussed on signal: have an overload where iter is a mandatory named param
     def self.of(src, iter : CoordIterator(I))
       new(src, iter)
     end
@@ -23,10 +24,6 @@ module Phase
     end
 
     def initialize(@src : MultiIndexable(E), @coord_iter : CoordIterator(I))
-    end
-
-    def reset
-      @coord_iter.reset
     end
 
     protected def get_element(coord)
@@ -54,8 +51,5 @@ module Phase
       typeof(self).new(@src, @coord_iter.reverse)
     end
 
-    def reverse!
-      @coord_iter.reverse!
-    end
   end
 end
