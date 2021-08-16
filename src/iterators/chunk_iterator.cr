@@ -8,6 +8,9 @@ module Phase
 
     @chunk_and_region_iterator : ChunkAndRegionIterator(C, E, I)
 
+    def_clone 
+    delegate :reset, to: @chunk_and_region_iterator
+
     def initialize(@chunk_and_region_iterator : ChunkAndRegionIterator(C, E, I))
     end
 
@@ -24,9 +27,6 @@ module Phase
     def next : C | Stop
       @chunk_and_region_iterator.next_value
     end
-
-    def reset
-      @chunk_and_region_iterator.reset
-    end
+    
   end
 end

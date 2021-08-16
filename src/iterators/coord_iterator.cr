@@ -6,7 +6,7 @@ module Phase
     getter size : BigInt
     getter coord = [] of T
 
-    def_clone
+    abstract def clone
 
     def self.cover(shape : Shape)
       new(IndexRegion.cover(shape))

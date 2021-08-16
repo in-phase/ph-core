@@ -5,18 +5,9 @@ module Phase
     include Iterator(E)
 
     getter ec_iter : ElemAndCoordIterator(E, I)
-    
+
+    def_clone
     delegate :reset, :reverse!, :coord_iter, to: @ec_iter
-
-    # def self.of(*args)
-    #   pp args
-    #   new(ElemAndCoordIterator.new(*args))
-    # end
-
-    # def self.new(*args)
-    #   pp args
-    #   new(ElemAndCoordIterator.new(*args))
-    # end
 
     def self.of(src, iter : CoordIterator)
       new(src, iter)
@@ -48,7 +39,7 @@ module Phase
     end
 
     def reverse
-      new(@src, @ec_iter.reverse)
+      clone.reverse!
     end
   end
 end

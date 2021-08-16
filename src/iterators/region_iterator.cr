@@ -9,6 +9,11 @@ module Phase
     @fringe_behaviour : FringeBehaviour
     @degeneracy : Array(Bool)
 
+    def_clone
+    delegate :reset, to: @coord_iter
+
+   
+
     # getter size : Int32
     # TODO: iter inputs, etc
     def self.new(src_shape : Shape(I), chunk_shape : Shape(I), strides : Coord? = nil, degeneracy = nil,
@@ -119,10 +124,6 @@ module Phase
 
     def unsafe_next
       compute_region(@coord_iter.unsafe_next)
-    end
-
-    def reset
-      @coord_iter.reset
     end
 
     enum FringeBehaviour

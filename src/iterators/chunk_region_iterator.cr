@@ -9,6 +9,8 @@ module Phase
     @region_iter : RegionIterator(I)
     @src : MultiIndexable(E)
 
+    delegate :reset, to: @region_iter
+
     def self.new(src : MultiIndexable, chunk_shape : Shape, strides : Coord? = nil, degeneracy = nil,
                  fringe_behaviour : FB = FB::DISCARD, &block)
       region_iter = RegionIterator.new(src.shape, chunk_shape, strides, degeneracy, fringe_behaviour) { |region| yield region }
@@ -26,6 +28,10 @@ module Phase
     end
 
     def initialize(@src : MultiIndexable(E), @region_iter : RegionIterator(I))
+    end
+
+    def clone 
+      {{@type}}.new(@src, @region_iter.clone)
     end
 
     def next : Stop | Tuple(C, IndexRegion(I))
@@ -47,8 +53,5 @@ module Phase
       end
     end
 
-    def reset
-      @region_iter.reset
-    end
   end
 end

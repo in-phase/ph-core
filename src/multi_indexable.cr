@@ -871,6 +871,14 @@ module Phase
       end
     end
 
+    # TODO: DISCUSS this syntax as an alternative or supplement to elem_eq
+    def =~(value) : MultiIndexable(Bool)
+      map do |elem|
+        elem == value
+      end
+    end
+    # puts NArray.build(3,3) {|c,i| i} =~ 4
+
     def hash(hasher)
       hasher = shape_internal.hash(hasher)
       each do |el|
@@ -879,13 +887,12 @@ module Phase
       hasher
     end
 
-    # TODO: These macro-generated methods are currently nodoc because there are so many.
-    # we need to figure out a way to document these without spamming :p
+    # TODO: There are a lot of these macro-generated methods. Figure out how to 
+    # list them without crowding out docs page
     {% begin %}
       # Implements most binary operations
       {% for name in %w(+ - * / // > < >= <= &+ &- &- ** &** % & | ^ <=>) %}
 
-        # :nodoc:
         # Invokes `#{{name.id}}` element-wise between `self` and *other*, returning
         # an `NArray` that contains the results.
         def {{name.id}}(other : MultiIndexable(U)) forall U 
@@ -901,7 +908,6 @@ module Phase
           end
         end
 
-        # :nodoc:
         # Invokes `#{{name.id}}(other)` on each element in `self`, returning an
         # `NArray` that contains the results.
         def {{name.id}}(other)
@@ -1045,18 +1051,13 @@ module Phase
       protected def initialize(@src)
       end
   
-      # If a method signature not defined on {{@type}} is called, then `method_missing` will attempt
-      # to apply the method to every element contained in the {{@type}}. Any argument to the method call
-      # that is also an {{@type}} will be applied element-wise.
-      # For example:
-      # ```arr = {{@type}}(Int32).new([2,2,2]) { |i| i }
-      # arr > 4```
-      # will give: [[[false, false], [false, false]], [[false, true], [true true]]]
-      # WARNING: fully exhaustive testing is not possible for this method; use at your own risk.
-      # If a method is defined on both {{@type}} and the type parameter T, precedence will be
-      # given to {{@type}}. Complex overloading may cause problems.
+      # TODO: document
       macro method_missing(call)
         def {{call.name.id}}(*args : *U) forall U
+          # DISCUSS: Do we want this error at all? It won't display on all 
+          # failures anyway (e.g. wrong argument types, wrong return type for in-place)
+          # If someone is explicitly calling .apply they hopefully at least know
+          # to check the error trace
           \{% if !@type.type_vars[1].has_method?({{call.name.id.stringify}}) %}
             \{% raise( <<-ERROR
               undefined method '{{call.name.id}}' for #{@type.type_vars[1]}.
@@ -1072,6 +1073,7 @@ module Phase
           end
         end
       end
+      
     end
 
     private class InPlaceApplyProxy(S,T) < ApplyProxy(S,T)
@@ -1081,21 +1083,13 @@ module Phase
       
       macro method_missing(call)
         def {{call.name.id}}(*args : *U) forall U
-          \{% if !@type.type_vars[1].has_method?({{call.name.id.stringify}}) %}
-            \{% raise( <<-ERROR
-              undefined method '{{call.name.id}}' for #{@type.type_vars[1]}.
-              Phase is attempting to apply `{{call.name.id}}`, an unknown method, to each element of an `#{@type.type_vars[0]}`. 
-              (See the documentation of `#{@type}#method_missing` for more info). 
-              For the source of the error, use `--error-trace`.
-              ERROR
-              ) %}
-          \{% end %}
-
           @src.map_with!(*args) do |elem, *arg_elems|
             elem.{{call.name.id}}(*arg_elems)
           end
         end
       end
-    end    
+
+    end 
+
   end
 end

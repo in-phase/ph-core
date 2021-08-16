@@ -26,6 +26,11 @@ module Phase
     def initialize(@src : MultiIndexable(E), @coord_iter : CoordIterator(I))
     end
 
+    # Clone the iterator (while maintaining reference to the same source array)
+    def clone 
+      {{@type}}.new(@src, @coord_iter.clone)
+    end
+
     protected def get_element(coord)
       @src.unsafe_fetch_element(coord)
     end
@@ -48,7 +53,7 @@ module Phase
     end
 
     def reverse
-      typeof(self).new(@src, @coord_iter.reverse)
+      clone.reverse!
     end
 
   end

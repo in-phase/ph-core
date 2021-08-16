@@ -773,6 +773,10 @@ module Phase
         @smaller_coord = wrap_coord(@first)
       end
 
+      def clone 
+        raise "Can't clone private class WrappedLexIterator(T)"
+      end
+
       def wrap_coord(coord)
         coord.map_with_index { |axis, idx| axis % @smaller_shape[idx] }
       end
