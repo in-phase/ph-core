@@ -909,13 +909,8 @@ module Phase
       hasher
     end
 
-    # TODO: There are a lot of these macro-generated methods. Figure out how to 
-    # list them without crowding out docs page
-    {% begin %}
-      # Implements most binary operations
-      {% for name in %w(+ - * / // > < >= <= &+ &- &- ** &** % & | ^ <=>) %}
-
-        # Invokes `#{{name.id}}` element-wise between `self` and *other*, returning
+    macro def_elementwise_binary(name)
+      # Invokes `#{{name.id}}` element-wise between `self` and *other*, returning
         # an `NArray` that contains the results.
         def {{name.id}}(other : MultiIndexable(U)) forall U 
           if shape_internal != other.shape_internal
@@ -935,14 +930,40 @@ module Phase
         def {{name.id}}(other)
           map &.{{name.id}} other
         end
-      {% end %}
+    end
 
-      {% for name in %w(- + ~) %}
-        def {{name.id}}
-          map &.{{name.id}} 
-        end
-      {% end %}
-    {% end %}
+    macro def_elementwise_unary(name)
+      def {{name.id}}
+        map &.{{name.id}} 
+      end
+    end
+
+    def_elementwise_binary :+
+    def_elementwise_binary :-
+    def_elementwise_binary :*
+    def_elementwise_binary :/
+    def_elementwise_binary ://
+    def_elementwise_binary :%
+    def_elementwise_binary :**
+
+    def_elementwise_binary :&+
+    def_elementwise_binary :&-
+    def_elementwise_binary :&*
+    def_elementwise_binary :&**
+
+    def_elementwise_binary :&
+    def_elementwise_binary :|
+    def_elementwise_binary :^
+
+    def_elementwise_binary :>
+    def_elementwise_binary :<
+    def_elementwise_binary :>= 
+    def_elementwise_binary :<=
+    def_elementwise_binary :<=>
+
+    def_elementwise_unary :+
+    def_elementwise_unary :-
+    def_elementwise_unary :~
 
     # Iterates over tuples of elements drawn from `self` and *args*, where *args* contains other `MultiIndexable`s you wish to access.
     # This is effectively an n-dimensional analogue of `Enumerable#zip`.
