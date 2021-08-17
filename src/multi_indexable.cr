@@ -692,6 +692,28 @@ module Phase
       end
     end
 
+    # TODO docs
+    # DISCUSS is this good behaviour?
+    def map_with_coord!(&block : (T -> T))
+      each_coord do |coord|
+        unsafe_set_element(coord, yield(unsafe_fetch_element(coord), coord))
+      end
+    end
+
+    def map_with_coord!(&block : (T -> MultiIndexable(T)))
+      each_coord do |coord|
+        val = yield unsafe_fetch_element(coord), coord
+        unsafe_set_element(coord, val.to_scalar)
+      end
+    end
+
+    # TODO docs, test
+    def map!(&block : (T -> T | MultiIndexable(T))) : MultiIndexable(T)
+      map_with_coord! do |el, coord|
+        yield el
+      end
+    end
+
     # Returns an Iterator over the elements in this `MultiIndexable` that will iterate in the fastest order possible.
     # For most implementations, it is very likely that `#each` will be just as fast.
     # However, certain implementations of `MultiIndexable` may have substantial

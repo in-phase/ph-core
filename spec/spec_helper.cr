@@ -134,6 +134,39 @@ def self.step_conflict
   ]
 end
 
+def self.ndim 
+  [
+    # check it operates in the right dimension
+    [0..2..8, 0..3],
+    
+    # size 0
+    [3...3, 0..3],
+
+    # size 1, no dimension dropping
+    [0..0, 0..0]
+
+]
+end
+
+def self.ndim_dropped 
+  [
+    # try dropping first dimension
+    [0, 0..2..8],
+
+    # size 0 with dimension dropping
+    [3...3, 1] ,
+    
+    # size 1, partial dimension dropping
+    [0..0, 1]  ,
+
+    # size 1, full dimension dropping 
+    [1, 1],
+
+    # multiple dimensions dropped
+    [0..1, 4, 3, 1..1]
+  ]
+end
+
 end
 
 

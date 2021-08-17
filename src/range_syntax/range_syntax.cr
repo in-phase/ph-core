@@ -81,13 +81,9 @@ module Phase
       ensure_nonnegative(vals[:last])
     end
 
-    protected def conv(int, target_type)
-      target_type.zero + int
-    end
-
     def infer_range(index : Int, bound : T) forall T
-      canonical = conv(CoordUtil.canonicalize_index_unsafe(index, bound), T)
-      {first: canonical, step: 1, last: canonical, size: conv(1,T)}
+      canonical = T.new(CoordUtil.canonicalize_index_unsafe(index, bound))
+      {first: canonical, step: 1, last: canonical, size: T.new(1)}
     end
 
     def infer_range(range_literal, bound : T) : NamedTuple(first: T, step: Int32, last: T, size: T) forall T
@@ -126,11 +122,11 @@ module Phase
       end
 
       begin
-        first = conv(first, T)
+        first = T.new(first)
 
         # Align temp_last to an integer number of steps from first
-        size = conv(get_size(first, temp_last, step), T)
-        last = first + step * (size - 1)
+        size = T.new(get_size(first, temp_last, step))
+        last = T.new(first + step * (size - 1))
 
         {first: first, step: step.to_i32, last: last, size: size}
       rescue ex : IndexError

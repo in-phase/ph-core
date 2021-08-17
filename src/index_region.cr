@@ -10,16 +10,13 @@ module Phase
     # should .each give an iterator over dimensions, or over coords?
     include MultiIndexable(Array(T))
 
-    # :nodoc:
-    getter first : Array(T)
-
-    # :nodoc:
-    getter last : Array(T)
+    @first : Array(T)
+    @last : Array(T)
 
     # @first, @last, @proper_shape, @reduced_shape must all be valid index representers but @step need not be (e.g. may be negative)
     # TODO: see if there is a way to generalize to any SignedInt
-    # :nodoc:
-    getter step : Array(Int32)
+    @step : Array(Int32)
+    
     @proper_shape : Array(T)
     @reduced_shape : Array(T)
 
@@ -68,6 +65,7 @@ module Phase
       # The region literal is allowed to have implicit dimensions (fewer than the bound_shape would imply).
       # this loop just populates the remaining dimensions with sensible defaults
       (region_literal.size...bound_shape.size).each do |axis|
+        # TODO handle bound_shape given with 0
         last[axis] = bound_shape[axis] - 1
         shape[axis] = bound_shape[axis]
       end
@@ -98,6 +96,7 @@ module Phase
       # The region literal is allowed to have implicit dimensions (fewer than the bound_shape would imply).
       # this loop just populates the remaining dimensions with sensible defaults
       (region_literal.size...bound_shape.size).each do |axis|
+        # TODO handle bound_shape given with 0
         last[axis] = bound_shape[axis] - 1
         shape[axis] = bound_shape[axis]
       end
@@ -109,6 +108,7 @@ module Phase
     def self.cover(bound_shape : Indexable(T), *, drop : Bool = DROP_BY_DEFAULT, degeneracy : Array(Bool)? = nil)
       first = Array.new(bound_shape.size, T.zero)
       step = Array.new(bound_shape.size, 1)
+      # TODO handle bound_shape given with 0
       last = bound_shape.map &.pred
       shape = bound_shape.dup
       new(first, step, last, shape, drop, degeneracy)
@@ -172,7 +172,7 @@ module Phase
 
     protected def reduce_shape 
       if @drop
-        @reduced_shape = drop_degenerate(@proper_shape) { [@proper_shape.product == 0 ? T.zero : T.zero + 1] }
+        @reduced_shape = drop_degenerate(@proper_shape){ [@proper_shape.product] }
       else
         @reduced_shape = @proper_shape.dup 
       end
@@ -266,6 +266,9 @@ module Phase
       self
     end
 
+    # DISCUSS: trim! that can trim off the closer-to-0 side also?
+    # e.g. trim so all coordinates are above [3]
+
     def reverse! : IndexRegion(T)
       @first, @last = @last, @first
       @step = @step.map &.-
@@ -280,12 +283,26 @@ module Phase
       self.clone.trim!(bound_shape)
     end
 
-    def translate!(by offset : Enumerable) : self
+    # WARNING: this allows for the creation of IndexRegions with negative ordinates,
+    # which may cause undocumented behaviour elsewhere in the code. The burden
+    # is on the user to ensure that negative ordinates are not created, or that
+    # they are appropriately handled.
+    def unsafe_translate!(by offset : Enumerable) : self
       offset.each_with_index do |amount, axis|
         @first[axis] += amount
         @last[axis] += amount
       end
       self
+    end
+
+    def translate!(by offset : Enumerable) : self 
+      offset.each_with_index do |amount, axis|
+        if amount < 0 && (@first[axis] < -amount || @last[axis] < -amount)
+          # BETTER_ERROR
+          raise IndexError.new("Can't translate to negative indices")
+        end
+      end
+      unsafe_translate!(offset)      
     end
 
     def translate(by offset : Enumerable) : self
@@ -372,16 +389,16 @@ module Phase
           size = span // step.abs + 1
           span -= span % step.abs
 
-          return {last + span, step, last, T.zero + size}
+          return {last + span, step, last, T.new(size)}
         end
       elsif step > 0 && last >= new_bound # first in bounds, increase past bound
         span = (new_bound - 1) - first
         span -= span % step.abs
         size = span // step.abs + 1
 
-        return {first, step, first + span, T.zero + size}
+        return {first, step, first + span, T.new(size)}
       end
-      {first, step, last, T.zero + size}
+      {first, step, last, T.new(size)}
     end
   end
 end

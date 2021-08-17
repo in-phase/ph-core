@@ -13,7 +13,7 @@ module Phase
     end
 
     protected def initialize(region : IndexRegion(T))
-      initialize(region.first, region.last, region.step, BigInt.new(region.size))
+      initialize(region.@first, region.@last, region.@step, BigInt.new(region.size))
     end
 
     protected def initialize(@first, @last, @step, @size)
