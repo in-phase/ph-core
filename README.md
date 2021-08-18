@@ -4,9 +4,16 @@ Phase is a family of scientific computing libraries written for Crystal. This re
 implements Phase's core functionality, including generic multidimensional arrays,
 views, array slicing, pretty-printing, and fluent arithmetic.
 
+## NOTE
+If you're seeing this repo right now, please note that Phase is not quite
+ready for public use. We have a lot of documentation to write, compatibility
+modules to test and ship, and specs to implement.
+
+If you have any questions, feel free to reach out to [sethhinz@me.com](mailto:sethhinz@me.com) or open an issue.
+
 ## Links
-- [Documentation](/)
-- [Tutorials](/)
+- [API Documentation](https://in-phase.github.io/api)
+- [Introduction & Reference Material](https://in-phase.github.io/reference)
 
 ## Examples
 
