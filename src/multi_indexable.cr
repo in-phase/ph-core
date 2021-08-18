@@ -26,13 +26,6 @@ module Phase
     # behaviour.
     DROP_BY_DEFAULT = true
 
-    # TODO: remove this comment block
-    # Please consider overriding:
-    # -fast: for performance
-    # -transform functions: reshape, permute, reverse; for performance
-    # -unsafe_fetch_chunk: for performance and return type (defaults to NArray)
-    # -size: if you can precompute size or get it via a buffer size, it's a big performance boost
-
     # Returns the capacity of each axis spanned by `self`.
     # For example, a matrix with 4 rows and 2 columns will have the shape
     # [4, 2]. This must always return a clone of the actual shape, and is
