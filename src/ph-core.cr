@@ -7,6 +7,8 @@ require "./exceptions/*"
 require "./type_aliases.cr"
 require "./coord_util.cr"
 require "./shape_util.cr"
+
+require "./range_syntax/range_syntax.cr"
 require "./index_region.cr"
 
 require "./multi_indexable.cr"
@@ -31,7 +33,7 @@ require "./formatter/formatter.cr"
 
 require "./patches/*"
 
-# TODO: Write documentation for `Phase::Core`
+# DOCUMENT: Write documentation for `Phase::Core`
 module Phase
   VERSION = "0.1.0"
 end

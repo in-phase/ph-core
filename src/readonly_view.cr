@@ -52,8 +52,10 @@ module Phase
     end
 
     def reshape!(new_shape) : self
-      # TODO:
-      # check if number of elements is still valid
+      if new_shape.product != @shape.product
+        # BETTER_ERROR
+        raise "number of elements can't change on reshape."
+      end
       @transform.compose!(ReshapeTransform.new(@shape, new_shape))
       @shape = new_shape
       self
@@ -89,7 +91,7 @@ module Phase
     end
 
     def unsafe_fetch_element(coord) : R
-      @src.unsafe_fetch_element(@transform.apply(coord)).unsafe_as(R)
+      @src.unsafe_fetch_element(@transform.apply(coord)).as(R)
     end
 
     def process(new_proc : (R -> U)) : ProcView(S, R, U) forall U

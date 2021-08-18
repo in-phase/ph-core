@@ -6,6 +6,9 @@ module Phase
 
     getter ec_iter : ElemAndCoordIterator(E, I)
 
+    def_clone
+    delegate :reset, :reverse!, :coord_iter, to: @ec_iter
+
     def self.of(src, iter : CoordIterator)
       new(src, iter)
     end
@@ -16,7 +19,7 @@ module Phase
       else
         iter = LexIterator.new(region)
       end
-      
+
       new(src, iter)
     end
 
@@ -35,20 +38,8 @@ module Phase
       @ec_iter.unsafe_next_value
     end
 
-    def reset
-      @ec_iter.reset
-    end
-
-    def coord_iter
-      @ec_iter.coord_iter
-    end
-
     def reverse
-      new(@src, @ec_iter.reverse)
-    end
-
-    def reverse!
-      @ec_iter.reverse!
+      clone.reverse!
     end
   end
 end

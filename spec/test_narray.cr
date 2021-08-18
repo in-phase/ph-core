@@ -7,6 +7,8 @@ include Phase
 
 # Defines instance variables, constructors, and general utils for a buffer-backed multi-array.
 abstract class TestNArray(T)
+  # include MultiIndexable(T)
+
   getter buffer : Slice(T)
   getter size : Int32
   @shape : Array(Int32)
@@ -58,19 +60,19 @@ end
 module ReadUtils(T)
   include MultiIndexable(T)
 
-  def unsafe_fetch_chunk(idx_region : IndexRegion, drop = MultiIndexable::DROP_BY_DEFAULT)
-    shape = idx_region.shape # RegionUtil.measure_canonical_region(region)
-    iter = ElemIterator.of(self, idx_region)
+  # def unsafe_fetch_chunk(idx_region : IndexRegion)
+  #   shape = idx_region.shape # RegionUtil.measure_canonical_region(region)
+  #   iter = ElemIterator.of(self, idx_region)
 
-    buffer = Slice(T).new(shape.product) do |idx|
-      iter.next.as(T)
-    end
+  #   buffer = Slice(T).new(shape.product) do |idx|
+  #     iter.next.as(T)
+  #   end
 
-    {{@type}}.new(idx_region.shape, buffer)
-  end
+  #   {{@type}}.new(idx_region.shape, buffer)
+  # end
 
   def unsafe_fetch_element(coord) : T
-    @buffer.unsafe_fetch(unsafe_coord_to_index(coord))
+    @buffer.[](unsafe_coord_to_index(coord))
   end
 end
 
@@ -95,14 +97,18 @@ module WriteUtils(T)
   end
 end
 
-# Read only NArray
-class RONArray(T) < TestNArray(T)
+class ReadableTestNArray(T) < TestNArray(T)
   include ReadUtils(T)
+end
+
+# Read only NArray
+class RONArray(T) < ReadableTestNArray(T)
 end
 
 # Write only NArray
 class WONArray(T) < TestNArray(T)
   include WriteUtils(T)
+  include ReadUtils(T)
 end
 
 # Read-Write NArray

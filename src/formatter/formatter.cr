@@ -5,6 +5,16 @@ require "big"
 # when you first print an narray, it loads whatever it should find from file, and then saves it in a static variable on FormatterSettings
 module Phase
   module MultiIndexable
+    # Used to print `MultiIndexable`s in a user-readable fashion. The most
+    # common usage of `Formatter` is the class method `Formatter.print(narr,
+    # io, settings)`.
+    #
+    # `Formatter` can be configured at multiple different levels:
+    # - Per invocation
+    # - Program wide
+    # - System wide
+    #
+    # For detailed information about how that all works, see `Formatter::Settings`.
     class Formatter(E, I)
       private enum Flags
         ELEM
@@ -14,7 +24,7 @@ module Phase
 
       @settings : Settings
       @io : IO
-      @iter : ElemIterator(E,I)
+      @iter : ElemIterator(E, I)
 
       @shape : Array(I)
       @depth = 0
@@ -28,11 +38,16 @@ module Phase
         settings ||= Settings.new
 
         display_shape = narr.shape.map_with_index do |dim, i|
-          color = settings.colors[(-i - 1) % settings.colors.size]
+          if i < narr.dimensions - 1
+            color = settings.colors[ (narr.dimensions - i + 1) % settings.colors.size]
+          else
+            color = :default
+          end
+
           dim.to_s.colorize(color)
         end
 
-        io << "#{display_shape.join('x')} #{"element " if narr.shape.size == 1} #{narr.class}\n"
+        io << "#{display_shape.join('x')} #{"element " if narr.shape.size == 1}#{narr.class}\n"
         Formatter(E, typeof(narr.shape[0])).new(narr, io, settings).print
       end
 
@@ -93,7 +108,6 @@ module Phase
       end
 
       protected def walk_n_measure(depth = 0)
-        
         height = @shape.size - depth - 1
         max_columns = @settings.display_limit[{@settings.display_limit.size - 1, height}.min]
 
@@ -126,7 +140,7 @@ module Phase
           end
         else
           @shape[depth].times do |i|
-            @io << @iter.unsafe_next
+            @io << @iter.unsafe_next.inspect
             @io << ", " unless i == @shape[depth] - 1
           end
         end

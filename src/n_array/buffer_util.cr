@@ -5,9 +5,6 @@
 module Phase
   class NArray(T)
     module BufferUtil
-      # TODO: decide
-      # move coord_to_index/index_to_coord here? at least static versions?
-      # move out of NArray? To own namespace?
 
       # Given an array of step sizes in each coordinate axis, returns the offset in the buffer
       # that a step of that size represents.
@@ -29,7 +26,6 @@ module Phase
         {{@type}}.coord_to_index_fast(coord, @shape, @axis_strides)
       end
 
-      # TODO: Talk about what this should be named
       def self.coord_to_index(coord, shape) : Int
         coord = CoordUtil.canonicalize_coord(coord, shape)
         steps = axis_strides(shape)
@@ -108,15 +104,16 @@ module Phase
 
       class IndexedLexIterator(I) < IndexedCoordIterator(I)
         def_clone
+
         def advance_coord
           (@coord.size - 1).downto(0) do |i| # ## least sig .. most sig
-            if @coord[i] == @last[i]
-              @buffer_index -= (@coord[i] - @first[i]) * @buffer_step[i]
-              @coord[i] = @first[i]
+            if @coord.unsafe_fetch(i) == @last.unsafe_fetch(i)
+              @buffer_index -= (@coord.unsafe_fetch(i) - @first.unsafe_fetch(i)) * @buffer_step.unsafe_fetch(i)
+              @coord[i] = @first.unsafe_fetch(i)
               return stop if i == 0 # most sig
             else
-              @coord[i] += @step[i]
-              @buffer_index += @buffer_step[i] * @step[i]
+              @coord[i] += @step.unsafe_fetch(i)
+              @buffer_index += @buffer_step.unsafe_fetch(i) * @step.unsafe_fetch(i)
               break
             end
           end
@@ -126,15 +123,16 @@ module Phase
 
       class IndexedColexIterator(I) < IndexedCoordIterator(I)
         def_clone
+
         def advance_coord
           0.upto(@coord.size - 1) do |i| # ## least sig .. most sig
-            if @coord[i] == @last[i]
-              @buffer_index -= (@coord[i] - @first[i]) * @buffer_step[i]
-              @coord[i] = @first[i]
+            if @coord.unsafe_fetch(i) == @last.unsafe_fetch(i)
+              @buffer_index -= (@coord.unsafe_fetch(i) - @first.unsafe_fetch(i)) * @buffer_step.unsafe_fetch(i)
+              @coord[i] = @first.unsafe_fetch(i)
               return stop if i == @coord.size - 1 # most sig
             else
               @coord[i] += @step[i]
-              @buffer_index += @buffer_step[i] * @step[i]
+              @buffer_index += @buffer_step.unsafe_fetch(i) * @step.unsafe_fetch(i)
               break
             end
           end
@@ -142,9 +140,9 @@ module Phase
         end
       end
 
-      # TODO: Make generic coord
+      # TODO: this should probably have S be a type parameter because it
+      # doesn't actually work for all MultiIndexables
       class BufferedECIterator(T, I) < ElemAndCoordIterator(T, I)
-        
         # This is needed here to prevent the method below (def self.of(src, region = nil)) from taking priority
         def self.of(src, iter : CoordIterator(I))
           new(src, iter)
@@ -165,7 +163,12 @@ module Phase
         end
 
         protected def get_element(coord = nil)
-          @src.buffer.unsafe_fetch(@coord_iter.unsafe_as(IndexedCoordIterator(I)).current_index)
+          if (src = @src).responds_to?(:buffer)
+            src.buffer.unsafe_fetch(@coord_iter.unsafe_as(IndexedCoordIterator(I)).current_index)
+          else
+            # BETTER_ERROR
+            raise "bad error"
+          end
         end
 
         def next_value : (T | Stop)

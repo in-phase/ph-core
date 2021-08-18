@@ -1,0 +1,5 @@
+is efficient  11.96M ( 83.58ns) (± 5.83%)  0.0B/op  fastest
+.
+
+Finished in 7.0 seconds
+1 examples, 0 failures, 0 errors, 0 pending

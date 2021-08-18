@@ -14,9 +14,9 @@ abstract struct Number
       {% end %} 
     {% end %}
 
-    def eq(other : MultiIndexable(U)) : MultiIndexable(Bool) forall U 
-      other.map do |elem|
-        self == elem 
-      end
+  def eq(other : MultiIndexable(U)) : MultiIndexable(Bool) forall U
+    other.map do |elem|
+      self == elem
     end
+  end
 end

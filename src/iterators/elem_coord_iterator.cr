@@ -5,9 +5,11 @@ module Phase
     include Iterator(Tuple(E, Array(I)))
 
     getter coord_iter : CoordIterator(I)
+    @src : MultiIndexable(E)
+
+    delegate :reset, :reverse!, to: @coord_iter
 
     # discussed on signal: have an overload where iter is a mandatory named param
-
     def self.of(src, iter : CoordIterator(I))
       new(src, iter)
     end
@@ -24,8 +26,9 @@ module Phase
     def initialize(@src : MultiIndexable(E), @coord_iter : CoordIterator(I))
     end
 
-    def reset
-      @coord_iter.reset
+    # Clone the iterator (while maintaining reference to the same source array)
+    def clone 
+      {{@type}}.new(@src, @coord_iter.clone)
     end
 
     protected def get_element(coord)
@@ -45,16 +48,13 @@ module Phase
     end
 
     def unsafe_next_value : E
-      coord = @coord_iter.next.unsafe_as(Array(I))
+      coord = @coord_iter.next.as(Array(I))
       get_element(coord)
     end
 
     def reverse
-      typeof(self).new(@src, @coord_iter.reverse)
+      clone.reverse!
     end
 
-    def reverse!
-      @coord_iter.reverse!
-    end
   end
 end

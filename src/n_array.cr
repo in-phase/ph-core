@@ -26,6 +26,13 @@ module Phase
     # Cached version of `.axis_strides`.
     protected getter axis_strides : Array(Int32)
 
+    # TODO: Doc
+    protected def self.ensure_valid(shape : Array(Int32), buffer : Slice)
+      if shape.product != buffer.size
+        raise ArgumentError.new("Cannot create {{@type}}: Given shape does not match number of elements in buffer.")
+      end
+    end
+
     # Creates an `{{@type}}` using only a shape (see `shape`) and a packed index.
     # This is used internally to make code faster - converting from a packed
     # index to an unpacked index isn't needed for many constructors, and generating
@@ -52,14 +59,14 @@ module Phase
     # Creates an `{{@type}}` out of a shape and a pre-populated buffer.
     # Frequently used internally (for example, this is used in
     # `reshape` as of Feb 5th 2021).
-    # TODO: Should be protected, had to remove for testing
-    def initialize(shape, @buffer : Slice(T))
-      if shape.product != @buffer.size
-        raise ArgumentError.new("Cannot create {{@type}}: Given shape does not match number of elements in buffer.")
-      end
-
+    protected def initialize(shape : Array(Int32), @buffer : Slice(T))
       @shape = shape.dup
       @axis_strides = BufferUtil.axis_strides(@shape)
+    end
+
+    def self.of_buffer(shape : Array(Int32), buffer : Slice(T))
+      NArray.ensure_valid(shape, buffer)
+      new(shape.dup, buffer)
     end
 
     # Constructs an `{{@type}}` using a user-provided *shape* (see `shape`) and a callback.
@@ -102,7 +109,7 @@ module Phase
     end
 
     def self.build(*shape : Int, &block : Array(Int32), Int32 -> T)
-      build(shape, &block) 
+      build(shape, &block)
     end
 
     # Creates an `{{@type}}` from a nested array with uniform dimensions.
@@ -142,7 +149,7 @@ module Phase
       # fill elements
       buffer = Slice.new(flattened.to_unsafe, flattened.size)
 
-      # Do the typical `new` stuff
+      NArray.ensure_valid(shape, buffer)
       new(shape, buffer)
     end
 
@@ -168,6 +175,17 @@ module Phase
     def self.fill(shape, value : T)
       # \{% begin %} \{{ @type.id }}.new(shape) { value } \{% end %}
       {{@type}}.new(shape) { value }
+    end
+
+    def self.tile(narr : MultiIndexable(T), counts : Enumerable)
+      shape = narr.shape.map_with_index { |axis, idx| axis * counts[idx] }
+
+      iter = WrappedLexIterator.new(IndexRegion.cover(shape), narr.shape).each
+
+      build(shape) do
+        iter.next
+        narr.get(iter.smaller_coord)
+      end
     end
 
     # shorthand
@@ -204,7 +222,7 @@ module Phase
 
     def fit(new_shape, *, align : Hash(Int32, NArray::Alignment | Int32)? = nil, pad_with value = nil)
       if new_shape.size != @shape.size
-        raise "Cannot not fit a #{@shape.size} dimensional {{@type}} into a #{new_shape.size} dimensional shape. Consider calling `reshape` if you wish to change dimensionality."
+        raise "Cannot fit a #{@shape.size} dimensional {{@type}} into a #{new_shape.size} dimensional shape. Consider calling `reshape` if you wish to change dimensionality."
       end
       # otherwise:
     end
@@ -228,9 +246,10 @@ module Phase
     # Requires that shape is equal to coord + self.shape in each dimension
     protected def unsafe_pad(new_shape, value, coord)
       padded = NArray.fill(new_shape, value.as(T))
-      padded.unsafe_set_chunk(RegionUtil.translate_shape(@shape, coord), self)
+      padded.unsafe_set_chunk(IndexRegion.cover(@shape).translate!(coord), self)
       padded
     end
+
 
     # Adds a dimension at highest level, where each "row" is an input {{@type}}.
     # If pad is false, then throw error if shapes of objects do not match;
@@ -287,6 +306,10 @@ module Phase
       {{@type}}.new(@shape, @buffer.dup)
     end
 
+    def slices(axis = 0) : Array(T)
+      previous_def(axis)
+    end
+
     # TODO any way to avoid copying these out yet, too? Iterator magic?
     # def slices(axis = 0) : Array(self)
     #   region = [] of (Int32 | Range(Int32, Int32))
@@ -314,7 +337,9 @@ module Phase
     end
 
     def reshape(new_shape : Enumerable)
-      {{@type}}.new(new_shape.to_a, @buffer)
+      shape_arr = new_shape.to_a
+      NArray.ensure_valid(shape_arr, @buffer)
+      {{@type}}.new(shape_arr, @buffer)
     end
 
     def reshape(*splat)
@@ -332,14 +357,14 @@ module Phase
     end
 
     # Copies the elements in `region` to a new `{{@type}}`, assuming that `region` is in canonical form and in-bounds for this `{{@type}}`.
-    # For full specification of canonical form see `RegionHelpers` documentation. TODO: make this actually happen
+    # For full specification of canonical form see `IndexRegion` documentation.
     def unsafe_fetch_chunk(region : IndexRegion)
       iter = BufferedECIterator.new(self, IndexedLexIterator.new(region, @shape))
       typeof(self).new(region.shape) { iter.unsafe_next_value }
     end
 
     # Retrieves the element specified by `coord`, assuming that `coord` is in canonical form and in-bounds for this `{{@type}}`.
-    # For full specification of canonical form see `RegionHelpers` documentation. TODO: make this actually happen
+    # For full specification of canonical form see `IndexRegion` documentation.
     def unsafe_fetch_element(coord) : T
       @buffer.unsafe_fetch(BufferUtil.coord_to_index_fast(coord, @shape, @axis_strides))
     end
@@ -351,27 +376,28 @@ module Phase
     # invoke `#to_scalar`.
     # TODO: Either make the type restriction here go away (it was getting called when indexing
     # with a single range), or remove this method entirely in favor of read only views
-    def [](index : Int32) : self
-      index = CoordUtil.canonicalize_index(index, @shape, axis = 0)
+    # TODO: benchmark against normal implementation
+    # def [](index : Int) : self
+    #   index = CoordUtil.canonicalize_index(index, @shape, axis = 0)
 
-      if dimensions == 1
-        new_shape = [1]
-      else
-        new_shape = @shape[1..]
-      end
-      # The "step size" of the top level dimension (row) is the product of the lower dimensions.
-      step = new_shape.product
+    #   if dimensions == 1
+    #     new_shape = [1]
+    #   else
+    #     new_shape = @shape[1..]
+    #   end
+    #   # The "step size" of the top level dimension (row) is the product of the lower dimensions.
+    #   step = new_shape.product
 
-      new_buffer = @buffer[index * step, step]
-      typeof(self).new(new_shape, new_buffer.clone)
-    end
+    #   new_buffer = @buffer[index * step, step]
+    #   typeof(self).new(new_shape, new_buffer.clone)
+    # end
 
     # Copies the elements from a MultiIndexable `src` into `region`, assuming that `region` is in canonical form and in-bounds for this `{{type}}`
     # and the shape of `region` matches the shape of `src`.
     def unsafe_set_chunk(region : IndexRegion, src : MultiIndexable(T))
       absolute_iter = IndexedLexIterator.new(region, @shape)
       src_iter = src.each
-      
+
       src_iter.each do |src_el|
         absolute_iter.next
         @buffer[absolute_iter.current_index] = src_el
@@ -557,7 +583,7 @@ module Phase
       num_chunks = concat_shape[...axis].product
 
       values = Array(T).new(initial_capacity: concat_size)
-      iters = narrs.map {|narr| BufferedECIterator.of(narr)}
+      iters = narrs.map { |narr| BufferedECIterator.of(narr) }
 
       num_chunks.times do
         iters.each_with_index do |narr_iter, i|
@@ -730,6 +756,44 @@ module Phase
         raise YAML::Error.new("Could not read NArray from YAML: 'shape' and/or 'elements' were missing.")
       else
         raise YAML::Error.new("Could not read NArray from YAML: Expected mapping, found #{node.class}")
+      end
+    end
+
+    private class WrappedLexIterator(T) < CoordIterator(T)
+      getter smaller_coord : Array(T)
+      @smaller_shape : Array(T)
+
+      def initialize(region : IndexRegion(T), @smaller_shape)
+        super(region)
+        @smaller_coord = wrap_coord(@first)
+      end
+
+      def initialize(region_literal, @smaller_shape)
+        super(IndexRegion(T).new(region_literal))
+        @smaller_coord = wrap_coord(@first)
+      end
+
+      def clone 
+        raise "Can't clone private class WrappedLexIterator(T)"
+      end
+
+      def wrap_coord(coord)
+        coord.map_with_index { |axis, idx| axis % @smaller_shape[idx] }
+      end
+
+      def advance_coord
+        (@coord.size - 1).downto(0) do |i| # ## least sig .. most sig
+          if @coord[i] == @last[i]
+            @coord[i] = @first[i]
+            @smaller_coord[i] = @coord[i] % @smaller_shape[i]
+            return stop if i == 0 # most sig
+          else
+            @coord[i] += @step[i]
+            @smaller_coord[i] = @coord[i] % @smaller_shape[i]
+            break
+          end
+        end
+        @coord
       end
     end
   end

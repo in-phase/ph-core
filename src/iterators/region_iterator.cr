@@ -9,26 +9,30 @@ module Phase
     @fringe_behaviour : FringeBehaviour
     @degeneracy : Array(Bool)
 
+    def_clone
+    delegate :reset, to: @coord_iter
+
+   
+
     # getter size : Int32
     # TODO: iter inputs, etc
-    def self.new(src_shape : Indexable(I), chunk_shape = nil, strides = nil, degeneracy = nil,
-      fringe_behaviour : FringeBehaviour = FringeBehaviour::DISCARD, &block : IndexRegion(I) -> CoordIterator(I))
+    def self.new(src_shape : Shape(I), chunk_shape : Shape(I), strides : Coord? = nil, degeneracy = nil,
+                 fringe_behaviour : FringeBehaviour = FringeBehaviour::DISCARD, &block : IndexRegion(I) -> CoordIterator(I))
       # convert strides into an iterable region
-      puts fringe_behaviour, degeneracy, chunk_shape
       strides ||= chunk_shape
       if strides.any? { |x| x <= 0 }
         raise DimensionError.new("Stride size must be greater than 0.")
       end
 
       last = self.compute_lasts(src_shape, chunk_shape, strides, fringe_behaviour)
-      region = IndexRegion.new(Array(I).new(src_shape.size, 0), strides, stop: last)
+      region = IndexRegion.new(Array(I).new(src_shape.size, 0), strides, last: last)
       coord_iter = yield region
 
       new(src_shape, chunk_shape, coord_iter, degeneracy, fringe_behaviour)
     end
 
-    def self.new(src_shape : Indexable(I), chunk_shape, strides = nil, degeneracy = nil,
-      fringe_behaviour : FringeBehaviour = FringeBehaviour::DISCARD)
+    def self.new(src_shape : Indexable(I), chunk_shape : Shape(I), strides : Coord? = nil, degeneracy = nil,
+                 fringe_behaviour : FringeBehaviour = FringeBehaviour::DISCARD)
       new(src_shape, chunk_shape, strides, degeneracy, fringe_behaviour) do |region|
         LexIterator.new(region)
       end
@@ -97,12 +101,14 @@ module Phase
       end
     end
 
-    protected def compute_region(coord)
-      region = IndexRegion.cover(@chunk_shape).translate!(coord)
-      region.degeneracy = @degeneracy.clone
+    protected def compute_region(coord : Coord)
+      region = IndexRegion.cover(@chunk_shape, drop: true, degeneracy: @degeneracy.clone)
+      region.translate!(coord)
+
       unless @fringe_behaviour == FringeBehaviour::DISCARD
         region.trim!(@src_shape)
       end
+
       return region
     end
 
@@ -117,11 +123,7 @@ module Phase
     end
 
     def unsafe_next
-      compute_region(@coord_iter.next)
-    end
-
-    def reset
-      @coord_iter.reset
+      compute_region(@coord_iter.unsafe_next)
     end
 
     enum FringeBehaviour

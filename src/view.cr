@@ -13,14 +13,8 @@ module Phase
       end
     end
 
-    macro ensure_writable
-      {% unless S < MultiWritable %}
-        {% raise "Could not write to #{@type}: #{S} is not a MultiWritable." %}
-      {% end %}
-    end
-
     def unsafe_set_element(coord : Indexable, value : R)
-      ensure_writable
+      @src.ensure_writable
       @src.unsafe_set_element(@transform.apply(coord), value)
     end
   end
