@@ -128,6 +128,7 @@ module Phase
       false
     end
 
+    # TEST
     # Returns `to_scalar.to_f`.
     # This method allows single-element MultiIndexables to be treated like
     # numerics in many cases.
@@ -270,7 +271,7 @@ module Phase
     # # The region doesn't fit - so:
     # narr.get_chunk(invalid) # => raises an IndexError
     # ```
-    def has_region?(region_literal : Indexable) : Bool
+    def has_region?(region_literal : Indexable, drop : Bool = DROP_BY_DEFAULT) : Bool
       IndexRegion.new(region_literal, shape_internal)
       true
     rescue ex : IndexError
@@ -315,6 +316,7 @@ module Phase
       unsafe_fetch_chunk IndexRegion.new(region_literal, shape_internal, drop)
     end
 
+    # TEST
     # Extracts a chunk given a shape (*region_shape*) and the *coord* in that region with the smallest value in each axis.
     #
     # ```crystal
@@ -434,6 +436,7 @@ module Phase
     #
     # TODO: Try to optimize this use case, possibly with a ProcView over self
     # instead of self
+    # TEST
     def [](bool_mask : MultiIndexable(Bool)) : self
       self
     end
@@ -555,23 +558,33 @@ module Phase
       get_element(coord)
     end
 
-    {% begin %}
-      {% functions_with_drop = %w(get_chunk get_available [] []?) %}
-      {% for name in functions_with_drop %}
-          # Tuple-accepting overload of `#{{name.id}}(region_literal : Indexable, drop : Bool)`.
-          def {{name.id}}(*tuple, drop : Bool = MultiIndexable::DROP_BY_DEFAULT)
-            self.{{name.id}}(tuple, drop)
-          end
-      {% end %}
+    # TODO rename these?
+    # These primarily exist for user clarity (could easily have all these methods
+    # forward all their args to a single funciton to handle tuple-packaging, but
+    # would leave a rather opaque method signature behind)
+    macro region_splat_overload(name)
+      # Tuple-accepting overload of `#{{name.id}}(region_literal : Indexable, drop : Bool)`.
+      def {{name.id}}(*region_literal, drop : Bool = MultiIndexable::DROP_BY_DEFAULT)
+        self.{{name.id}}(region_literal, drop)
+      end
+    end
 
-      {% functions_without_drop = %w(get get_element has_coord? has_region?) %}
-      {% for name in functions_without_drop %}
-          # Tuple-accepting overload of `#{{name.id}}`.
-          def {{name.id}}(*tuple)
-            self.{{name.id}}(tuple)
-          end
-      {% end %}
-    {% end %}
+    macro coord_splat_overload(name)
+      # Tuple-accepting overload of `#{{name.id}}`.
+      def {{name.id}}(*coord : Int)
+        self.{{name.id}}(coord)
+      end
+    end
+
+    region_splat_overload :get_chunk
+    region_splat_overload :get_available
+    region_splat_overload :[]
+    region_splat_overload :[]?
+    region_splat_overload :has_region?
+
+    coord_splat_overload :get 
+    coord_splat_overload :get_element 
+    coord_splat_overload :has_coord?
 
     # Returns an iterator that will yield each coordinate of `self` in lexicographic (row-major) order.
     #
