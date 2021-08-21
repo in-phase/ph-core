@@ -4,6 +4,5 @@ lib/
 bin/
 run_tests
 run_tests.cr
-minitest.cr
-minitest
-test/coverage
+shard.lock
+upload_coverage.sh 
