@@ -25,10 +25,6 @@ module Phase
     protected def initialize(@src : S, @shape : Array(Int32), @transform = ComposedTransform.new)
     end
 
-    # def initialize(@src : S, region)
-    #     self.of(@src, region)
-    # end
-
     def clone : self
       typeof(self).new(@src, @shape.clone, @transform.clone)
     end
@@ -85,8 +81,7 @@ module Phase
       clone.reverse!
     end
 
-    def unsafe_fetch_chunk(region : IndexRegion, drop : Bool) : self
-      # TODO !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!11
+    def unsafe_fetch_chunk(region : IndexRegion) : self
       view(region)
     end
 
