@@ -11,6 +11,7 @@ require "./shape_util.cr"
 require "./range_syntax/range_syntax.cr"
 require "./index_region.cr"
 
+require "./multi_indexable/*"
 require "./multi_indexable.cr"
 require "./multi_writable.cr"
 
@@ -28,8 +29,8 @@ require "./readonly_view.cr"
 require "./proc_view.cr"
 require "./view.cr"
 
-require "./formatter/settings.cr"
-require "./formatter/formatter.cr"
+require "./multi_indexable/formatter/settings.cr"
+require "./multi_indexable/formatter/formatter.cr"
 
 require "./patches/*"
 
