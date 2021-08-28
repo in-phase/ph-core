@@ -697,7 +697,7 @@ module Phase
     # end # => NArray[[1, 3, 5], [5, 7, 9]]
     # ```
     def map_with_coord(&block) # : (T, U -> R)) : MultiIndexable(R) forall R,U
-      NArray.build(shape_internal) do |coord, i|
+      build(shape_internal) do |coord|
         yield unsafe_fetch_element(coord), coord
       end
     end
@@ -1072,7 +1072,7 @@ module Phase
           yield(
             unsafe_fetch_element(coord),
             {% for i in 0...(U.size) %}
-              {% if U[i] < NArray %} args[{{i}}].unsafe_fetch_element(coord) {% else %} args[{{i}}]{% end %},
+              {% if U[i] < MultiIndexable %} args[{{i}}].unsafe_fetch_element(coord) {% else %} args[{{i}}]{% end %},
             {% end %}
           ))
       end
@@ -1097,7 +1097,7 @@ module Phase
         first.each_coord do |coord|
           yield(
             {% for i in 0...(U.size) %}
-              {% if U[i] < NArray %} args[{{i}}].unsafe_fetch_element(coord) {% else %} args[{{i}}]{% end %},
+              {% if U[i] < MultiIndexable %} args[{{i}}].unsafe_fetch_element(coord) {% else %} args[{{i}}]{% end %},
             {% end %}
           )
         end
