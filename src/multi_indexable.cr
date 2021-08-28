@@ -61,7 +61,9 @@ module Phase
     # `MultiIndexable` methods to return a new instance of `self`, not
     # just an `NArray` container, you should override this method.
     protected def build(shape, &block)
-      NArray.build(shape, &block)
+      NArray.build(shape) do |coord, _|
+        yield coord
+      end
     end
 
     # Returns true if both the shape and elements of `self` and *other* are equal.
@@ -651,7 +653,7 @@ module Phase
     # iter.next # => Iterator::Stop
     # ```
     def each(iter : CoordIterator(I)) : Iterator(T) forall I
-      ElemIterator.of(self, iter)
+      ElemIterator.new(self, iter)
     end
 
     # Returns an iterator that will yield tuples of the elements and coords comprising `self` in lexicographic (row-major) order.
@@ -685,7 +687,7 @@ module Phase
     # puts iter.next # => {1, [0, 0]}
     # ```
     def each_with_coord(iter : CoordIterator(I)) : Iterator forall I # Iterator(Tuple(T, Coord))
-      ElemAndCoordIterator.of(self, iter)
+      ElemAndCoordIterator.new(self, iter)
     end
 
     # Returns a `MultiIndexable` with the results of running the block against each element and coordinate comprising `self`.
@@ -696,7 +698,7 @@ module Phase
     #   el + coord.sum
     # end # => NArray[[1, 3, 5], [5, 7, 9]]
     # ```
-    def map_with_coord(&block) # : (T, U -> R)) : MultiIndexable(R) forall R,U
+    def map_with_coord(&block)# : (T, U -> R)) : MultiIndexable(R) forall R,U
       build(shape_internal) do |coord|
         yield unsafe_fetch_element(coord), coord
       end

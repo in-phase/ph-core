@@ -142,10 +142,9 @@ module Phase
 
       # TODO: this should probably have S be a type parameter because it
       # doesn't actually work for all MultiIndexables
-      class BufferedECIterator(T, I) < ElemAndCoordIterator(T, I)
-        # This is needed here to prevent the method below (def self.of(src, region = nil)) from taking priority
-        def self.of(src, iter : CoordIterator(I))
-          new(src, iter)
+      class BufferedECIterator(S, T, I) < ElemAndCoordIterator(S, T, I)
+        def self.new(src, iter : CoordIterator(I))
+          BufferedECIterator(typeof(src), typeof(src.first), typeof(src.shape[0])).new(src, coord_iter: iter)
         end
 
         # Overridden to replace default iterator type
@@ -155,10 +154,10 @@ module Phase
           else
             iter = IndexedLexIterator.new(region, src.shape)
           end
-          new(src, iter)
+          of(src, iter)
         end
 
-        protected def initialize(@src : MultiIndexable(T), @coord_iter : CoordIterator(I))
+        protected def initialize(@src : MultiIndexable(T), *, @coord_iter : CoordIterator(I))
           raise "BufferedECIterators must use IndexedCoordIterators" unless @coord_iter.is_a?(IndexedCoordIterator(I))
         end
 

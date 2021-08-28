@@ -2,7 +2,7 @@ require "colorize"
 require "yaml"
 
 module Phase::MultiIndexable
-  class Formatter(E, I)
+  class Formatter(S, E, I)
     # Every instance of `Settings` stores configuration options that can
     # be provided to `MultiIndexable::Formatter`. Additionally, `Settings`
     # can store a project-wide formatter configuration (via `.project_settings`

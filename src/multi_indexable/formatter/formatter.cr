@@ -15,7 +15,7 @@ module Phase
     # - System wide
     #
     # For detailed information about how that all works, see `Formatter::Settings`.
-    class Formatter(E, I)
+    class Formatter(S, E, I)
       private enum Flags
         ELEM
         SKIP
@@ -24,7 +24,7 @@ module Phase
 
       @settings : Settings
       @io : IO
-      @iter : ElemIterator(E, I)
+      @iter : ElemIterator(S, E, I)
 
       @shape : Array(I)
       @depth = 0
@@ -34,7 +34,7 @@ module Phase
       # This will be set in the measurement step, and should never be used before.
       @justify_length = 0
 
-      def self.print(narr : MultiIndexable(E), io : IO = STDOUT, settings = nil)
+      def self.print(narr : S, io : IO = STDOUT, settings = nil)
         settings ||= Settings.new
 
         display_shape = narr.shape.map_with_index do |dim, i|
@@ -48,16 +48,16 @@ module Phase
         end
 
         io << "#{display_shape.join('x')} #{"element " if narr.shape.size == 1}#{narr.class}\n"
-        Formatter(E, typeof(narr.shape[0])).new(narr, io, settings).print
+        Formatter(S, typeof(narr.first), typeof(narr.shape[0])).new(narr, io, settings).print
       end
 
-      def self.print_literal(narr : MultiIndexable(E), io = STDOUT)
-        fmt = Formatter(E, typeof(narr.shape[0])).new(narr, io, Settings.new)
+      def self.print_literal(narr : S, io = STDOUT)
+        fmt = Formatter(S, typeof(narr.first), typeof(narr.shape[0])).new(narr, io, Settings.new)
         fmt.print_literal
       end
 
       def initialize(narr : MultiIndexable(E), @io, @settings)
-        @iter = ElemIterator.of(narr, LexIterator.cover(narr.shape))
+        @iter = ElemIterator.new(narr, LexIterator.cover(narr.shape))
         @shape = narr.shape
       end
 
@@ -121,7 +121,10 @@ module Phase
         else
           capped_iterator(depth, max_columns) do |flag|
             unless flag == Flags::SKIP
+              puts "fmt_elem"
+              p @iter.@ec_iter.@src.inspect
               elem_length = format_element(@iter.unsafe_next).size
+              puts "fmt_elem"
               max_length = {max_length, elem_length}.max
             end
           end
