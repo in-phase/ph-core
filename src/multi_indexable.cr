@@ -48,6 +48,22 @@ module Phase
       shape
     end
 
+    # Populates a new `MultiIndexable` (by default, an `NArray`) by yielding each coordinate in the shape to a block.
+    #
+    # Many `MultiIndexable` methods return multidimensional data - `#tile` and
+    # `#get_chunk`, for example.  This requires the ability to construct a
+    # `MultiIndexable` to contain that data, but `MultiIndexable` does not have
+    # a standard constructor - different implementations often have drastically
+    # different requirements for construction.
+    #
+    # Because `MultiIndexable` does not have a standard constructor, the aforementioned
+    # methods return instances of `NArray` by default. If you want all
+    # `MultiIndexable` methods to return a new instance of `self`, not
+    # just an `NArray` container, you should override this method.
+    protected def build(shape, &block)
+      NArray.build(shape, &block)
+    end
+
     # Returns true if both the shape and elements of `self` and *other* are equal.
     #
     # ```crystal
@@ -795,7 +811,6 @@ module Phase
       end
     {% end %}
 
-    # Using `self` as a tile, creates a larger `MultiIndexable` by translating and copying that tile in multiple axes.
     # *counts* specifies how many times to copy the tile in each axis. If it is the wrong
     # size, `#tile` will return a `DimensionError`.
     #
@@ -810,7 +825,14 @@ module Phase
     # #  [3, 4, 3, 4, 3, 4]]
     # ```
     def tile(counts : Enumerable(Int)) : MultiIndexable
-      NArray.tile(self, counts)
+      new_shape = shape_internal.map_with_index { |axis, idx| axis * counts[idx] }
+
+      iter = WrappedLexIterator.new(IndexRegion.cover(new_shape), shape_internal).each
+
+      build(new_shape) do
+        iter.next
+        get(iter.smaller_coord)
+      end
     end
 
     # Tuple-accepting overload of `#tile(counts : Enumerable)`.
