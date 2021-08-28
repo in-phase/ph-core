@@ -1,3 +1,5 @@
+require "./general_coord_iterator.cr"
+
 module Phase
   # Strictly finite regions
   abstract class CoordIterator(T) < GeneralCoordIterator(T)
