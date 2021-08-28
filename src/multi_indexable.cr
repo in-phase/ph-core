@@ -1043,7 +1043,9 @@ module Phase
     def map_with(*args : *U, &block) forall U
       {% begin %}
 
-      # NOTE: To determine the return type 
+      # In order to prepare a buffer, we'll need to create dummy variables
+      # and figure out what typeof(yield(args)) will be.
+      # Hacky, but the only way we could think of.
       {% for i in 0...(U.size) %}
         {% if U[i] < MultiIndexable %}
           dummy{{i}} = uninitialized typeof(args[{{i}}].first)
@@ -1053,15 +1055,40 @@ module Phase
       {% end %}
 
       buffer = Pointer(typeof(yield(self.first, {% for i in 0...(U.size) %}dummy{{i}},{% end %}))).malloc(size)
-      idx = 0
 
+      # Populate the buffer via the block
+      idx = 0
       MultiIndexable.each_with(self, *args) do |*elems|
         buffer[idx] = yield *elems
         idx += 1
       end
 
       slice = Slice.new(buffer, size)
-      NArray.of_buffer(shape, slice)
+
+      # Finally, we need to create the `MultiIndexable` to return. If it's
+      # possible to construct the output type from a buffer, we'll do that
+      # (this is very cheap). However, if all we have is build, we'll have
+      # to do a wasteful lexicographic iteration via build.
+      output_type = typeof(build([0]) { 0 })
+
+      # TODO: Change of_buffer to a more descriptive name (like from_lex_buffer or something)
+      if output_type.responds_to?(:of_buffer)
+        # TODO: Right now, there's nothing ensuring that #of_buffer
+        # will actually return the correct output type. A runtime error
+        # won't really make anything better, but I don't think it's possible to
+        # detect at compile time :(
+        #
+        # We should circle back to this and see if we want to use the inneficient but
+        # always-safe `build` version.
+        output_type.of_buffer(shape, slice)
+      else
+        idx = 0
+        build(shape) do
+          val = slice[idx]
+          idx += 1
+          val
+        end
+      end
       {% end %}
     end
     

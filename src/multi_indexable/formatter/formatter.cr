@@ -121,10 +121,7 @@ module Phase
         else
           capped_iterator(depth, max_columns) do |flag|
             unless flag == Flags::SKIP
-              puts "fmt_elem"
-              p @iter.@ec_iter.@src.inspect
               elem_length = format_element(@iter.unsafe_next).size
-              puts "fmt_elem"
               max_length = {max_length, elem_length}.max
             end
           end
