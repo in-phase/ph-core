@@ -16,6 +16,7 @@ module Phase
   module MultiIndexable(T)
     # provides search, traversal methods
     include Enumerable(T)
+    include Iterable(T)
 
     # :nodoc:
     # Dictates whether `Phase` removes (drops) axes that are indexed by an
@@ -307,7 +308,7 @@ module Phase
     # This method's usage is identical to `#get_chunk(region : IndexRegion)`,
     # but it is slightly faster.
     def unsafe_fetch_chunk(region : IndexRegion) : MultiIndexable(T)
-      NArray.build(region.shape) do |coord|
+      build(region.shape) do |coord|
         unsafe_fetch_element(region.local_to_absolute_unsafe(coord))
       end
     end
@@ -861,7 +862,7 @@ module Phase
     # not_an_narray.equals?(narr) { |el_1, el_2| el_1 == el_2 } # => true
     # ```
     def to_narr : NArray(T)
-      NArray.build(@shape.dup) do |coord|
+      NArray.build(shape) do |coord|
         unsafe_fetch_element(coord)
       end
     end
