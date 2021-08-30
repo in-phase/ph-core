@@ -306,8 +306,8 @@ module Phase
       {{@type}}.new(@shape, @buffer.dup)
     end
 
-    def slices(axis = 0) : Array(T)
-      previous_def(axis)
+    def slices(axis = 0) : Array(self)
+      super(axis)
     end
 
     # TODO any way to avoid copying these out yet, too? Iterator magic?
