@@ -366,7 +366,7 @@ module Phase
       LexIterator.new(self)
     end
 
-    protected def drop_degenerate(arr : Array, &when_full : -> Array(T)) : Array(T)
+    protected def drop_degenerate(arr : Array, &when_empty : -> Array(T)) : Array(T)
       new_arr = Array(T).new(arr.size)
       arr.each_with_index do |value, idx|
         new_arr << value unless @degeneracy[idx]

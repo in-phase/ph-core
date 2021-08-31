@@ -1055,7 +1055,9 @@ module Phase
         {% end %}
       {% end %}
 
-      buffer = Pointer(typeof(yield(self.first, {% for i in 0...(U.size) %}dummy{{i}},{% end %}))).malloc(size)
+      value_type = uninitialized typeof(yield(self.first, {% for i in 0...(U.size) %}dummy{{i}},{% end %}))
+
+      buffer = Pointer(typeof(value_type)).malloc(size)
 
       # Populate the buffer via the block
       idx = 0
@@ -1070,7 +1072,7 @@ module Phase
       # possible to construct the output type from a buffer, we'll do that
       # (this is very cheap). However, if all we have is build, we'll have
       # to do a wasteful lexicographic iteration via build.
-      output_type = typeof(build([0]) { 0 })
+      output_type = typeof(build([0]) { value_type })
 
       # TODO: Change of_buffer to a more descriptive name (like from_lex_buffer or something)
       if output_type.responds_to?(:of_buffer)
