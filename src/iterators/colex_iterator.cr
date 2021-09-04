@@ -1,6 +1,12 @@
 require "./coord_iterator"
 
 module Phase
+  # A `CoordIterator` that produces every coordinate in an `IndexRegion` in colexicographic
+  # (column-major) order. For example:
+  #
+  # ```crystal
+  # ColexIterator.cover([2, 3]).each.to_a # => [[0, 0], [1, 0], [0, 1], [1, 1], [0, 1], [1, 2]]
+  # ```
   class ColexIterator(T) < CoordIterator(T)
 
     def_clone
