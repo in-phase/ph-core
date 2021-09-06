@@ -308,7 +308,7 @@ describe Phase::MultiIndexable do
     end
 
     it "raises when called on an empty MultiIndexable" do
-      expect_raises IndexError do
+      expect_raises ShapeError do
         RONArray.new([1, 1, 0], Slice(Int32).new(0)).sample
       end
     end
