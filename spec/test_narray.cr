@@ -80,18 +80,6 @@ end
 module WriteUtils(T)
   include MultiWritable(T)
 
-  def unsafe_set_chunk(region : Enumerable, src : MultiIndexable(T))
-    each_in_canonical_region(region) do |elem, coord|
-      @buffer[unsafe_coord_to_index(coord)] = src.unsafe_fetch_element(coord)
-    end
-  end
-
-  def unsafe_set_chunk(region : Enumerable, value : T)
-    each_in_canonical_region(region) do |elem, coord|
-      @buffer[unsafe_coord_to_index(coord)] = value
-    end
-  end
-
   def unsafe_set_element(coord : Enumerable, value : T)
     @buffer[unsafe_coord_to_index(coord)] = value
   end

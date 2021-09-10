@@ -53,7 +53,7 @@ module Phase
       idx_region = IndexRegion.new(region_literal, shape_internal)
 
       if !ShapeUtil.compatible_shapes?(src.shape_internal, idx_region.shape)
-        raise DimensionError.new("Cannot substitute #{typeof(src)}: the given #{typeof(src)} has shape #{src.shape_internal}, but region #{idx_region} has shape #{idx_region.shape}.")
+        raise ShapeError.new("Cannot substitute #{typeof(src)}: the given #{typeof(src)} has shape #{src.shape_internal}, but region #{idx_region} has shape #{idx_region.shape}.")
       end
 
       unsafe_set_chunk(idx_region, src)
