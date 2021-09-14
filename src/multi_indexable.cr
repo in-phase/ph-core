@@ -810,7 +810,11 @@ module Phase
 
     {% for transform in %w(reshape permute reverse) %}
       def {{transform.id}}(*args) : MultiIndexable(T)
-        view.{{transform.id}}(*args).to_narr
+        v = view.{{transform.id}}(*args)
+
+        build(v.shape) do |coord|
+          v.unsafe_fetch_element(coord)
+        end
       end
     {% end %}
 
