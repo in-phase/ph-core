@@ -895,6 +895,7 @@ module Phase
     end
 
     def view(region : Indexable? | IndexRegion = nil) : View(self, T)
+      puts region
       View.of(self, region)
     end
 

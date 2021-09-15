@@ -49,9 +49,9 @@ module Phase
 
     def reshape!(new_shape) : self
       if new_shape.product != @shape.product
-        # BETTER_ERROR
-        raise "number of elements can't change on reshape."
+        raise ShapeError.new("Cannot change shape from #{@shape.join('x')} (#{@shape.product} elements) to #{new_shape.join('x')} (#{new_shape.product} elements) because reshape cannot add or remove elements.")
       end
+
       @transform.compose!(ReshapeTransform.new(@shape, new_shape))
       @shape = new_shape
       self
@@ -71,6 +71,14 @@ module Phase
     def permute(order : Enumerable? = nil) : self
       clone.permute!(order)
     end
+    {% begin %}
+      {% for name in {"permute", "permute!", "reshape", "reshape!"} %}
+        # Tuple-accepting overload of `#{{name}}`.
+        def {{name.id}}(*args)
+          {{name.id}}(args)
+        end
+      {% end %}
+    {% end %}
 
     def reverse! : self
       @transform.compose!(ReverseTransform.new(@shape))
