@@ -1,29 +1,31 @@
 require "./coord_iterator"
 
 module Phase
-  class ElemAndCoordIterator(E, I)
+  class ElemAndCoordIterator(S, E, I)
     include Iterator(Tuple(E, Array(I)))
 
     getter coord_iter : CoordIterator(I)
-    @src : MultiIndexable(E)
+    @src : S
 
     delegate :reset, :reverse!, to: @coord_iter
 
-    # discussed on signal: have an overload where iter is a mandatory named param
-    def self.of(src, iter : CoordIterator(I))
-      new(src, iter)
+    # TODO: doc
+    # this is here rather than just an initialize because it'll pull type params out for you
+    def self.new(src, iter : CoordIterator(I))
+      # Careful, this looks recursive but isn't due to the named param
+      ElemAndCoordIterator(typeof(src), typeof(src.first), typeof(src.shape[0])).new(src, coord_iter: iter)
     end
 
     def self.of(src, region = nil)
       if region.nil?
         iter = LexIterator.cover(src.shape)
       else
-        iter = LexIterator.new(region)
+        iter = LexIterator(typeof(src.shape[0])).new(region)
       end
       new(src, iter)
     end
 
-    def initialize(@src : MultiIndexable(E), @coord_iter : CoordIterator(I))
+    protected def initialize(@src : S, *, @coord_iter : CoordIterator(I))
     end
 
     # Clone the iterator (while maintaining reference to the same source array)

@@ -1,6 +1,12 @@
 require "./coord_iterator"
 
 module Phase
+  # A `CoordIterator` that produces every coordinate in an `IndexRegion` in lexicographic
+  # (row-major) order. For example:
+  #
+  # ```crystal
+  # LexIterator.cover([2, 3]).each.to_a # => [[0, 0], [0, 1], [0, 2], [1, 0], [1, 1], [1, 2]]
+  # ```
   class LexIterator(T) < CoordIterator(T)
 
     def_clone

@@ -16,6 +16,7 @@ module Phase
   module MultiIndexable(T)
     # provides search, traversal methods
     include Enumerable(T)
+    include Iterable(T)
 
     # :nodoc:
     # Dictates whether `Phase` removes (drops) axes that are indexed by an
@@ -46,6 +47,24 @@ module Phase
     # use case, you almost certainly should.
     protected def shape_internal : Shape
       shape
+    end
+
+    # Populates a new `MultiIndexable` (by default, an `NArray`) by yielding each coordinate in the shape to a block.
+    #
+    # Many `MultiIndexable` methods return multidimensional data - `#tile` and
+    # `#get_chunk`, for example.  This requires the ability to construct a
+    # `MultiIndexable` to contain that data, but `MultiIndexable` does not have
+    # a standard constructor - different implementations often have drastically
+    # different requirements for construction.
+    #
+    # Because `MultiIndexable` does not have a standard constructor, the aforementioned
+    # methods return instances of `NArray` by default. If you want all
+    # `MultiIndexable` methods to return a new instance of `self`, not
+    # just an `NArray` container, you should override this method.
+    protected def build(shape, &block)
+      NArray.build(shape) do |coord, _|
+        yield coord
+      end
     end
 
     # Returns true if both the shape and elements of `self` and *other* are equal.
@@ -289,7 +308,7 @@ module Phase
     # This method's usage is identical to `#get_chunk(region : IndexRegion)`,
     # but it is slightly faster.
     def unsafe_fetch_chunk(region : IndexRegion) : MultiIndexable(T)
-      NArray.build(region.shape) do |coord|
+      build(region.shape) do |coord|
         unsafe_fetch_element(region.local_to_absolute_unsafe(coord))
       end
     end
@@ -635,7 +654,7 @@ module Phase
     # iter.next # => Iterator::Stop
     # ```
     def each(iter : CoordIterator(I)) : Iterator(T) forall I
-      ElemIterator.of(self, iter)
+      ElemIterator.new(self, iter)
     end
 
     # Returns an iterator that will yield tuples of the elements and coords comprising `self` in lexicographic (row-major) order.
@@ -669,7 +688,7 @@ module Phase
     # puts iter.next # => {1, [0, 0]}
     # ```
     def each_with_coord(iter : CoordIterator(I)) : Iterator forall I # Iterator(Tuple(T, Coord))
-      ElemAndCoordIterator.of(self, iter)
+      ElemAndCoordIterator.new(self, iter)
     end
 
     # Returns a `MultiIndexable` with the results of running the block against each element and coordinate comprising `self`.
@@ -680,8 +699,8 @@ module Phase
     #   el + coord.sum
     # end # => NArray[[1, 3, 5], [5, 7, 9]]
     # ```
-    def map_with_coord(&block) # : (T, U -> R)) : MultiIndexable(R) forall R,U
-      NArray.build(shape_internal) do |coord, i|
+    def map_with_coord(&block)# : (T, U -> R)) : MultiIndexable(R) forall R,U
+      build(shape_internal) do |coord|
         yield unsafe_fetch_element(coord), coord
       end
     end
@@ -791,11 +810,14 @@ module Phase
 
     {% for transform in %w(reshape permute reverse) %}
       def {{transform.id}}(*args) : MultiIndexable(T)
-        view.{{transform.id}}(*args).to_narr
+        v = view.{{transform.id}}(*args)
+
+        build(v.shape) do |coord|
+          v.unsafe_fetch_element(coord)
+        end
       end
     {% end %}
 
-    # Using `self` as a tile, creates a larger `MultiIndexable` by translating and copying that tile in multiple axes.
     # *counts* specifies how many times to copy the tile in each axis. If it is the wrong
     # size, `#tile` will return a `DimensionError`.
     #
@@ -810,7 +832,14 @@ module Phase
     # #  [3, 4, 3, 4, 3, 4]]
     # ```
     def tile(counts : Enumerable(Int)) : MultiIndexable
-      NArray.tile(self, counts)
+      new_shape = shape_internal.map_with_index { |axis, idx| axis * counts[idx] }
+
+      iter = WrappedLexIterator.new(IndexRegion.cover(new_shape), shape_internal).each
+
+      build(new_shape) do
+        iter.next
+        get(iter.smaller_coord)
+      end
     end
 
     # Tuple-accepting overload of `#tile(counts : Enumerable)`.
@@ -837,7 +866,7 @@ module Phase
     # not_an_narray.equals?(narr) { |el_1, el_2| el_1 == el_2 } # => true
     # ```
     def to_narr : NArray(T)
-      NArray.build(@shape.dup) do |coord|
+      NArray.build(shape) do |coord|
         unsafe_fetch_element(coord)
       end
     end
@@ -866,6 +895,7 @@ module Phase
     end
 
     def view(region : Indexable? | IndexRegion = nil) : View(self, T)
+      puts region
       View.of(self, region)
     end
 
@@ -1019,7 +1049,9 @@ module Phase
     def map_with(*args : *U, &block) forall U
       {% begin %}
 
-      # NOTE: To determine the return type 
+      # In order to prepare a buffer, we'll need to create dummy variables
+      # and figure out what typeof(yield(args)) will be.
+      # Hacky, but the only way we could think of.
       {% for i in 0...(U.size) %}
         {% if U[i] < MultiIndexable %}
           dummy{{i}} = uninitialized typeof(args[{{i}}].first)
@@ -1028,16 +1060,43 @@ module Phase
         {% end %}
       {% end %}
 
-      buffer = Pointer(typeof(yield(self.first, {% for i in 0...(U.size) %}dummy{{i}},{% end %}))).malloc(size)
-      idx = 0
+      value_type = uninitialized typeof(yield(self.first, {% for i in 0...(U.size) %}dummy{{i}},{% end %}))
 
+      buffer = Pointer(typeof(value_type)).malloc(size)
+
+      # Populate the buffer via the block
+      idx = 0
       MultiIndexable.each_with(self, *args) do |*elems|
         buffer[idx] = yield *elems
         idx += 1
       end
 
       slice = Slice.new(buffer, size)
-      NArray.of_buffer(shape, slice)
+
+      # Finally, we need to create the `MultiIndexable` to return. If it's
+      # possible to construct the output type from a buffer, we'll do that
+      # (this is very cheap). However, if all we have is build, we'll have
+      # to do a wasteful lexicographic iteration via build.
+      output_type = typeof(build([0]) { value_type })
+
+      # TODO: Change of_buffer to a more descriptive name (like from_lex_buffer or something)
+      if output_type.responds_to?(:of_buffer)
+        # TODO: Right now, there's nothing ensuring that #of_buffer
+        # will actually return the correct output type. A runtime error
+        # won't really make anything better, but I don't think it's possible to
+        # detect at compile time :(
+        #
+        # We should circle back to this and see if we want to use the inneficient but
+        # always-safe `build` version.
+        output_type.of_buffer(shape, slice)
+      else
+        idx = 0
+        build(shape) do
+          val = slice[idx]
+          idx += 1
+          val
+        end
+      end
       {% end %}
     end
     
@@ -1050,7 +1109,7 @@ module Phase
           yield(
             unsafe_fetch_element(coord),
             {% for i in 0...(U.size) %}
-              {% if U[i] < NArray %} args[{{i}}].unsafe_fetch_element(coord) {% else %} args[{{i}}]{% end %},
+              {% if U[i] < MultiIndexable %} args[{{i}}].unsafe_fetch_element(coord) {% else %} args[{{i}}]{% end %},
             {% end %}
           ))
       end
@@ -1075,7 +1134,7 @@ module Phase
         first.each_coord do |coord|
           yield(
             {% for i in 0...(U.size) %}
-              {% if U[i] < NArray %} args[{{i}}].unsafe_fetch_element(coord) {% else %} args[{{i}}]{% end %},
+              {% if U[i] < MultiIndexable %} args[{{i}}].unsafe_fetch_element(coord) {% else %} args[{{i}}]{% end %},
             {% end %}
           )
         end

@@ -308,7 +308,7 @@ describe Phase::MultiIndexable do
     end
 
     it "raises when called on an empty MultiIndexable" do
-      expect_raises IndexError do
+      expect_raises ShapeError do
         RONArray.new([1, 1, 0], Slice(Int32).new(0)).sample
       end
     end
@@ -609,20 +609,35 @@ describe Phase::MultiIndexable do
   end
 
   describe "#reshape" do
-    pending "returns a View with a ReshapeTransform applied over this MultiIndexable" do
+    it "returns a reshaped MultiIndexable containing the same elements" do
+      r_narr.reshape([12]).should eq NArray.new(test_buffer.to_a)
+    end
+
+    it "raises a ShapeError for incompatible shapes" do
+      expect_raises(ShapeError) do
+        r_narr.reshape([15, 20])
+      end
     end
   end
 
   describe "#permute" do
-    pending "returns a View with a PermuteTransform applied over this MultiIndexable" do
+    it "returns a permuted MultiIndexable containing the same elements" do
+      permuted = NArray[[1, 'a', 1f64], [2, 'b', 2f64], [3, 'c', 3f64], [4, 'd', 4f64]]
+      r_narr.permute([1, 0]).should eq permuted
+      r_narr.permute(1, 0).should eq permuted
+      r_narr.permute.should eq permuted
+    end
+
+    it "raises an IndexError for illegal permutation indices" do
+      expect_raises(IndexError) do
+        r_narr.permute([2, 3])
+      end
     end
   end
 
   describe "#reverse", tags: ["yikes"] do
-    pending "returns a View with a ReverseTransform applied over this MultiIndexable" do
-      # puts r_narr
-      # puts r_narr.permute
-      # checkout the branch "nightmare" for why this isn't present
+    it "returns a View with a ReverseTransform applied over this MultiIndexable" do
+      r_narr.reverse.@buffer.should eq test_buffer.clone.reverse!
     end
   end
 

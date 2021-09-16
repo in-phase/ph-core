@@ -1,23 +1,19 @@
 require "./elem_coord_iterator"
 
 module Phase
-  class ElemIterator(E, I)
+  class ElemIterator(S, E, I)
     include Iterator(E)
 
-    getter ec_iter : ElemAndCoordIterator(E, I)
+    getter ec_iter : ElemAndCoordIterator(S, E, I)
 
     def_clone
     delegate :reset, :reverse!, :coord_iter, to: @ec_iter
-
-    def self.of(src, iter : CoordIterator)
-      new(src, iter)
-    end
 
     def self.of(src, region = nil)
       if region.nil?
         iter = LexIterator.cover(src.shape)
       else
-        iter = LexIterator.new(region)
+        iter = LexIterator(typeof(src.shape[0])).new(region)
       end
 
       new(src, iter)
@@ -27,7 +23,7 @@ module Phase
       new(ElemAndCoordIterator.new(src, iter))
     end
 
-    protected def initialize(@ec_iter : ElemAndCoordIterator(E, I))
+    def initialize(@ec_iter : ElemAndCoordIterator(S, E, I))
     end
 
     def next

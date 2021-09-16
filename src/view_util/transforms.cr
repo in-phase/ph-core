@@ -105,7 +105,9 @@ module Phase
       @buffer : Array(Int32) # has same size as output coord (and @src_shape)
       @view_axis_strides : Array(Int32)
 
-      def initialize(@src_shape, @new_shape)
+      def initialize(src_shape : Enumerable(Int32), new_shape : Enumerable(Int32))
+        @src_shape = src_shape.to_a
+        @new_shape = new_shape.to_a
         @buffer = @src_shape.clone
         @view_axis_strides = axis_strides(@new_shape)
       end
@@ -198,7 +200,8 @@ module Phase
       getter pattern : Array(Int32)
       @buffer : Array(Int32)
 
-      def initialize(@pattern)
+      def initialize(pattern : Enumerable(Int32))
+        @pattern = pattern.to_a
         @buffer = @pattern.clone
       end
 
