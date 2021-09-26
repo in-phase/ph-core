@@ -260,8 +260,20 @@ describe Phase::MultiIndexable do
       RONArray.new([2, 2], Slice[1, 2, 3, 4]).first.should eq 1
     end
 
-    it "raises some sort of error when there are no elements" do
-      expect_raises IndexError do
+    it "raises an ShapeError when there are no elements" do
+      expect_raises(ShapeError) do
+        RONArray.new([1, 1, 0], Slice(Int32).new(0, 0)).first
+      end
+    end
+  end
+
+  describe "#first" do
+    it "returns the element at the highest coordinate from a populated MultiIndexable" do
+      RONArray.new([2, 2], Slice[1, 2, 3, 4]).first.should eq 4
+    end
+
+    it "raises an ShapeError when there are no elements" do
+      expect_raises(ShapeError) do
         RONArray.new([1, 1, 0], Slice(Int32).new(0, 0)).first
       end
     end

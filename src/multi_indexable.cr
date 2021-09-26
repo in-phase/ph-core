@@ -175,10 +175,30 @@ module Phase
     # ```
     def first : T
       if size == 0
-        raise IndexError.new("{{@type}} has zero elements (shape: #{shape_internal}).")
+        raise ShapeError.new("{{@type}} has zero elements (shape: #{shape_internal}).")
       end
 
       get_element(Array.new(shape_internal.size, 0))
+    end
+
+    # Returns the element with the largest ordinate in each axis (the element at the largest coordinate).
+    # For example:
+    #
+    # ```crystal
+    # # create the following matrix:
+    # # [5 2]
+    # # [8 3]
+    # narr = NArray.new([[5, 2, 1], [8, 3, 4]])
+    # 
+    # # extract the bottom-right element (coordinate [1, 2])
+    # narr.last # => 4
+    # ```
+    def last : T
+      if size == 0
+        raise ShapeError.new("{{@type}} has zero elements (shape: #{shape_internal}).")
+      end
+
+      get_element(shape_internal.map &.pred)
     end
 
     # Returns a random element from the `{{@type}}`. Note that this might not

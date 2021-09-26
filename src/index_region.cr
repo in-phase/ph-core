@@ -223,7 +223,19 @@ module Phase
       local_to_absolute_unsafe(coord)
     end
 
+    def first
+      @first.clone
+    end
+
+    def last
+      @last.clone
+    end
+
     # ========================== Other =====================================
+
+    def stride
+      @step.clone
+    end
 
     def includes?(coord)
       # DISCUSS: DimensionError or return false?
