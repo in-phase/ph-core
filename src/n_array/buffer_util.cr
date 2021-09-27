@@ -61,8 +61,8 @@ module Phase
         coord.reverse
       end
 
-      abstract class IndexedCoordIterator(I) < CoordIterator(I)
-        @buffer_index : I # Initialized beforehand to placate the compiler
+      abstract class IndexedStrideIterator(I) < StrideIterator(I)
+        @buffer_index : I
         @buffer_step : Array(I)
 
         def self.cover(shape)
@@ -102,7 +102,7 @@ module Phase
         end
       end
 
-      class IndexedLexIterator(I) < IndexedCoordIterator(I)
+      class IndexedLexIterator(I) < IndexedStrideIterator(I)
         def_clone
 
         def advance_coord
@@ -121,7 +121,7 @@ module Phase
         end
       end
 
-      class IndexedColexIterator(I) < IndexedCoordIterator(I)
+      class IndexedColexIterator(I) < IndexedStrideIterator(I)
         def_clone
 
         def advance_coord
@@ -158,12 +158,12 @@ module Phase
         end
 
         protected def initialize(@src : MultiIndexable(T), *, @coord_iter : CoordIterator(I))
-          raise "BufferedECIterators must use IndexedCoordIterators" unless @coord_iter.is_a?(IndexedCoordIterator(I))
+          raise "BufferedECIterators must use IndexedStrideIterators" unless @coord_iter.is_a?(IndexedStrideIterator(I))
         end
 
         protected def get_element(coord = nil)
           if (src = @src).responds_to?(:buffer)
-            src.buffer.unsafe_fetch(@coord_iter.unsafe_as(IndexedCoordIterator(I)).current_index)
+            src.buffer.unsafe_fetch(@coord_iter.unsafe_as(IndexedStrideIterator(I)).current_index)
           else
             # BETTER_ERROR
             raise "bad error"

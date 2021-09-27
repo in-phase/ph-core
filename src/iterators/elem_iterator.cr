@@ -19,7 +19,7 @@ module Phase
       new(src, iter)
     end
 
-    def self.new(src, iter : CoordIterator)
+    def self.new(src, iter : Iterator(Array(I))) forall I
       new(ElemAndCoordIterator.new(src, iter))
     end
 

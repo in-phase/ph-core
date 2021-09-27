@@ -673,7 +673,7 @@ module Phase
     # iter.next # => 1
     # iter.next # => Iterator::Stop
     # ```
-    def each(iter : CoordIterator(I)) : Iterator(T) forall I
+    def each(iter : Iterator(Array(I))) : Iterator(T) forall I
       ElemIterator.new(self, iter)
     end
 
@@ -707,7 +707,7 @@ module Phase
     # puts iter.next # => {4, [1, 0]}
     # puts iter.next # => {1, [0, 0]}
     # ```
-    def each_with_coord(iter : CoordIterator(I)) : Iterator forall I # Iterator(Tuple(T, Coord))
+    def each_with_coord(iter : Iterator(Array(I))) : Iterator forall I # Iterator(Tuple(T, Coord))
       ElemAndCoordIterator.new(self, iter)
     end
 

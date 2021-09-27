@@ -445,7 +445,7 @@ module Phase
       IndexedLexIterator.cover(shape_internal)
     end
 
-    def each_with_coord(iter : IndexedCoordIterator(I)) forall I
+    def each_with_coord(iter : IndexedStrideIterator(I)) forall I
       BufferedECIterator.new(self, iter)
     end
 

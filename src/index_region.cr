@@ -374,7 +374,8 @@ module Phase
       end
     end
 
-    def each : CoordIterator(T)
+    def each : LexIterator(T)
+      # TODO: Discuss if this should return LexIterator or maybe just Iterator(Array(I))
       LexIterator.new(self)
     end
 

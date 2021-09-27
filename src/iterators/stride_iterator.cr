@@ -35,18 +35,25 @@ module Phase
     # they cannot alter the working coordinate.
     @wrapper : ReadonlyWrapper(I)
 
-    # 
+    # For efficiency reasons related to reuse of the coordinate buffer,
+    # `StrideIterator` must advance the coordinate before it is able
+    # to return a coordinate. This would by default skip the first
+    # coordinate, so instead we introduce an artificial lag of one
+    # iteration with this flag.
     @hold : Bool = true
 
     # Constructs an iterator that will traverse from `first` to `stop` by incrementing
     # by `step[n]` in axis `n`.
     def initialize(@first : Array(I), step : Array(Int), @last : Array(I))
+      # These errors only need to be checked for in this constructor.
+      # Constructors that use `IndexRegion` are automatically free from
+      # step size issues and element count mismatch.
       unless @first.size == step.size && step.size == @last.size
-        raise ArgumentError.new("The bounding coordinates and step size must all have the same number of elements, but they did not. (first coord has #{@first.size}, step has #{step.size}, last coord has #{last.size})")
+        raise ArgumentError.new("The bounding coordinates and the step sizes must have the same number of elements, but they did not. (first coord has #{@first.size} elements, last coord has #{last.size}, and #{step.size} step sizes were provided)")
       end
 
       @first.each_with_index do |f, idx|
-        s, l = step.unsafe_fetch[idx], @last.unsafe_fetch[idx]
+        s, l = step.unsafe_fetch(idx), @last.unsafe_fetch(idx)
         
         if (l - f) % s != 0
           raise ArgumentError.new("The step size in axis #{idx} (#{s}) did not evenly divide the gap between the first and last ordinate along that axis. (first: #{f}, last: #{l})")
@@ -55,7 +62,8 @@ module Phase
         direction = (l - f).sign
 
         if direction != s.sign && direction != 0
-          raise ArgumentError.new("The step size in axis #{idx} (#{s}) is #{s.sign == 1 ? "pos" : "neg"}ative, which ")
+          sign_names = {"zero", "positive", "negative"}
+          raise ArgumentError.new("The step size in axis #{idx} is #{sign_names[s.sign]}, which means it will never bring the first ordinate (#{f}) to the last ordinate (#{l}).")
         end
       end
       

@@ -4,7 +4,7 @@ module Phase
 
     @src_shape : Array(I)
     @chunk_shape : Array(I)
-    @coord_iter : CoordIterator(I)
+    @coord_iter : Iterator(Array(I))
 
     @fringe_behaviour : FringeBehaviour
     @degeneracy : Array(Bool)
@@ -17,7 +17,7 @@ module Phase
     # getter size : Int32
     # TODO: iter inputs, etc
     def self.new(src_shape : Shape(I), chunk_shape : Shape(I), strides : Coord? = nil, degeneracy = nil,
-                 fringe_behaviour : FringeBehaviour = FringeBehaviour::DISCARD, &block : IndexRegion(I) -> CoordIterator(I))
+                 fringe_behaviour : FringeBehaviour = FringeBehaviour::DISCARD, &block : IndexRegion(I) -> Iterator(Array(I)))
       # convert strides into an iterable region
       strides ||= chunk_shape
       if strides.any? { |x| x <= 0 }
@@ -38,7 +38,7 @@ module Phase
       end
     end
 
-    protected def initialize(@src_shape : Indexable(I), @chunk_shape, @coord_iter : CoordIterator(I), degeneracy : Array(Bool)? = nil, @fringe_behaviour : FringeBehaviour = FringeBehaviour::DISCARD)
+    protected def initialize(@src_shape : Indexable(I), @chunk_shape, @coord_iter : Iterator(Array(I)), degeneracy : Array(Bool)? = nil, @fringe_behaviour : FringeBehaviour = FringeBehaviour::DISCARD)
       @degeneracy = degeneracy || Array.new(@src_shape.size, false)
     end
 
