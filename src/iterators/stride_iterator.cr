@@ -44,7 +44,7 @@ module Phase
 
     # Constructs an iterator that will traverse from `first` to `stop` by incrementing
     # by `step[n]` in axis `n`.
-    def initialize(@first : Array(I), step : Array(Int), @last : Array(I))
+    protected def initialize(@first : Array(I), step : Array(Int), @last : Array(I))
       # These errors only need to be checked for in this constructor.
       # Constructors that use `IndexRegion` are automatically free from
       # step size issues and element count mismatch.
@@ -73,7 +73,7 @@ module Phase
     end
 
     # Constructs an iterator that will provide every coordinate described by an `IndexRegion`.
-    # def initialize(idx_region  : IndexRegion(I))
+    # protected def initialize(idx_region  : IndexRegion(I))
     #   @first = idx_region.@first
     #   @step = idx_region.@step
     #   @last = idx_region.@last
@@ -97,6 +97,7 @@ module Phase
     def next : ReadonlyWrapper(I) | Stop
       if @hold
         @hold = false
+        return stop if @coord == @last
       else
         return stop if advance!.is_a? Stop
       end

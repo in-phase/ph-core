@@ -10,6 +10,10 @@ module Phase
   class ColexIterator(I) < StrideIterator(I)
     def_clone
 
+    def initialize(first : Array(I), step : Array(Int), last : Array(I))
+      super(first, step, last)
+    end
+
     def advance! : Array(I) | Stop
       @coord.each_index do |i| # ## least sig .. most sig
         if @coord.unsafe_fetch(i) == @last.unsafe_fetch(i)

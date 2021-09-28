@@ -78,9 +78,9 @@ module Phase
           super(region)
         end
 
-        protected def initialize(@first, @last, @step, @size, @buffer_step)
+        protected def initialize(@first, @last, @step, @buffer_step)
           @buffer_index = I.zero
-          super(@first, @last, @step, @size)
+          super(@first, @last, @step)
         end
 
         def reset : self
@@ -105,7 +105,7 @@ module Phase
       class IndexedLexIterator(I) < IndexedStrideIterator(I)
         def_clone
 
-        def advance_coord
+        def advance! : Array(I) | Stop
           (@coord.size - 1).downto(0) do |i| # ## least sig .. most sig
             if @coord.unsafe_fetch(i) == @last.unsafe_fetch(i)
               @buffer_index -= (@coord.unsafe_fetch(i) - @first.unsafe_fetch(i)) * @buffer_step.unsafe_fetch(i)
@@ -124,7 +124,7 @@ module Phase
       class IndexedColexIterator(I) < IndexedStrideIterator(I)
         def_clone
 
-        def advance_coord
+        def advance! : Array(I) | Stop
           0.upto(@coord.size - 1) do |i| # ## least sig .. most sig
             if @coord.unsafe_fetch(i) == @last.unsafe_fetch(i)
               @buffer_index -= (@coord.unsafe_fetch(i) - @first.unsafe_fetch(i)) * @buffer_step.unsafe_fetch(i)
@@ -142,44 +142,44 @@ module Phase
 
       # TODO: this should probably have S be a type parameter because it
       # doesn't actually work for all MultiIndexables
-      class BufferedECIterator(S, T, I) < ElemAndCoordIterator(S, T, I)
-        def self.new(src, iter : CoordIterator(I))
-          BufferedECIterator(typeof(src), typeof(src.first), typeof(src.shape[0])).new(src, coord_iter: iter)
-        end
+      # class BufferedECIterator(S, T, I) < ElemAndCoordIterator(S, T, I)
+      #   def self.new(src, iter : CoordIterator(I))
+      #     BufferedECIterator(typeof(src), typeof(src.first), typeof(src.shape[0])).new(src, coord_iter: iter)
+      #   end
 
-        # Overridden to replace default iterator type
-        def self.of(src, region = nil)
-          if region.nil?
-            iter = IndexedLexIterator.cover(src.shape)
-          else
-            iter = IndexedLexIterator.new(region, src.shape)
-          end
-          of(src, iter)
-        end
+      #   # Overridden to replace default iterator type
+      #   def self.of(src, region = nil)
+      #     if region.nil?
+      #       iter = IndexedLexIterator.cover(src.shape)
+      #     else
+      #       iter = IndexedLexIterator.new(region, src.shape)
+      #     end
+      #     of(src, iter)
+      #   end
 
-        protected def initialize(@src : MultiIndexable(T), *, @coord_iter : CoordIterator(I))
-          raise "BufferedECIterators must use IndexedStrideIterators" unless @coord_iter.is_a?(IndexedStrideIterator(I))
-        end
+      #   protected def initialize(@src : MultiIndexable(T), *, @coord_iter : CoordIterator(I))
+      #     raise "BufferedECIterators must use IndexedStrideIterators" unless @coord_iter.is_a?(IndexedStrideIterator(I))
+      #   end
 
-        protected def get_element(coord = nil)
-          if (src = @src).responds_to?(:buffer)
-            src.buffer.unsafe_fetch(@coord_iter.unsafe_as(IndexedStrideIterator(I)).current_index)
-          else
-            # BETTER_ERROR
-            raise "bad error"
-          end
-        end
+      #   protected def get_element(coord = nil)
+      #     if (src = @src).responds_to?(:buffer)
+      #       src.buffer.unsafe_fetch(@coord_iter.unsafe_as(IndexedStrideIterator(I)).current_index)
+      #     else
+      #       # BETTER_ERROR
+      #       raise "bad error"
+      #     end
+      #   end
 
-        def next_value : (T | Stop)
-          return stop if @coord_iter.next.is_a?(Stop)
-          get_element
-        end
+      #   def next_value : (T | Stop)
+      #     return stop if @coord_iter.next.is_a?(Stop)
+      #     get_element
+      #   end
 
-        def unsafe_next_value : T
-          @coord_iter.next
-          get_element
-        end
-      end
+      #   def unsafe_next_value : T
+      #     @coord_iter.next
+      #     get_element
+      #   end
+      # end
     end
   end
 end
