@@ -1,5 +1,3 @@
-require "./region_iterator"
-
 module Phase
   class ChunkAndRegionIterator(C, E, I)
     include Iterator(Tuple(C, IndexRegion(I)))

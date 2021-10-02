@@ -7,19 +7,15 @@ require "./exceptions/*"
 require "./type_aliases.cr"
 require "./coord_util.cr"
 require "./shape_util.cr"
+require "./readonly_wrapper.cr"
 
 require "./range_syntax/range_syntax.cr"
 require "./index_region.cr"
 
+require "./iterators/*"
 require "./multi_indexable/*"
 require "./multi_indexable.cr"
 require "./multi_writable.cr"
-
-require "./iterators/general_coord_iterator.cr"
-require "./iterators/coord_iterator.cr"
-require "./iterators/region_iterator.cr"
-require "./iterators/chunk_iterator.cr"
-require "./iterators/*"
 
 require "./n_array/*"
 require "./n_array.cr"

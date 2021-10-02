@@ -37,3 +37,5 @@ module Phase
     end
 end
 # puts Phase::RangeSyntax.canonicalize_range(2..2..5, 6) #=> {first: 2, step: 2, last: 4, size: 2}
+
+puts(Phase::LexIterator(Int32).is_a? Iterator(Indexable(Int32)))

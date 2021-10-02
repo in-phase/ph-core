@@ -33,10 +33,10 @@ module Phase
     # safe to mutate without affecting the MultiIndexable.
     abstract def shape : Array
 
-    # Returns the element at the provided *coord*, without canonicalizing or bounds-checking it.
+    # Returns the element at the provided *coord*, possibly mutating *coord*, without performing canonicalization or bounds-checking.
     # This method cannot be used with negative coordinates, and is not safe
     # unless you are certain your coordinate is already canonicalized.
-    abstract def unsafe_fetch_element(coord : Coord) : T
+    abstract def unsafe_fetch_element(coord : Indexable) : T
 
     # By default, this is an alias of `shape` - however, `MultiIndexable` will
     # never mutate it, so it's safe to override this so that it returns a direct
@@ -673,7 +673,7 @@ module Phase
     # iter.next # => 1
     # iter.next # => Iterator::Stop
     # ```
-    def each(iter : Iterator(Array(I))) : Iterator(T) forall I
+    def each(iter : Iterator(Indexable(I))) : Iterator(T) forall I
       ElemIterator.new(self, iter)
     end
 
@@ -707,7 +707,7 @@ module Phase
     # puts iter.next # => {4, [1, 0]}
     # puts iter.next # => {1, [0, 0]}
     # ```
-    def each_with_coord(iter : Iterator(Array(I))) : Iterator forall I # Iterator(Tuple(T, Coord))
+    def each_with_coord(iter : Iterator(Indexable(I))) : Iterator forall I # Iterator(Tuple(T, Coord))
       ElemAndCoordIterator.new(self, iter)
     end
 
@@ -854,7 +854,7 @@ module Phase
     def tile(counts : Enumerable(Int)) : MultiIndexable
       new_shape = shape_internal.map_with_index { |axis, idx| axis * counts[idx] }
 
-      iter = WrappedLexIterator.new(IndexRegion.cover(new_shape), shape_internal).each
+      iter = TilingLexIterator.new(IndexRegion.cover(new_shape), shape_internal).each
 
       build(new_shape) do
         iter.next
@@ -915,7 +915,6 @@ module Phase
     end
 
     def view(region : Indexable? | IndexRegion = nil) : View(self, T)
-      puts region
       View.of(self, region)
     end
 

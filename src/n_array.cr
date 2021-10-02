@@ -101,14 +101,14 @@ module Phase
     #  [3],
     #  [4]]
     # ```
-    def self.build(shape : Enumerable, &block : Array(Int32), Int32 -> T)
+    def self.build(shape : Enumerable, &block : Indexable(Int32), Int32 -> T)
       coord_iter = IndexedLexIterator.cover(shape.to_a)
-      {{@type}}.new(shape) do |idx|
+      {{@type}}.new(shape) do
         yield *(coord_iter.unsafe_next_with_index)
       end
     end
 
-    def self.build(*shape : Int, &block : Array(Int32), Int32 -> T)
+    def self.build(*shape : Int, &block : Indexable(Int32), Int32 -> T)
       build(shape, &block)
     end
 
@@ -180,7 +180,7 @@ module Phase
     def self.tile(narr : MultiIndexable(T), counts : Enumerable)
       shape = narr.shape.map_with_index { |axis, idx| axis * counts[idx] }
 
-      iter = WrappedLexIterator.new(IndexRegion.cover(shape), narr.shape).each
+      iter = TilingLexIterator.new(IndexRegion.cover(shape), narr.shape).each
 
       build(shape) do
         iter.next
@@ -468,7 +468,7 @@ module Phase
       NArray.new(@shape.clone, new_buffer)
     end
 
-    def map_with_coord(&block : T, Array(Int32), Int32 -> U) forall U
+    def map_with_coord(&block : T, Indexable(Int32), Int32 -> U) forall U
       NArray(U).build(@shape) do |coord, idx|
         yield @buffer[idx], coord, idx
       end
@@ -488,7 +488,7 @@ module Phase
       self
     end
 
-    def map_with_coord!(&block : T, Array(Int32), Int32 -> T) : self
+    def map_with_coord!(&block : T, Indexable(Int32), Int32 -> T) : self
       iter = LexIterator.cover(shape_internal)
       @buffer.map_with_index! do |el, idx|
         yield el, iter.unsafe_next, idx

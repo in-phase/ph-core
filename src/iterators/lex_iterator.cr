@@ -10,10 +10,6 @@ module Phase
   class LexIterator(I) < StrideIterator(I)
     def_clone
 
-    def initialize(first : Array(I), step : Array(Int), last : Array(I))
-      super(first, step, last)
-    end
-
     def advance! : ::Slice(I) | Stop
       (@coord.size - 1).downto(0) do |i| # ## least sig .. most sig
         if @coord.unsafe_fetch(i) == @last.unsafe_fetch(i)

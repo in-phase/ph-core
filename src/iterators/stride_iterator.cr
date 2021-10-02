@@ -1,11 +1,9 @@
-require "./readonly_wrapper.cr"
-
 module Phase
   # A coordinate iterator that advances to the next value by taking
   # orthogonal strides. The only iteration orders that obey that criteria are
   # lexicographic, colexicographic, and their reverses.
   abstract class StrideIterator(I)
-    include Iterator(ReadonlyWrapper(I))
+    include Iterator(Indexable(I))
 
     # The first coordinate that the iterator will provide.
     @first : Array(I)
@@ -44,7 +42,7 @@ module Phase
 
     # Constructs an iterator that will traverse from `first` to `stop` by incrementing
     # by `step[n]` in axis `n`.
-    protected def initialize(@first : Array(I), step : Array(Int), @last : Array(I))
+    def initialize(@first : Array(I), step : Array(Int), @last : Array(I))
       # These errors only need to be checked for in this constructor.
       # Constructors that use `IndexRegion` are automatically free from
       # step size issues and element count mismatch.
@@ -73,7 +71,7 @@ module Phase
     end
 
     # Constructs an iterator that will provide every coordinate described by an `IndexRegion`.
-    protected def initialize(idx_region  : IndexRegion(I))
+    def initialize(idx_region  : IndexRegion(I))
       @first = idx_region.@first
       @step = idx_region.@step
       @last = idx_region.@last
@@ -105,6 +103,12 @@ module Phase
       end
 
       @wrapper
+    end
+
+    def to_a : Array(Indexable(I))
+      arr = [] of Indexable(I)
+      each { |el| arr << el.to_a }
+      arr
     end
 
     # Returns `next` typecast to an `Indexable(I)`. This will raise if the iterator returns `Stop`.

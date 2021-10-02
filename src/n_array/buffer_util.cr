@@ -89,7 +89,7 @@ module Phase
         end
 
         def unsafe_next_with_index
-          {self.next.unsafe_as(Array(I)), @buffer_index}
+          {self.next.unsafe_as(ReadonlyWrapper(I)), @buffer_index}
         end
 
         def current_index : I
@@ -142,44 +142,44 @@ module Phase
 
       # TODO: this should probably have S be a type parameter because it
       # doesn't actually work for all MultiIndexables
-      # class BufferedECIterator(S, T, I) < ElemAndCoordIterator(S, T, I)
-      #   def self.new(src, iter : CoordIterator(I))
-      #     BufferedECIterator(typeof(src), typeof(src.first), typeof(src.shape[0])).new(src, coord_iter: iter)
-      #   end
+      class BufferedECIterator(S, T, I) < ElemAndCoordIterator(S, T, I)
+        def self.new(src, iter : Iterator(Indexable(I)))
+          BufferedECIterator(typeof(src), typeof(src.first), typeof(src.shape[0])).new(src, coord_iter: iter)
+        end
 
-      #   # Overridden to replace default iterator type
-      #   def self.of(src, region = nil)
-      #     if region.nil?
-      #       iter = IndexedLexIterator.cover(src.shape)
-      #     else
-      #       iter = IndexedLexIterator.new(region, src.shape)
-      #     end
-      #     of(src, iter)
-      #   end
+        # Overridden to replace default iterator type
+        def self.of(src, region = nil)
+          if region.nil?
+            iter = IndexedLexIterator.cover(src.shape)
+          else
+            iter = IndexedLexIterator.new(region, src.shape)
+          end
+          of(src, iter)
+        end
 
-      #   protected def initialize(@src : MultiIndexable(T), *, @coord_iter : CoordIterator(I))
-      #     raise "BufferedECIterators must use IndexedStrideIterators" unless @coord_iter.is_a?(IndexedStrideIterator(I))
-      #   end
+        protected def initialize(@src : MultiIndexable(T), *, @coord_iter : Iterator(Indexable(I)))
+          raise "BufferedECIterators must use IndexedStrideIterators" unless @coord_iter.is_a?(IndexedStrideIterator(I))
+        end
 
-      #   protected def get_element(coord = nil)
-      #     if (src = @src).responds_to?(:buffer)
-      #       src.buffer.unsafe_fetch(@coord_iter.unsafe_as(IndexedStrideIterator(I)).current_index)
-      #     else
-      #       # BETTER_ERROR
-      #       raise "bad error"
-      #     end
-      #   end
+        protected def get_element(coord = nil)
+          if (src = @src).responds_to?(:buffer)
+            src.buffer.unsafe_fetch(@coord_iter.unsafe_as(IndexedStrideIterator(I)).current_index)
+          else
+            # BETTER_ERROR
+            raise "bad error"
+          end
+        end
 
-      #   def next_value : (T | Stop)
-      #     return stop if @coord_iter.next.is_a?(Stop)
-      #     get_element
-      #   end
+        def next_value : (T | Stop)
+          return stop if @coord_iter.next.is_a?(Stop)
+          get_element
+        end
 
-      #   def unsafe_next_value : T
-      #     @coord_iter.next
-      #     get_element
-      #   end
-      # end
+        def unsafe_next_value : T
+          @coord_iter.next
+          get_element
+        end
+      end
     end
   end
 end

@@ -375,7 +375,7 @@ module Phase
     end
 
     def each : LexIterator(T)
-      # TODO: Discuss if this should return LexIterator or maybe just Iterator(Array(I))
+      # TODO: Discuss if this should return LexIterator or maybe just Iterator(Indexable(I))
       LexIterator.new(self)
     end
 

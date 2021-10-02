@@ -18,6 +18,7 @@ module Phase
 
       def self.new(region_literal, smaller_shape)
         idx_r = IndexRegion(typeof(smaller_shape.first)).new(region_literal)
+        
         new(idx_r, smaller_shape)
       end
 

@@ -267,18 +267,6 @@ describe Phase::MultiIndexable do
     end
   end
 
-  describe "#first" do
-    it "returns the element at the highest coordinate from a populated MultiIndexable" do
-      RONArray.new([2, 2], Slice[1, 2, 3, 4]).first.should eq 4
-    end
-
-    it "raises an ShapeError when there are no elements" do
-      expect_raises(ShapeError) do
-        RONArray.new([1, 1, 0], Slice(Int32).new(0, 0)).first
-      end
-    end
-  end
-
   describe "#sample" do
     it "returns an element from the MultiIndexable" do
       r_narr.sample(test_buffer.size * 10).each do |el|
@@ -558,11 +546,12 @@ describe Phase::MultiIndexable do
       elem_iter = test_buffer.each
       coord_iter = all_coords_lex_order(r_narr.shape).each
 
-      r_narr.each_with_coord do |tuple|
-        expected_coord = coord_iter.next
+      r_narr.each_with_coord do |(el, coord)|
         expected_elem = elem_iter.next
+        expected_coord = coord_iter.next
 
-        {expected_elem, expected_coord}.should eq tuple
+        el.should eq expected_elem
+        coord.to_a.should eq expected_coord
       end
 
       elem_iter.empty?.should be_true
@@ -581,7 +570,7 @@ describe Phase::MultiIndexable do
           actual_el, actual_coord = actual_value
           actual_el.should eq elem_iter.next
 
-          actual_coord.should eq coord
+          actual_coord.to_a.should eq coord
         end
       end
 

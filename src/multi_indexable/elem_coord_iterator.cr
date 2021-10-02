@@ -1,17 +1,15 @@
-require "./coord_iterator"
-
 module Phase
   class ElemAndCoordIterator(S, E, I)
-    include Iterator(Tuple(E, Array(I)))
+    include Iterator(Tuple(E, Indexable(I)))
 
-    getter coord_iter : Iterator(Array(I))
+    getter coord_iter : Iterator(Indexable(I))
     @src : S
 
     delegate :reset, :reverse!, to: @coord_iter
 
     # TODO: doc
     # this is here rather than just an initialize because it'll pull type params out for you
-    def self.new(src, iter : Iterator(Array(I)))
+    def self.new(src, iter : Iterator(Indexable(I)))
       # Careful, this looks recursive but isn't due to the named param
       ElemAndCoordIterator(typeof(src), typeof(src.first), typeof(src.shape[0])).new(src, coord_iter: iter)
     end
@@ -25,7 +23,7 @@ module Phase
       new(src, iter)
     end
 
-    protected def initialize(@src : S, *, @coord_iter : Iterator(Array(I)))
+    protected def initialize(@src : S, *, @coord_iter : Iterator(Indexable(I)))
     end
 
     # Clone the iterator (while maintaining reference to the same source array)
