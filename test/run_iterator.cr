@@ -1,12 +1,14 @@
 require "../src/iterators/stride_iterator.cr"
 require "../src/iterators/lex_iterator.cr"
 require "../src/iterators/colex_iterator.cr"
+require "../src/multi_indexable/tiling_lex_iterator.cr"
 require "../src/range_syntax"
 
 require "../src/multi_indexable"
 require "../src/multi_writable"
 require "../src/n_array/buffer_util"
 require "../src/n_array"
+require "../src/index_region"
 require "../src/type_aliases"
 require "../src/exceptions/*"
 
@@ -26,4 +28,12 @@ end
 
 Phase::NArray[1, 2, 3].each { |x| puts x }
 
+module Phase
+    module MultiIndexable(T)
+        iter = TilingLexIterator.new([0..4, 0..4], [2, 2])
+        iter.each do |coord|
+            puts({coord, iter.smaller_coord})
+        end
+    end
+end
 # puts Phase::RangeSyntax.canonicalize_range(2..2..5, 6) #=> {first: 2, step: 2, last: 4, size: 2}

@@ -20,8 +20,8 @@ module Phase
             @buffer[index]
         end
 
-        def to_s(io : IO)
-            to_a.to_s(io)
+        def inspect(io : IO)
+            to_a.inspect(io)
         end
     end
 end

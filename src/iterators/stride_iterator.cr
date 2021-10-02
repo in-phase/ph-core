@@ -73,11 +73,13 @@ module Phase
     end
 
     # Constructs an iterator that will provide every coordinate described by an `IndexRegion`.
-    # protected def initialize(idx_region  : IndexRegion(I))
-    #   @first = idx_region.@first
-    #   @step = idx_region.@step
-    #   @last = idx_region.@last
-    # end
+    protected def initialize(idx_region  : IndexRegion(I))
+      @first = idx_region.@first
+      @step = idx_region.@step
+      @last = idx_region.@last
+      @coord = @first.clone
+      @wrapper = ReadonlyWrapper.new(@coord.to_unsafe, @coord.size)
+    end
 
     # Constructs an iterator that will provide every coordinate described by a region literal.
     # def self.new(region_literal : Enumerable)

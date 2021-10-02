@@ -1,4 +1,4 @@
-require "./coord_iterator"
+require "./stride_iterator"
 
 module Phase
   # An `Iterator` that produces every coordinate in an `IndexRegion` in colexicographic

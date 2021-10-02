@@ -77,7 +77,7 @@ module Phase
       #   raise NotImplementedError.new("Could not get next chunk: Unrecognized FringeBehaviour type")
       # end
       case fringe_behaviour
-      when FringeBehaviour::COVER
+      in FringeBehaviour::COVER
         src_shape.map_with_index do |size, i|
           if strides[i] < chunk_shape[i]
             strides[i] * complete_chunks(size, strides[i], chunk_shape[i])
@@ -86,18 +86,16 @@ module Phase
           end
           # (size - (strides[i] < chunk_shape[i] ? chunk_shape[i] : 1)) // strides[i] * strides[i]
         end
-      when FringeBehaviour::ALL_START_POINTS
+      in FringeBehaviour::ALL_START_POINTS
         src_shape.map_with_index do |size, i|
           strides[i] * chunks(size, strides[i])
           # (size - 1) // strides[i] * strides[i]
         end
-      when FringeBehaviour::DISCARD
+      in FringeBehaviour::DISCARD
         src_shape.map_with_index do |size, i|
           strides[i] * complete_chunks(size, strides[i], chunk_shape[i])
           # (size - chunk) // strides[i] * strides[i]
         end
-      else
-        raise NotImplementedError.new("Could not get next chunk: Unrecognized FringeBehaviour type")
       end
     end
 
