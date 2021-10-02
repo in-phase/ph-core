@@ -28,7 +28,7 @@ module Phase
     @last : Array(I)
 
     # The working memory buffer that stores the current coordinate.
-    @coord : Array(I)
+    @coord : ::Slice(I)
 
     # Because @coord is writable, but we don't want the user mutating it,
     # we will only ever expose this wrapper to them. This ensures that
@@ -68,7 +68,7 @@ module Phase
       end
       
       @step = step.map &.to_i32
-      @coord = @first.clone
+      @coord = ::Slice(I).new(@first.size) { |i| @first[i] }
       @wrapper = ReadonlyWrapper.new(@coord.to_unsafe, @coord.size)
     end
 
@@ -77,7 +77,7 @@ module Phase
       @first = idx_region.@first
       @step = idx_region.@step
       @last = idx_region.@last
-      @coord = @first.clone
+      @coord = ::Slice(I).new(@first.size) { |i| @first[i] }
       @wrapper = ReadonlyWrapper.new(@coord.to_unsafe, @coord.size)
     end
 
@@ -112,6 +112,6 @@ module Phase
     end
 
     # Advances the internal state of this `StrideIterator` and returns the new coord (or `Iterator::Stop` if iteration is finished). 
-    abstract def advance! : Array(I) | Stop
+    abstract def advance! : ::Slice(I) | Stop
   end
 end

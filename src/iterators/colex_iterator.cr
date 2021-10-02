@@ -14,7 +14,7 @@ module Phase
       super(first, step, last)
     end
 
-    def advance! : Array(I) | Stop
+    def advance! : ::Slice(I) | Stop
       @coord.each_index do |i| # ## least sig .. most sig
         if @coord.unsafe_fetch(i) == @last.unsafe_fetch(i)
           @coord[i] = @first.unsafe_fetch(i)

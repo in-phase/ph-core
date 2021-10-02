@@ -33,7 +33,7 @@ module Phase
         coord.map_with_index { |axis, idx| axis % @smaller_shape[idx] }
       end
 
-      def advance! : Array(I) | Stop
+      def advance! : ::Slice(I) | Stop
         (@coord.size - 1).downto(0) do |i| # ## least sig .. most sig
           if @coord[i] == @last[i]
             @coord[i] = @first[i]

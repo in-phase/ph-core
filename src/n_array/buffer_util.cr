@@ -105,7 +105,7 @@ module Phase
       class IndexedLexIterator(I) < IndexedStrideIterator(I)
         def_clone
 
-        def advance! : Array(I) | Stop
+        def advance! : ::Slice(I) | Stop
           (@coord.size - 1).downto(0) do |i| # ## least sig .. most sig
             if @coord.unsafe_fetch(i) == @last.unsafe_fetch(i)
               @buffer_index -= (@coord.unsafe_fetch(i) - @first.unsafe_fetch(i)) * @buffer_step.unsafe_fetch(i)
@@ -124,7 +124,7 @@ module Phase
       class IndexedColexIterator(I) < IndexedStrideIterator(I)
         def_clone
 
-        def advance! : Array(I) | Stop
+        def advance! : ::Slice(I) | Stop
           0.upto(@coord.size - 1) do |i| # ## least sig .. most sig
             if @coord.unsafe_fetch(i) == @last.unsafe_fetch(i)
               @buffer_index -= (@coord.unsafe_fetch(i) - @first.unsafe_fetch(i)) * @buffer_step.unsafe_fetch(i)
