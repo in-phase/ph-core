@@ -82,19 +82,19 @@ module Phase
     end
 
     # Constructs an iterator that will provide every coordinate described by a region literal.
-    # def self.new(region_literal : Enumerable)
-    #   new(IndexRegion.new(region_literal))
-    # end
+    def self.new(region_literal : Enumerable)
+      new(IndexRegion.new(region_literal))
+    end
 
     # Constructs an iterator that will provide every coordinate in `src.shape`.
-    # def self.new(src : MultiIndexable)
-    #   cover(src.shape)
-    # end
+    def self.new(src : MultiIndexable)
+      cover(src.shape)
+    end
 
     # Constructs an iterator that will provide every coordinate within `shape`.
-    # def self.cover(shape : Enumerable) : self
-    #   new(IndexRegion.cover(shape))
-    # end
+    def self.cover(shape : Enumerable) : self
+      new(IndexRegion.cover(shape))
+    end
 
     def next : ReadonlyWrapper(I) | Stop
       if @hold
@@ -107,6 +107,7 @@ module Phase
       @wrapper
     end
 
+    # Returns `next` typecast to an `Indexable(I)`. This will raise if the iterator returns `Stop`.
     def unsafe_next : Indexable(I)
       self.next.as(ReadonlyWrapper(I))
     end
