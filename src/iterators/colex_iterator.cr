@@ -8,8 +8,8 @@ module Phase
   # ColexIterator.cover([2, 3]).each.to_a # => [[0, 0], [1, 0], [0, 1], [1, 1], [0, 1], [1, 2]]
   # ```
   class ColexIterator(I) < StrideIterator(I)
-    def_clone
-
+    def_standard_clone
+    
     def advance! : ::Slice(I) | Stop
       @coord.each_index do |i| # ## least sig .. most sig
         if @coord.unsafe_fetch(i) == @last.unsafe_fetch(i)

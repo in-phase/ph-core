@@ -1,3 +1,5 @@
+require "../index_region.cr"
+
 module Phase
   class RegionIterator(I)
     include Iterator(IndexRegion)

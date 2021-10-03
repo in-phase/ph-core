@@ -80,24 +80,27 @@ module Phase
     end
 
     # Constructs an iterator that will provide every coordinate described by a region literal.
-    def self.new(region_literal : Enumerable)
+    def self.new(region_literal : Indexable)
       new(IndexRegion.new(region_literal))
     end
 
     # Constructs an iterator that will provide every coordinate in `src.shape`.
-    def self.new(src : MultiIndexable)
+    def self.cover(src : MultiIndexable)
       cover(src.shape)
     end
 
     # Constructs an iterator that will provide every coordinate within `shape`.
-    def self.cover(shape : Enumerable) : self
-      new(IndexRegion.cover(shape))
+    def self.cover(shape : Indexable(I)) forall I
+      new(IndexRegion(I).cover(shape))
     end
+
+    # Advances the internal state of this `StrideIterator` and returns the new coord (or `Iterator::Stop` if iteration is finished). 
+    abstract def advance! : ::Slice(I) | Stop
 
     def next : ReadonlyWrapper(I) | Stop
       if @hold
         @hold = false
-        return stop if @coord == @last
+        return stop if @coord.equals?(@last) { |ord, last_ord| ord == last_ord }
       else
         return stop if advance!.is_a? Stop
       end
@@ -105,18 +108,55 @@ module Phase
       @wrapper
     end
 
+    # Returns `next` typecast to an `Indexable(I)`. This will raise if the iterator returns `Stop`.
+    def unsafe_next : Indexable(I)
+      self.next.as(ReadonlyWrapper(I))
+    end
+
+    def reset!
+      @coord.map! { |i| @first[i] }
+      @hold = true
+    end
+
+    # Reverses the direction of iteration in-place.
+    def reverse!
+      @last, @first = @first, @last
+      @step.map! &.-
+      reset!
+    end
+
+    # Returns an ordered `Array` of all coordinates this `StrideIterator` will cover.
     def to_a : Array(Indexable(I))
       arr = [] of Indexable(I)
       each { |el| arr << el.to_a }
       arr
     end
 
-    # Returns `next` typecast to an `Indexable(I)`. This will raise if the iterator returns `Stop`.
-    def unsafe_next : Indexable(I)
-      self.next.as(ReadonlyWrapper(I))
+    # Returns a coordinate that stores the largest possible value this `StrideIterator` can output in each ordinate.
+    def largest_coord : Indexable(I)
+      @step.map_with_index do |step_value, idx|
+        if step_value.positive?
+          @last[idx]
+        else
+          @first[idx]
+        end
+      end
     end
 
-    # Advances the internal state of this `StrideIterator` and returns the new coord (or `Iterator::Stop` if iteration is finished). 
-    abstract def advance! : ::Slice(I) | Stop
+    macro def_standard_clone
+      protected def copy_from(other : self)
+        @first = other.@first.clone
+        @step = other.@step.clone
+        @last = other.@last.clone
+        @coord = other.@coord.clone
+        @wrapper = ReadonlyWrapper.new(@coord.to_unsafe, @coord.size)
+        self
+      end
+
+      def clone : self
+        inst = {{@type}}.allocate
+        inst.copy_from(self)
+      end
+    end
   end
 end

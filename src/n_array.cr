@@ -360,7 +360,7 @@ module Phase
     # For full specification of canonical form see `IndexRegion` documentation.
     def unsafe_fetch_chunk(region : IndexRegion)
       iter = BufferedECIterator.new(self, IndexedLexIterator.new(region, @shape))
-      typeof(self).new(region.shape) { iter.unsafe_next_value }
+      typeof(self).new(region.shape) { iter.unsafe_next }
     end
 
     # Retrieves the element specified by `coord`, assuming that `coord` is in canonical form and in-bounds for this `{{@type}}`.
@@ -531,6 +531,7 @@ module Phase
     end
 
     # optimization for pushing other NArrays on axis 0, in-place
+    # TODO: axis = 0 should not be a user modifiable parameter and never should have been
     def push(*others : self, axis = 0) : self
       raise DimensionError.new("Cannot concatenate these arrays along axis #{axis}: shapes do not match") if !compatible?(*others, axis: axis)
 

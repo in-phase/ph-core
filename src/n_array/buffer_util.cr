@@ -142,7 +142,14 @@ module Phase
 
       # TODO: this should probably have S be a type parameter because it
       # doesn't actually work for all MultiIndexables
-      class BufferedECIterator(S, T, I) < ElemAndCoordIterator(S, T, I)
+      class BufferedECIterator(S, E, I)
+        include Iterator(Tuple(E, Indexable(I)))
+
+        @coord_iter : Iterator(Indexable(I))
+        @src : S
+
+        delegate :reset, :reverse!, to: @coord_iter
+
         def self.new(src, iter : Iterator(Indexable(I)))
           BufferedECIterator(typeof(src), typeof(src.first), typeof(src.shape[0])).new(src, coord_iter: iter)
         end
@@ -154,30 +161,43 @@ module Phase
           else
             iter = IndexedLexIterator.new(region, src.shape)
           end
-          of(src, iter)
+          new(src, iter)
         end
 
-        protected def initialize(@src : MultiIndexable(T), *, @coord_iter : Iterator(Indexable(I)))
-          raise "BufferedECIterators must use IndexedStrideIterators" unless @coord_iter.is_a?(IndexedStrideIterator(I))
+        protected def initialize(@src : MultiIndexable(E), @coord_iter : IndexedStrideIterator)
+        end
+
+        # Clone the iterator (while maintaining reference to the same source array)
+        def clone 
+          {{@type}}.new(@src, @coord_iter.clone)
         end
 
         protected def get_element(coord = nil)
           if (src = @src).responds_to?(:buffer)
             src.buffer.unsafe_fetch(@coord_iter.unsafe_as(IndexedStrideIterator(I)).current_index)
           else
-            # BETTER_ERROR
-            raise "bad error"
+            raise "@src was a MultiIndexable that did not define #buffer. This is likely an issue with Phase or a Phase-compatible library."
           end
         end
 
-        def next_value : (T | Stop)
+        def next
+          coord = @coord_iter.next
+          return stop if coord.is_a?(Iterator::Stop)
+          {get_element(coord), coord}
+        end
+
+        def next_value : (E | Stop)
           return stop if @coord_iter.next.is_a?(Stop)
           get_element
         end
 
-        def unsafe_next_value : T
+        def unsafe_next_value : E
           @coord_iter.next
           get_element
+        end
+
+        def reverse
+          clone.reverse!
         end
       end
     end

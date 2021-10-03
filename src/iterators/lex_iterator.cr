@@ -8,8 +8,8 @@ module Phase
   # LexIterator.cover([2, 3]).each.to_a # => [[0, 0], [0, 1], [0, 2], [1, 0], [1, 1], [1, 2]]
   # ```
   class LexIterator(I) < StrideIterator(I)
-    def_clone
-
+    def_standard_clone
+    
     def advance! : ::Slice(I) | Stop
       (@coord.size - 1).downto(0) do |i| # ## least sig .. most sig
         if @coord.unsafe_fetch(i) == @last.unsafe_fetch(i)
