@@ -12,9 +12,6 @@ module Phase
     def_clone
     delegate :reset, to: @coord_iter
 
-   
-
-    # getter size : Int32
     # TODO: iter inputs, etc
     def self.new(src_shape : Shape(I), chunk_shape : Shape(I), strides : Coord? = nil, degeneracy = nil,
                  fringe_behaviour : FringeBehaviour = FringeBehaviour::DISCARD, &block : IndexRegion(I) -> Iterator(Indexable(I)))
@@ -62,20 +59,6 @@ module Phase
     end
 
     protected def self.compute_lasts(src_shape, chunk_shape, strides, fringe_behaviour)
-      # case fringe_behaviour
-      # when FringeBehaviour::COVER
-      #   last = src_shape.map_with_index do |size, i|
-      #     strides[i] < chunk_shape[i] ? self.last_complete_chunk(size, strides[i], chunk_shape[i]) : last_chunk(size, strides[i])
-      #   end
-      # when FringeBehaviour::ALL_START_POINTS
-      #   last = src_shape.map_with_index { |size, i| last_chunk(size, strides[i]) }
-      # when FringeBehaviour::DISCARD
-      #   last = src_shape.map_with_index do |size, i|
-      #     last_complete_chunk(size, strides[i], chunk_shape[i])
-      #   end
-      # else
-      #   raise NotImplementedError.new("Could not get next chunk: Unrecognized FringeBehaviour type")
-      # end
       case fringe_behaviour
       in FringeBehaviour::COVER
         src_shape.map_with_index do |size, i|
@@ -84,17 +67,14 @@ module Phase
           else
             strides[i] * chunks(size, strides[i])
           end
-          # (size - (strides[i] < chunk_shape[i] ? chunk_shape[i] : 1)) // strides[i] * strides[i]
         end
       in FringeBehaviour::ALL_START_POINTS
         src_shape.map_with_index do |size, i|
           strides[i] * chunks(size, strides[i])
-          # (size - 1) // strides[i] * strides[i]
         end
       in FringeBehaviour::DISCARD
         src_shape.map_with_index do |size, i|
           strides[i] * complete_chunks(size, strides[i], chunk_shape[i])
-          # (size - chunk) // strides[i] * strides[i]
         end
       end
     end
@@ -107,14 +87,14 @@ module Phase
         region.trim!(@src_shape)
       end
 
-      return region
+      region
     end
 
     def next
       coord = @coord_iter.next
       case coord
       when Stop
-        return stop
+        stop
       else
         compute_region(coord)
       end
