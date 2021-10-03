@@ -21,17 +21,26 @@ describe MultiIndexable do
       actual.should eq expected
     end
 
-    it "raises a ShapeError when the iterator has the wrong number of dimensions" do
-      lex = LexIterator.cover([3])
-      expect_raises ShapeError do
-        ElemAndCoordIterator.new(narr, lex)
+    describe "#new" do
+      it "raises a ShapeError when the iterator has the wrong number of dimensions" do
+        lex = LexIterator.cover([3])
+        expect_raises ShapeError do
+          ElemAndCoordIterator.new(narr, lex)
+        end
       end
-    end
 
-    it "raises an IndexError when the iterator is out of bounds" do
-      lex = LexIterator.cover([3, 10])
-      expect_raises IndexError do
-        ElemAndCoordIterator.new(narr, lex)
+      it "raises an IndexError when the iterator is out of bounds" do
+        lex = LexIterator.cover([3, 10])
+        expect_raises IndexError do
+          ElemAndCoordIterator.new(narr, lex)
+        end
+      end
+
+      it "raises a ShapeError when the IndexRegion has the wrong number of proper dimensions" do
+        idx_r = IndexRegion(Int32).new([0..2, 0..4, 0..10])
+        expect_raises ShapeError do
+          ElemAndCoordIterator.new(narr, idx_r)
+        end
       end
     end
 

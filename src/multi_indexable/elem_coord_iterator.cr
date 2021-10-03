@@ -23,15 +23,17 @@ module Phase
         end
       end
 
+      # Constructs an `ElemAndCoordIterator` that draws coordinates from *coord_iter* and takes the matching elements from *source*.
       def self.new(src : MultiIndexable, coord_iter : StrideIterator(I)) forall I
         new(src, typeof(src.sample), coord_iter)
       end
 
       def self.new(src : MultiIndexable, idx_region : IndexRegion)
         if src.dimensions != idx_region.proper_dimensions
+          raise ShapeError.new("The provided IndexRegion has a proper dimension of #{idx_region.proper_dimensions}, which does not match the dimensionality of the MultiIndexable (#{src.dimensions}D).")
         end
 
-        new(@src, idx_region.each)
+        new(src, idx_region.each)
       end
 
       def next : Tuple(E, Indexable(I)) | Stop
@@ -56,7 +58,7 @@ module Phase
 
       def reverse_each
         inst = clone
-        inst.@coord_iter.reverse!
+        inst.reverse!
         inst
       end
 

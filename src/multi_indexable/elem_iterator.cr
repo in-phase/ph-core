@@ -6,38 +6,50 @@ module Phase
       include Iterator(E)
 
       getter ec_iter : ElemAndCoordIterator(S, E, I)
-
       def_clone
-      delegate :reset, :reverse!, :coord_iter, to: @ec_iter
-
-      def self.of(src, region = nil)
-        # if region.nil?
-        #   iter = LexIterator.cover(src.shape)
-        # else
-        #   iter = LexIterator(typeof(src.shape[0])).new(region)
-        # end
-
-        # new(src, iter)
-        new(ElemAndCoordIterator.new(src, region))
-      end
-
-      # def self.new(src, iter : Iterator(Indexable(I))) forall I
-      #   new(ElemAndCoordIterator.new(src, iter))
-      # end
+      delegate :reset, :reverse!, to: @ec_iter
 
       def initialize(@ec_iter : ElemAndCoordIterator(S, E, I))
       end
 
-      def next
-        @ec_iter.next_value
+      def self.new(src : MultiIndexable, idx_r : IndexRegion)
+        new(ElemAndCoordIterator.new(src, idx_r))
       end
 
-      def unsafe_next
-        @ec_iter.unsafe_next_value
+      def self.new(src : MultiIndexable, coord_iter : StrideIterator)
+        new(ElemAndCoordIterator.new(src, coord_iter))
       end
 
-      def reverse
-        clone.reverse!
+      def next : E | Stop
+        ec_pair = @ec_iter.next
+
+        if ec_pair.is_a? Stop
+          stop
+        else
+          ec_pair[0]
+        end
+      end
+
+      def with_coord : ElemAndCoordIterator(S, E, I)
+        @ec_iter
+      end
+
+      def with_coord(&block)
+        @ec_iter.each do |tuple|
+          yield tuple
+        end
+      end
+
+      def reverse_each
+        inst = clone
+        inst.reverse!
+        inst
+      end
+
+      def reverse_each(&block)
+        reverse_each.each do |elem|
+          yield elem
+        end
       end
     end
   end
