@@ -3,12 +3,6 @@ require "./spec_helper"
 include Phase
 alias ElemAndCoordIterator = MultiIndexable::ElemAndCoordIterator
 
-def to_a(iter : ElemAndCoordIterator)
-  arr = [] of Tuple(Int32, Array(Int32))
-  iter.each { |t| arr << {t[0], t[1].to_a} }
-  arr
-end
-
 describe MultiIndexable do
   narr = NArray[[1, 2, 3], [4, 5, 6], [7, 8, 9]]
 
@@ -25,6 +19,20 @@ describe MultiIndexable do
       actual = ElemAndCoordIterator.new(narr, colex).to_a
       expected = [{1, [0, 0]}, {4, [1, 0]}, {7, [2, 0]}, {2, [0, 1]}, {5, [1, 1]}, {8, [2, 1]}, {3, [0, 2]}, {6, [1, 2]}, {9, [2, 2]}]
       actual.should eq expected
+    end
+
+    it "raises a ShapeError when the iterator has the wrong number of dimensions" do
+      lex = LexIterator.cover([3])
+      expect_raises ShapeError do
+        ElemAndCoordIterator.new(narr, lex)
+      end
+    end
+
+    it "raises an IndexError when the iterator is out of bounds" do
+      lex = LexIterator.cover([3, 10])
+      expect_raises IndexError do
+        ElemAndCoordIterator.new(narr, lex)
+      end
     end
 
     describe "#reverse_each" do
