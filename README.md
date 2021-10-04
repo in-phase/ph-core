@@ -26,7 +26,7 @@ narr2 = NArray.build(2,3) do |coord|
     10 * coord[0] + coord[1]
 end
 
-puts narr2
+puts narr
 # 2x3 Phase::NArray(Int32)
 # [[1, 0, 0],
 #  [0, 1, 0]]
