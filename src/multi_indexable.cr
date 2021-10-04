@@ -771,7 +771,7 @@ module Phase
     # end
     # ```
     def fast : Iterator(T)
-      ElemIterator.of(self)
+      ElemIterator.new(self)
     end
 
     # Returns an Iterator equivalent to the method `#each_slice(axis, &block)`.

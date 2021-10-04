@@ -100,10 +100,28 @@ module Phase
           self.next
           @buffer_index
         end
+
+        macro def_standard_clone
+          protected def copy_from(other : self)
+            @first = other.@first.clone
+            @step = other.@step.clone
+            @last = other.@last.clone
+            @coord = other.@coord.clone
+            @buffer_index = other.@buffer_index
+            @buffer_step = other.@buffer_step.clone
+            @wrapper = ReadonlyWrapper.new(@coord.to_unsafe, @coord.size)
+            self
+          end
+    
+          def clone : self
+            inst = {{@type}}.allocate
+            inst.copy_from(self)
+          end
+        end
       end
 
       class IndexedLexIterator(I) < IndexedStrideIterator(I)
-        def_clone
+        def_standard_clone
 
         def advance! : ::Slice(I) | Stop
           (@coord.size - 1).downto(0) do |i| # ## least sig .. most sig
@@ -122,7 +140,7 @@ module Phase
       end
 
       class IndexedColexIterator(I) < IndexedStrideIterator(I)
-        def_clone
+        def_standard_clone
 
         def advance! : ::Slice(I) | Stop
           0.upto(@coord.size - 1) do |i| # ## least sig .. most sig
@@ -189,6 +207,10 @@ module Phase
         def next_value : (E | Stop)
           return stop if @coord_iter.next.is_a?(Stop)
           get_element
+        end
+
+        def unsafe_next : Tuple(E, Indexable(I))
+          self.next.as(Tuple(E, Indexable(I)))
         end
 
         def unsafe_next_value : E

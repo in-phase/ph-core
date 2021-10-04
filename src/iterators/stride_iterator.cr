@@ -100,7 +100,6 @@ module Phase
     def next : ReadonlyWrapper(I) | Stop
       if @hold
         @hold = false
-        return stop if @coord.equals?(@last) { |ord, last_ord| ord == last_ord }
       else
         return stop if advance!.is_a? Stop
       end

@@ -104,6 +104,8 @@ module Phase
     def self.build(shape : Enumerable, &block : Indexable(Int32), Int32 -> T)
       coord_iter = IndexedLexIterator.cover(shape.to_a)
       {{@type}}.new(shape) do
+        # pp coord_iter
+        # puts coord_iter.unsafe_next_with_index
         yield *(coord_iter.unsafe_next_with_index)
       end
     end
@@ -360,7 +362,7 @@ module Phase
     # For full specification of canonical form see `IndexRegion` documentation.
     def unsafe_fetch_chunk(region : IndexRegion)
       iter = BufferedECIterator.new(self, IndexedLexIterator.new(region, @shape))
-      typeof(self).new(region.shape) { iter.unsafe_next }
+      typeof(self).new(region.shape) { iter.unsafe_next[0] }
     end
 
     # Retrieves the element specified by `coord`, assuming that `coord` is in canonical form and in-bounds for this `{{@type}}`.

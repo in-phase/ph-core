@@ -36,6 +36,10 @@ module Phase
         new(src, idx_region.each)
       end
 
+      def self.new(src : MultiIndexable)
+        new(src, src.each_coord)
+      end
+
       def next : Tuple(E, Indexable(I)) | Stop
         coord = @coord_iter.next
 

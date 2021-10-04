@@ -56,7 +56,7 @@ macro test_get_element(method)
     end
   end
 
-  it "raises for coordinates with too many dimensions" do
+  it "raises for coordinates with too many dimensions", do
     expect_raises(DimensionError) do
       r_narr.{{method.id}}([1, 1, 1, 1, 1])
     end

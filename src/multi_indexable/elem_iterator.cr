@@ -20,6 +20,10 @@ module Phase
         new(ElemAndCoordIterator.new(src, coord_iter))
       end
 
+      def self.new(src : MultiIndexable)
+        new(ElemAndCoordIterator.new(src))
+      end
+
       def next : E | Stop
         ec_pair = @ec_iter.next
 
