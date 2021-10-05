@@ -69,18 +69,18 @@ module Phase
           new(IndexRegion.cover(shape), shape)
         end
 
-        protected def initialize(region : IndexRegion(I), shape : Shape)
+        protected def self.new(region : IndexRegion, shape : Shape)
           if region.dimensions == 0
             raise DimensionError.new("Failed to create {{@type.id}}: cannot iterate over empty shape \"[]\"")
           end
-          @buffer_index = I.zero
-          @buffer_step = BufferUtil.axis_strides(shape)
-          super(region)
+          
+          buffer_step = BufferUtil.axis_strides(shape)
+          new(region.@first, region.@last, region.@step, buffer_step)
         end
 
-        protected def initialize(@first, @last, @step, @buffer_step)
+        private def initialize(@first : Indexable(I), @last, @step, @buffer_step)
           @buffer_index = I.zero
-          super(@first, @last, @step)
+          super(@first, @step, @last)
         end
 
         def reset : self

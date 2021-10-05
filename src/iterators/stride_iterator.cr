@@ -44,41 +44,45 @@ module Phase
     # If `@first[i] == @last[i]`, then `@step[i]` can be 1 to indicate that all
     # values have an `i`th oordinate of `@first[i]` (as in x..x), and @step[i] can be 0 to
     # indicate that no possible values can represent the `i`th ordinate (as in x...x).
-    def initialize(@first : Array(I), step : Array(Int), @last : Array(I))
-      # These errors only need to be checked for in this constructor.
-      # Constructors that use `IndexRegion` are automatically free from
-      # step size issues and element count mismatch.
-      unless @first.size == step.size && step.size == @last.size
-        raise ArgumentError.new("The bounding coordinates and the step sizes must have the same number of elements, but they did not. (first coord has #{@first.size} elements, last coord has #{last.size}, and #{step.size} step sizes were provided)")
-      end
+    private def initialize(@first : Array(I), @step : Array(Int32), @last : Array(I))
+      # # These errors only need to be checked for in this constructor.
+      # # Constructors that use `IndexRegion` are automatically free from
+      # # step size issues and element count mismatch.
+      # unless @first.size == step.size && step.size == @last.size
+      #   raise ArgumentError.new("The bounding coordinates and the step sizes must have the same number of elements, but they did not. (first coord has #{@first.size} elements, last coord has #{last.size}, and #{step.size} step sizes were provided)")
+      # end
 
-      @first.each_with_index do |f, idx|
-        s, l = step.unsafe_fetch(idx), @last.unsafe_fetch(idx)
+      # @first.each_with_index do |f, idx|
+      #   s, l = step.unsafe_fetch(idx), @last.unsafe_fetch(idx)
         
-        if (l - f) % s != 0
-          raise ArgumentError.new("The step size in axis #{idx} (#{s}) did not evenly divide the gap between the first and last ordinate along that axis. (first: #{f}, last: #{l})")
-        end
+      #   if (l - f) % s != 0
+      #     raise ArgumentError.new("The step size in axis #{idx} (#{s}) did not evenly divide the gap between the first and last ordinate along that axis. (first: #{f}, last: #{l})")
+      #   end
 
-        direction = (l - f).sign
+      #   direction = (l - f).sign
 
-        if direction != s.sign && direction != 0
-          sign_names = {"zero", "positive", "negative"}
-          raise ArgumentError.new("The step size in axis #{idx} is #{sign_names[s.sign]}, which means it will never bring the first ordinate (#{f}) to the last ordinate (#{l}).")
-        end
-      end
+      #   if direction != s.sign && direction != 0
+      #     sign_names = {"zero", "positive", "negative"}
+      #     raise ArgumentError.new("The step size in axis #{idx} is #{sign_names[s.sign]}, which means it will never bring the first ordinate (#{f}) to the last ordinate (#{l}).")
+      #   end
+      # end
       
-      @step = step.map &.to_i32
+      # @step = step.map &.to_i32
       @coord = ::Slice(I).new(@first.size) { |i| @first[i] }
       @wrapper = ReadonlyWrapper.new(@coord.to_unsafe, @coord.size)
     end
 
     # Constructs an iterator that will provide every coordinate described by an `IndexRegion`.
-    def initialize(idx_region  : IndexRegion(I))
-      @first = idx_region.@first
-      @step = idx_region.@step
-      @last = idx_region.@last
-      @coord = ::Slice(I).new(@first.size) { |i| @first[i] }
-      @wrapper = ReadonlyWrapper.new(@coord.to_unsafe, @coord.size)
+    def self.new(idx_r  : IndexRegion(I))
+      # @first = idx_region.@first
+      # @step = idx_region.@step
+      # @last = idx_region.@last
+      # @coord = ::Slice(I).new(@first.size) { |i| @first[i] }
+      # @wrapper = ReadonlyWrapper.new(@coord.to_unsafe, @coord.size)
+
+      # TODO: should we be cloning these, or just using them outright? We'll never
+      # mutate them, but it's possible someone subclasses this and accidentally clobbers things.
+      new(idx_r.@first, idx_r.@step, idx_r.@last)
     end
 
     # Constructs an iterator that will provide every coordinate described by a region literal.

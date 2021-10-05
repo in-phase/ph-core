@@ -7,11 +7,15 @@ module Phase
       @smaller_coord : Array(I)
       @smaller_coord_wrapper : ReadonlyWrapper(I)
 
-      def initialize(region : IndexRegion(I), @smaller_shape)
-        super(region)
+      private def initialize(@first : Array(I), @step : Array(Int32), @last : Array(I), @smaller_shape : Array(I))
+        super(@first, @step, @last)
 
         @smaller_coord = global_to_tile(@first)
         @smaller_coord_wrapper = ReadonlyWrapper.new(@smaller_coord.to_unsafe, @smaller_coord.size)
+      end
+
+      def self.new(region : IndexRegion(I), smaller_shape)
+        new(region.@first, region.@step, region.@last, smaller_shape)
       end
 
       def self.new(region_literal, smaller_shape)
