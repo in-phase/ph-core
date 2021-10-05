@@ -40,8 +40,10 @@ module Phase
     # iteration with this flag.
     @hold : Bool = true
 
-    # Constructs an iterator that will traverse from `first` to `stop` by incrementing
-    # by `step[n]` in axis `n`.
+    # Constructs an iterator that will traverse from `first` to `stop` by incrementing by `step[n]` in axis `n`.
+    # If `@first[i] == @last[i]`, then `@step[i]` can be 1 to indicate that all
+    # values have an `i`th oordinate of `@first[i]` (as in x..x), and @step[i] can be 0 to
+    # indicate that no possible values can represent the `i`th ordinate (as in x...x).
     def initialize(@first : Array(I), step : Array(Int), @last : Array(I))
       # These errors only need to be checked for in this constructor.
       # Constructors that use `IndexRegion` are automatically free from
