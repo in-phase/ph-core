@@ -106,6 +106,7 @@ module Phase
     def next : ReadonlyWrapper(I) | Stop
       if @hold
         @hold = false
+        return stop if started_empty?
       else
         return stop if advance!.is_a? Stop
       end
@@ -146,6 +147,11 @@ module Phase
           @first[idx]
         end
       end
+    end
+
+    # Returns true if and only if this `StrideIterator` does not contain a single coordinate. 
+    protected def started_empty? : Bool
+      @step.any? &.zero?
     end
 
     macro def_standard_clone
