@@ -1,18 +1,61 @@
 require "../index_region.cr"
 
 module Phase
+  # `RegionIterator` iterates over all `IndexRegion`s with a given *chunk_shape* whose
+  # coordinates lie within a given *src_shape*. For example:
+  #
+  # ```crystal
+  # iter = RegionIterator.new(src_shape: [2, 5], chunk_shape: [1, 2]) # the parameter names are only included for clarity
+  # iter.next # => [0..0, 0..1]
+  # iter.next # => [0..0, 2..3]
+  # iter.next # => [1..1, 0..1]
+  # iter.next # => [1..1, 2..3]
+  # ```
+  #
+  # The example above is very simple in that it leaves most of the options as their defaults.
+  # Notice that the regions produced have no overlap - this is because the default
+  # vertex stride is equal to the chunk shape.
+  #
+  # `RegionIterator` also provides ways to control the iteration order, its
+  # behaviour at the boundary (note that in the above example, column 4 is
+  # totally excluded because two columns did not evenly divide five), and
+  # dimension dropping (see `IndexRegion` for details).
   class RegionIterator(I)
-    include Iterator(IndexRegion)
+    include Iterator(IndexRegion(I))
 
+    # The shape of the space that `RegionIterator` will iterate over. In all
+    # practical cases, this should be the larger of your two shapes.
     @src_shape : Array(I)
+
+    # The shape of the `IndexRegion`s that `#next` will attempt to return.
+    # Depending on your choice of *fringe_behaviour*, this shape may be
+    # exact or just an upper bound.
     @chunk_shape : Array(I)
+
+    # TODO: I think we're checking for out-of-bounds coords already, but
+    # if not we should either implement that or limit this to StrideIterator
+    # update: we aren't checking bounds of the start coord and need to do so.
+    # I think start coord out of bounds => raise, and if it's a StrideIterator,
+    # it checks the largest_coord and raises at construction time rather than
+    # iteration time 
     @coord_iter : Iterator(Indexable(I))
 
+    # If the *chunk_shape* does not evenly divide the *src_shape*, 
+    # *fringe_behaviour* will be used to determine what `RegionIterator` does
+    # with the partial chunks at the boundary. See `RegionIterator::FringeBehaviour`
+    # for options and documentation.
     @fringe_behaviour : FringeBehaviour
+
+    # The degeneracy array that is internally uesd when constructing the `IndexRegion`.
+    # See `IndexRegion` for more information.
     @degeneracy : Array(Bool)
 
     def_clone
     delegate :reset, to: @coord_iter
+
+    protected def initialize(@src_shape : Indexable(I), @chunk_shape, @coord_iter : Iterator(Indexable(I)), degeneracy : Array(Bool)? = nil, @fringe_behaviour : FringeBehaviour = FringeBehaviour::DISCARD)
+      @degeneracy = degeneracy || Array.new(@src_shape.size, false)
+    end
 
     # TODO: iter inputs, etc
     def self.new(src_shape : Shape(I), chunk_shape : Shape(I), strides : Coord? = nil, degeneracy = nil,
@@ -35,10 +78,6 @@ module Phase
       new(src_shape, chunk_shape, strides, degeneracy, fringe_behaviour) do |region|
         LexIterator.new(region)
       end
-    end
-
-    protected def initialize(@src_shape : Indexable(I), @chunk_shape, @coord_iter : Iterator(Indexable(I)), degeneracy : Array(Bool)? = nil, @fringe_behaviour : FringeBehaviour = FringeBehaviour::DISCARD)
-      @degeneracy = degeneracy || Array.new(@src_shape.size, false)
     end
 
     # protected def initialize(@src_shape, @chunk_shape, first, last, strides, @fringe_behaviour)
@@ -106,6 +145,7 @@ module Phase
       compute_region(@coord_iter.unsafe_next)
     end
 
+    # TODO: This is actualy really hard to document without images
     enum FringeBehaviour
       DISCARD
       COVER
