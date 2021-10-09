@@ -673,11 +673,11 @@ module Phase
     # iter.next # => Iterator::Stop
     # ```
     def each : Iterator(T)
-      each(each_coord)
+      ElemIterator.new(self, each_coord)
     end
 
     def colex_each : Iterator(T)
-      each()
+      ElemIterator.new(self, colex_each_coord)
     end
 
     # Returns an iterator that will yield tuples of the elements and coords comprising `self` in lexicographic (row-major) order.
