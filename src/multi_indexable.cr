@@ -824,7 +824,7 @@ module Phase
       each_slice(axis).to_a
     end
 
-    {% for name in %w(each each_coord each_with_coord fast) %}
+    {% for name in %w(each colex_each each_coord colex_each_coord each_with_coord fast) %}
       # Block accepting form of `#{{name.id}}`.
       def {{name.id}}(&block) : Nil
         {{name.id}}.each {|arg| yield arg}

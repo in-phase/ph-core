@@ -517,6 +517,39 @@ describe Phase::MultiIndexable do
         end
       end
     end
+
+    it "yields the coords in the correct order" do
+      r_narr.each_coord.to_a.should eq all_coords_lex_order(test_shape).to_a
+    end
+  end
+
+  describe "#colex_each_coord" do
+    it "yields only the correct coordinates, and all of the correct coordinates" do
+      {[1, 2, 3], [5, 10], [2]}.each do |shape| 
+        narr = RONArray.new(shape, Slice.new(shape.product, 0))
+        actual_coords = narr.colex_each_coord.to_a
+        actual_count = actual_coords.size
+        actual_coords = actual_coords.to_set
+
+        if actual_coords.size != actual_count
+          fail("the same coordinate was yielded multiple times (shape: #{shape})")
+        end
+
+        if actual_count != shape.product
+          fail("not all coordinates were covered (shape: #{shape})")
+        end
+
+        all_coords_colex_order(shape) do |coord|
+          unless actual_coords.includes?(coord)
+            fail("#{coord}, an expected coordinate, was not present in each_coord for a MultiIndexable with shape #{shape}")
+          end
+        end
+      end
+    end
+
+    it "yields the coords in the correct order" do
+      r_narr.colex_each_coord.to_a.should eq all_coords_colex_order(test_shape).to_a
+    end
   end
 
   describe "#each" do
@@ -534,6 +567,30 @@ describe Phase::MultiIndexable do
       iter = r_narr.each
 
       test_buffer.each do |el|
+        el.should eq iter.next
+      end
+
+      iter.empty?.should be_true
+    end
+  end
+
+  describe "#colex_each" do
+    colex_buffer = [1, 'a', 1f64, 2, 'b', 2f64, 3, 'c', 3f64, 4, 'd', 4f64]
+
+    it "yields all elements in colexicographic order" do
+      elem_iter = colex_buffer.each
+
+      r_narr.colex_each do |el|
+        el.should eq elem_iter.next
+      end
+
+      elem_iter.empty?.should be_true
+    end
+
+    it "provides an iterator over every element in colexicographic order" do
+      iter = r_narr.colex_each
+
+      colex_buffer.each do |el|
         el.should eq iter.next
       end
 
