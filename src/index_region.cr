@@ -110,7 +110,7 @@ module Phase
       step = Array.new(bound_shape.size, 1)
       # TODO handle bound_shape given with 0
       last = bound_shape.map &.pred
-      shape = bound_shape.dup
+      shape = bound_shape.clone
       new(first, step, last, shape, drop, degeneracy)
     end
 

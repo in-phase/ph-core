@@ -638,8 +638,25 @@ module Phase
     # iter.next # => [1, 2]
     # iter.next # => Iterator::Stop
     # ```
-    def each_coord : Iterator
-      LexIterator.cover(shape)
+    def each_coord : LexIterator
+      LexIterator.cover(shape_internal)
+    end
+    
+    # Returns an iterator that will yield each coordinate of `self` in colexicographic (column-major) order.
+    #
+    # ```crystal
+    # narr = NArray[[1, 2, 3], [4, 5, 6]]
+    # iter = narr.each_coord
+    # iter.next # => [0, 0]
+    # iter.next # => [0, 1]
+    # iter.next # => [0, 2]
+    # iter.next # => [1, 0]
+    # iter.next # => [1, 1]
+    # iter.next # => [1, 2]
+    # iter.next # => Iterator::Stop
+    # ```
+    def colex_each_coord : ColexIterator
+      ColexIterator.cover(shape_internal)
     end
 
     # Returns an iterator that will yield each element of `self` in lexicographic (row-major) order.
@@ -659,22 +676,8 @@ module Phase
       each(each_coord)
     end
 
-    # An overload of `#each` that allows you to provide a coordinate iterator in place of the default lexicographic iterator.
-    #
-    # ```crystal
-    # narr = NArray[[1, 2, 3], [4, 5, 6]]
-    # coord_iter = ColexIterator.cover(narr.shape).reverse!
-    # iter = narr.each(coord_iter)
-    # iter.next # => 6
-    # iter.next # => 3
-    # iter.next # => 5
-    # iter.next # => 2
-    # iter.next # => 4
-    # iter.next # => 1
-    # iter.next # => Iterator::Stop
-    # ```
-    def each(iter : Iterator(Indexable(I))) : Iterator(T) forall I
-      ElemIterator.new(self, iter)
+    def colex_each : Iterator(T)
+      each()
     end
 
     # Returns an iterator that will yield tuples of the elements and coords comprising `self` in lexicographic (row-major) order.
