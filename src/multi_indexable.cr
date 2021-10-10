@@ -11,7 +11,7 @@ module Phase
   # Implementing `MultiIndexable` will require that you provide a `#shape` and
   # `#unsafe_fetch_element` method, however this is the bare minimum. For a
   # performant implementation, you should consider overriding
-  # `#unsafe_fetch_chunk`, `#fast`, and `#size` in that order of importance
+  # `#unsafe_fetch_chunk`, `#fast_each`, and `#size` in that order of importance
   # (and more as you see fit).
   module MultiIndexable(T)
     # provides search, traversal methods
@@ -775,11 +775,11 @@ module Phase
     # if the `MultiIndexable` you call it on explicitly mentions that you should.
     #
     # ```crystal
-    # NArray[1, 2, 3].fast.each do |el|
+    # NArray[1, 2, 3].fast_each.each do |el|
     #   # ...
     # end
     # ```
-    def fast : Iterator(T)
+    def fast_each : Iterator(T)
       ElemIterator.new(self)
     end
 
@@ -830,7 +830,7 @@ module Phase
       each_slice(axis).to_a
     end
 
-    {% for name in %w(each colex_each each_coord colex_each_coord each_with_coord fast) %}
+    {% for name in %w(each colex_each each_coord colex_each_coord each_with_coord fast_each) %}
       # Block accepting form of `#{{name.id}}`.
       def {{name.id}}(&block) : Nil
         {{name.id}}.each {|arg| yield arg}

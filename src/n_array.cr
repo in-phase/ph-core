@@ -439,7 +439,7 @@ module Phase
       @buffer.each
     end
 
-    def fast
+    def fast_each
       @buffer.each
     end
 

@@ -639,10 +639,10 @@ describe Phase::MultiIndexable do
   describe "#map_with_coord" do
   end
 
-  describe "#fast" do
-    # this is my favorite unit test because fast promises almost nothing lol
+  describe "#fast_each" do
+    # this is my favorite unit test because fast_each promises almost nothing lol
     it "returns all the elements in whatever order" do
-      r_narr.fast.each.to_set.should eq test_buffer.to_set
+      r_narr.fast_each.each.to_set.should eq test_buffer.to_set
     end
   end
 
