@@ -672,11 +672,31 @@ module Phase
     # iter.next # => 6
     # iter.next # => Iterator::Stop
     # ```
-    def each : Iterator(T)
+    #
+    # `#each` can also be chained with other calls to manipulate its behaviour -
+    # for example `each.with_coord.reverse_each`. See `MultiIndexable::ElemIterator`
+    # for more information.
+    def each : ElemIterator
       ElemIterator.new(self, each_coord)
     end
 
-    def colex_each : Iterator(T)
+    # Returns an iterator that will yield each element of `self` in colexicographic (column-major) order.
+    #
+    # ```crystal
+    # narr = NArray[[1, 2, 3], [4, 5, 6]]
+    # iter = narr.each
+    # iter.next # => 1
+    # iter.next # => 4
+    # iter.next # => 2
+    # iter.next # => 5
+    # iter.next # => 3
+    # iter.next # => 6
+    # iter.next # => Iterator::Stop
+    # ```
+    #
+    # `#colex_each` can be manipulated the same ways as `#each`. See `#each`
+    # or `MultiIndexable::ElemIterator` for more information.
+    def colex_each : ElemIterator
       ElemIterator.new(self, colex_each_coord)
     end
 
@@ -693,25 +713,11 @@ module Phase
     # iter.next # => {6, [1, 2]}
     # iter.next # => Iterator::Stop
     # ```
-    def each_with_coord : Iterator # Iterator(Tuple(T, Coord)) # "Error: can't use Indexable(T) as a generic type argument yet"
-      each_with_coord(each_coord)
-    end
-
-    # An overload of `#each_with_coord` that allows you to provide a coordinate iterator in place of the default lexicographic iterator.
     #
-    # ```crystal
-    # narr = NArray[[1, 2, 3], [4, 5, 6]]
-    # coord_iter = ColexIterator.cover(narr.shape).reverse!
-    # iter = narr.each_with_coord(coord_iter)
-    # puts iter.next # => {6, [1, 2]}
-    # puts iter.next # => {3, [0, 2]}
-    # puts iter.next # => {5, [1, 1]}
-    # puts iter.next # => {2, [0, 1]}
-    # puts iter.next # => {4, [1, 0]}
-    # puts iter.next # => {1, [0, 0]}
-    # ```
-    def each_with_coord(iter : Iterator(Indexable(I))) : Iterator forall I # Iterator(Tuple(T, Coord))
-      ElemAndCoordIterator.new(self, iter)
+    # This method is a convenience included to mirror `Indexable#each_with_index`.
+    # If you're looking for a colexicographic version, use `#colex_each.with_coord`. 
+    def each_with_coord : ElemAndCoordIterator # Iterator(Tuple(T, Coord)) # "Error: can't use Indexable(T) as a generic type argument yet"
+      ElemAndCoordIterator.new(self, each_coord)
     end
 
     # Returns a `MultiIndexable` with the results of running the block against each element and coordinate comprising `self`.
