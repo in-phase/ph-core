@@ -11,6 +11,7 @@ VALID_REGIONS = ABSOLUTE_REGIONS + RELATIVE_REGIONS
 INVALID_REGIONS = [[0..8], [1, 1, 1], [-1...-10]]
 
 test_shape = [3, 4]
+# test_buffer must not contain any duplicate elements! test_buffer.to_set is used to simulate a bag/multiset
 test_buffer = Slice[1, 2, 3, 4, 'a', 'b', 'c', 'd', 1f64, 2f64, 3f64, 4f64]
 r_narr = uninitialized RONArray(Int32 | Char | Float64)
 
@@ -642,7 +643,14 @@ describe Phase::MultiIndexable do
   describe "#fast_each" do
     # this is my favorite unit test because fast_each promises almost nothing lol
     it "returns all the elements in whatever order" do
-      r_narr.fast_each.each.to_set.should eq test_buffer.to_set
+      # NOTE: This set testing only works because there are no duplicate items in r_narr.
+      r_narr.fast_each.to_set.should eq test_buffer.to_set
+    end
+
+    it "provides a block form" do
+      set = Set(typeof(test_buffer.sample)).new
+      r_narr.fast_each { |e| set << e }
+      set.should eq test_buffer.to_set
     end
   end
 
