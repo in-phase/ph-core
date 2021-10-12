@@ -1,6 +1,8 @@
 require "spec"
 require "../src/ph-core"
 
+include Phase
+
 # An arbitrary class
 class TestObject
 end

@@ -13,8 +13,7 @@ module Phase
   class NArray(T)
     include MultiIndexable(T)
     include MultiWritable(T)
-
-    include BufferUtil
+    include Buffered(T)
 
     # Stores the elements of an `{{@type}}` in lexicographic (row-major) order.
     getter buffer : Slice(T)
@@ -29,7 +28,7 @@ module Phase
     # TODO: Doc
     protected def self.ensure_valid(shape : Array(Int32), buffer : Slice)
       if shape.product != buffer.size
-        raise ArgumentError.new("Cannot create {{@type}}: Given shape does not match number of elements in buffer.")
+        raise ShapeError.new("Cannot create {{@type}}: Given shape does not match number of elements in buffer.")
       end
     end
 
@@ -51,7 +50,7 @@ module Phase
       end.to_a
 
       num_elements = shape.product.to_i32
-      @axis_strides = BufferUtil.axis_strides(@shape)
+      @axis_strides = Buffered.axis_strides(@shape)
 
       @buffer = Slice(T).new(num_elements) { |i| yield i }
     end
@@ -61,7 +60,7 @@ module Phase
     # `reshape` as of Feb 5th 2021).
     protected def initialize(shape : Array(Int32), @buffer : Slice(T))
       @shape = shape.dup
-      @axis_strides = BufferUtil.axis_strides(@shape)
+      @axis_strides = Buffered.axis_strides(@shape)
     end
 
     def self.of_buffer(shape : Array(Int32), buffer : Slice(T))
@@ -102,7 +101,7 @@ module Phase
     #  [4]]
     # ```
     def self.build(shape : Enumerable, &block : Indexable(Int32), Int32 -> T)
-      coord_iter = IndexedLexIterator.cover(shape.to_a)
+      coord_iter = Indexed::LexIterator.cover(shape.to_a)
       {{@type}}.new(shape) do
         # pp coord_iter
         # puts coord_iter.unsafe_next_with_index
@@ -361,14 +360,14 @@ module Phase
     # Copies the elements in `region` to a new `{{@type}}`, assuming that `region` is in canonical form and in-bounds for this `{{@type}}`.
     # For full specification of canonical form see `IndexRegion` documentation.
     def unsafe_fetch_chunk(region : IndexRegion)
-      iter = BufferedECIterator.new(self, IndexedLexIterator.new(region, @shape))
+      iter = Indexed::ElemAndCoordIterator.new(self, Indexed::LexIterator.new(region, @shape))
       typeof(self).new(region.shape) { iter.unsafe_next[0] }
     end
 
     # Retrieves the element specified by `coord`, assuming that `coord` is in canonical form and in-bounds for this `{{@type}}`.
     # For full specification of canonical form see `IndexRegion` documentation.
     def unsafe_fetch_element(coord) : T
-      @buffer.unsafe_fetch(BufferUtil.coord_to_index_fast(coord, @shape, @axis_strides))
+      @buffer.unsafe_fetch(Buffered.coord_to_index_fast(coord, @shape, @axis_strides))
     end
 
     # Takes a single index into the {{@type}}, returning a slice of the largest dimension possible.
@@ -415,7 +414,7 @@ module Phase
     end
 
     def unsafe_set_element(coord : Enumerable, value : T)
-      @buffer[BufferUtil.coord_to_index_fast(coord, @shape, @axis_strides)] = value
+      @buffer[Buffered.coord_to_index_fast(coord, @shape, @axis_strides)] = value
     end
 
     # replaces all values in a boolean mask with a given value
@@ -444,11 +443,11 @@ module Phase
     end
 
     def each_coord
-      IndexedLexIterator.cover(shape_internal)
+      Indexed::LexIterator.cover(shape_internal)
     end
 
     def each_with_coord(iter : IndexedStrideIterator(I)) forall I
-      BufferedECIterator.new(self, iter)
+      Indexed::ElemAndCoordIterator.new(self, iter)
     end
 
     def each_with_index(&block : T, Int32 ->)
@@ -564,7 +563,7 @@ module Phase
 
     def concatenate!(*others, axis = 0) : self
       @shape, @buffer = NArray(T).concatenate_to_slice(self, *others, axis: axis)
-      @axis_strides = BufferUtil.axis_strides(@shape)
+      @axis_strides = Buffered.axis_strides(@shape)
       self
     end
 

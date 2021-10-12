@@ -8,7 +8,7 @@ require "../../src/index_region"
 require "../../src/multi_indexable"
 require "../../src/multi_indexable/*"
 require "../../src/multi_writable"
-require "../../src/buffer_util/*"
+require "../../src/buffered/**"
 require "../../src/n_array"
 
 require "../../src/type_aliases"

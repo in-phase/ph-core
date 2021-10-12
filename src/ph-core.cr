@@ -17,7 +17,8 @@ require "./multi_indexable/*"
 require "./multi_indexable.cr"
 require "./multi_writable.cr"
 
-require "./buffer_util/*"
+require "./buffered/buffered.cr"
+require "./buffered/indexed/*"
 require "./n_array.cr"
 
 require "./view_util/*"

@@ -2,7 +2,12 @@ module Phase
   # A collection of convenience functions and optimizations targeted at multidimensional arrays stored linearly in memory
   # (in lexicographic/row major/C order).
   # This suggests the concept of a singular "index" representing each element, alongside the multidimensional coordinate.
-  module BufferUtil
+  module Buffered(T)
+    include MultiIndexable(T)
+
+    # Returns the lexicographic buffer that stores the elements of this `MultiIndexable`.
+    abstract def buffer : Indexable
+
     # Given an array of step sizes in each coordinate axis, returns the offset in the buffer
     # that a step of that size represents.
     # The buffer index of a multidimensional coordinate, x, is equal to x dotted with axis_strides
