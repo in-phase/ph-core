@@ -622,7 +622,7 @@ module Phase
         else
           if shape[depth] != current.size
             # We've been at this before, but the shape was different then.
-            raise DimensionError.new("Could not profile nested array: Array shape was inconsistent.")
+            raise ShapeError.new("Could not profile nested array: Array shape was inconsistent.")
           end
         end
 
