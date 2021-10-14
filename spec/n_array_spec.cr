@@ -1,6 +1,8 @@
 require "./spec_helper.cr"
 
 describe NArray do
+  stock_narr = NArray.build(2,3) { |_, i| i }
+
   describe ".of_buffer" do
     it "creates an NArray from buffer and shape" do
       buf = Slice[1, 2, 3, 4, 5, 6]
@@ -118,13 +120,11 @@ describe NArray do
 
   describe "#size" do
     it "returns the number of elements in the buffer" do
-      narr = NArray.fill([1, 2], 3)
-      narr.size.should eq narr.buffer.size
+      stock_narr.size.should eq stock_narr.buffer.size
     end
 
     it "is equal to the product of the shape" do
-      narr = NArray.fill([3, 4], 3)
-      narr.size.should eq 12
+      stock_narr.size.should eq stock_narr.shape.product
     end
   end
 
@@ -156,10 +156,29 @@ describe NArray do
     end
   end
 
-  describe "#slices" do
-    it "returns Array(NArray(T))", focus: true do
-      narr = NArray.build(2, 2, 2) { |_, i| i }
-      puts narr
+  describe "#flatten" do
+    it "does not mutate self" do
+      stock_narr.flatten
+      stock_narr.shape.should eq [2, 3]
+    end
+
+    it "flattens properly" do
+      flat = stock_narr.flatten
+      flat.buffer.should eq stock_narr.buffer
+      flat.shape.should eq [stock_narr.shape.product]
     end
   end
+
+  describe "#reshape" do
+    it "does not mutate self" do
+      stock_narr.reshape(1, 6, 1)
+      stock_narr.shape.should eq [2, 3]
+    end
+
+    it "works for change in shape and dimensionality" do
+      stock_narr.reshape(1, 6, 1).shape.should eq [1, 6, 1]
+    end
+  end
+
+  
 end

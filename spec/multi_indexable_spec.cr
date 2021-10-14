@@ -17,10 +17,6 @@ r_narr = uninitialized RONArray(Int32 | Char | Float64)
 
 test_slices = [[[1, 2, 3, 4], ['a', 'b', 'c', 'd'], [1f64, 2f64, 3f64, 4f64]], [[1, 'a', 1f64], [2, 'b', 2f64], [3, 'c', 3f64], [4, 'd', 4f64]]]
 
-Spec.before_each do
-  r_narr = RONArray.new(test_shape, test_buffer)
-end
-
 # get and get_element are aliases, so this prevents testing redundancy.
 macro test_get_element(method)
   it "returns the correct element for all valid coordinates" do
@@ -197,6 +193,10 @@ macro test_each_slice(method)
 end
 
 describe Phase::MultiIndexable do
+  before_each do
+    r_narr = RONArray.new(test_shape, test_buffer)
+  end
+  
   describe "#empty?" do
     it "returns true for an empty MultiIndexable" do
       empty_buffer = Slice(Int32).new(size: 0)

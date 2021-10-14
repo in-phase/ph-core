@@ -307,10 +307,6 @@ module Phase
       {{@type}}.new(@shape, @buffer.dup)
     end
 
-    def slices(axis = 0) : Array(self)
-      super(axis)
-    end
-
     # TODO any way to avoid copying these out yet, too? Iterator magic?
     # def slices(axis = 0) : Array(self)
     #   region = [] of (Int32 | Range(Int32, Int32))
@@ -345,11 +341,6 @@ module Phase
 
     def reshape(*splat)
       reshape(splat)
-    end
-
-    # Checks that the array is a 1-vector (a "zero-dimensional" {{@type}})
-    def scalar? : Bool
-      @shape.size == 1 && @shape[0] == 1
     end
 
     # Checks for elementwise equality between `self` and *other*.
