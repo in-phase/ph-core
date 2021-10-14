@@ -71,7 +71,10 @@ module Phase
             yield Flags::ELEM, idx
           end
 
-          @iter.coord_iter.unsafe_skip(depth, size - max_count)
+          # TODO: evil hack needs to go away
+          # @iter.coord_iter.unsafe_skip(depth, size - max_count)
+          @iter.coord_iter.@coord[depth] += size - max_count
+          
           yield Flags::SKIP, -1
 
           right.times do |idx|
@@ -88,18 +91,18 @@ module Phase
       def measure
         @justify_length = @settings.max_element_width
         @justify_length = walk_n_measure
-        @iter.reset
+        @iter.reset!
       end
 
       def print
         measure
         walk_n_print
-        @iter.reset
+        @iter.reset!
       end
 
       def print_literal
         walk_n_print_flat
-        @iter.reset
+        @iter.reset!
       end
 
       protected def color_print(text, height)

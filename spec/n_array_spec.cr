@@ -146,7 +146,7 @@ describe NArray do
     it "creates a new NArray with distinct buffer and shape, but same buffer references" do
       arr = ["should not be cloned"]
       src_narr = NArray.fill([2, 3], arr)
-      clone_narr = src_narr.clone
+      clone_narr = src_narr.dup
 
       clone_narr.shape.should eq [2, 3]
       clone_narr.@shape.should_not be src_narr.@shape
@@ -156,5 +156,10 @@ describe NArray do
     end
   end
 
-  
+  describe "#slices" do
+    it "returns Array(NArray(T))", focus: true do
+      narr = NArray.build(2, 2, 2) { |_, i| i }
+      puts narr
+    end
+  end
 end

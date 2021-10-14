@@ -5,9 +5,9 @@ module Phase
     class ElemIterator(S, E, I)
       include Iterator(E)
 
-      getter ec_iter : ElemAndCoordIterator(S, E, I)
+      @ec_iter : ElemAndCoordIterator(S, E, I)
       def_clone
-      delegate :reset, :reverse!, to: @ec_iter
+      delegate :reset!, :reverse!, :coord_iter, to: @ec_iter
 
       def initialize(@ec_iter : ElemAndCoordIterator(S, E, I))
       end
@@ -32,6 +32,10 @@ module Phase
         else
           ec_pair[0]
         end
+      end
+
+      def unsafe_next : E
+        @ec_iter.unsafe_next[0]
       end
 
       def with_coord : ElemAndCoordIterator(S, E, I)

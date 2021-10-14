@@ -3,10 +3,10 @@ module Phase
     class ElemAndCoordIterator(S, E, I)
       include Iterator(Tuple(E, Indexable(I)))
 
-      @coord_iter : StrideIterator(I)
+      getter coord_iter : StrideIterator(I)
       @src : S
 
-      delegate :reset, :reverse!, to: @coord_iter
+      delegate :reset!, :reverse!, to: @coord_iter
 
       private def initialize(@src : S, el_type : E.class, @coord_iter : StrideIterator(I))
         shape = @src.shape
