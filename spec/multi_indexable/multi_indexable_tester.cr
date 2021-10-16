@@ -1,15 +1,24 @@
 require "../spec_helper.cr"
 
 class MultiIndexableTester(M, I)
-  # Produces a new instance of `M`, which is a MultiIndexable
-  # of index type `I`. Then, returns the `M` and its shape.
-  abstract def build : Tuple(M, Array(I))
+  # Produces a new instance of `M`, which is a MultiIndexable.
+  # If `M` has a generic element type, it is good idea to return
+  # a union type (like `NArray(Int32 | Char)`) here, as
+  # certain memory bugs could pass through otherwise.
+  abstract def build : Tuple(M)
+
+  abstract def test_build
+
+  abstract def build_narr : NArray
+
+  abstract def test_build_narr
 
   # Runs the test suite for `MultiIndexable` on the provided data type
   def self.run
     new.run
   end
 
+  SHAPE = [3, 4]
   ABSOLUTE_REGIONS = [[0..2], [2..1, 0..2..2], [0, 2...2], [] of Int32, [] of Range(Nil, Nil)]
   RELATIVE_REGIONS = [[0...3, ..], [-3..-1, 1], [.., 2], [2.., 0]]
   # These categorizations only apply to r_narr, but help simplify testing
