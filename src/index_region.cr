@@ -310,6 +310,7 @@ module Phase
     end
 
     def to_s(io : IO)
+      io << "IndexRegion"
       io << @degeneracy.map_with_index do |degen, i|
         if degen
           @first[i]
