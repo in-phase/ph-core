@@ -8,7 +8,9 @@ abstract class MultiIndexableTester(M, T, I)
   # Additionally, avoid returning a trivial instance at all costs - for example,
   # returning `NArray[[0, 0], [0, 0]]` is awful for testing, because there is
   # no way to distinguish between the elements. Must return a MultiIndexable
-  # with more than one element!
+  # with more than one element! The shape can be anything you want, but
+  # we reccommend something like [3, 4, 5] (3 dimensions captures most complex
+  # behaviour, and differing extents >=3 allow for more robust bug detection)
   abstract def make : M
 
   # If your `MultiIndexable` supports it, this should return a pure empty container (`#shape.to_a == [0]`). If not, return nil.
@@ -115,13 +117,43 @@ abstract class MultiIndexableTester(M, T, I)
     {m_inst, m_inst.to_narr}
   end
 
-  private def make_valid_regions(shape : Indexable(I)) : Array(IndexRegion(I))
-    regions = [] of IndexRegion(I)
-    
-    regions << IndexRegion.cover(shape)
+  private def make_valid_regions(shape : Indexable(I))
+    {
+      # Cover the whole region
+      shape.map { |axis| 0...axis },
+
+      # Contiguous section of whole region, shifted start
+      shape.map do |axis|
+        if axis > 1
+          1...axis
+        else
+          0...axis
+        end
+      end,
+
+      # Contiguous section of whole region, shifted end
+      shape.map do |axis|
+        if axis > 2
+          0...axis-1
+        else
+          0...axis
+        end
+      end,
+
+      # Region with >1 stride
+      shape.map { |axis| 0..2..axis },
+
+      # Region with negative stride
+      shape.map { |axis| axis..-2..0 },
+
+      # Region with 
+
+      [] of I,
+      [] of Range(Nil, Nil)
+    }
   end
 
-  private def make_invalid_regions(shape : Indexable(I)) : Array(IndexRegion(I))
+  private def make_invalid_regions(shape : Indexable(I)) : Array
     regions = [] of IndexRegion(I)
 
     regions << IndexRegion.cover(shape).translate!(shape)
