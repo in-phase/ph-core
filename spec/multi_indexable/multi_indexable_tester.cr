@@ -48,7 +48,7 @@ abstract class MultiIndexableTester(M, T, I)
 
   # Yields an empty {{@type}} once if possible.
   # Attempts to provide a volumetric one first, then falls back to scalar.
-  private def get_empty(&block : M -> )
+  private def get_empty(&block : M ->)
     if inst = make_volumetric_empty || make_pure_empty
       yield inst
     end
@@ -56,7 +56,7 @@ abstract class MultiIndexableTester(M, T, I)
 
   # Yields a scalar {{@type}} once if possible.
   # Attempts to provide a volumetric one first, then falls back to scalar.
-  private def get_scalar(&block : M -> )
+  private def get_scalar(&block : M ->)
     if inst = make_volumetric_scalar || make_pure_scalar
       yield inst
     end
@@ -134,29 +134,36 @@ abstract class MultiIndexableTester(M, T, I)
       # Contiguous section of whole region, shifted end
       shape.map do |axis|
         if axis > 2
-          0...axis-1
+          0...axis - 1
         else
           0...axis
         end
       end,
 
       # Region with >1 stride
-      shape.map { |axis| 0..2..axis },
+      shape.map { |axis| 0..2...axis },
 
       # Region with negative stride
-      shape.map { |axis| axis..-2..0 },
+      shape.map { |axis| (axis - 1)..-2..0 },
 
-      # Region with 
-
+      # Full-region specifiers
+      [..] * shape.size,
       [] of I,
-      [] of Range(Nil, Nil)
+      [] of Range(Nil, Nil),
     }
   end
 
-  private def make_invalid_regions(shape : Indexable(I)) : Array
-    regions = [] of IndexRegion(I)
+  private def make_invalid_regions(shape : Indexable(I))
+    {
+      # Region that's too positively large
+      shape.map { |axis| axis..(2 * axis) },
 
-    regions << IndexRegion.cover(shape).translate!(shape)
+      # Region with the wrong number of dimensions
+      shape.map { |axis| 0...axis } + [0..0],
+
+      # Region that is too negatively large
+      shape.map { |axis| (-axis - 1)... },
+    }
   end
 
   def test_target
@@ -165,9 +172,6 @@ abstract class MultiIndexableTester(M, T, I)
 
       valid_regions = make_valid_regions(narr.shape)
       invalid_regions = make_invalid_regions(narr.shape)
-
-      puts valid_regions
-      puts invalid_regions
 
       before_each do
         m_inst, narr = make_pair
@@ -217,7 +221,7 @@ abstract class MultiIndexableTester(M, T, I)
       end
 
       describe "#first" do
-        it "returns the element at the zero coordinate from a populated MultiIndexable" do
+        it "returns the element at the zero coordinate from a populated #{M}" do
           m_inst.first.should eq narr.first
         end
 
@@ -236,7 +240,7 @@ abstract class MultiIndexableTester(M, T, I)
             inst.sample.should eq inst.to_narr.first
           end
         end
-    
+
         it "raises when given a negative sample count" do
           expect_raises ArgumentError do
             m_inst.sample(-1)
@@ -265,24 +269,168 @@ abstract class MultiIndexableTester(M, T, I)
             m_inst.has_coord?(row, col).should be_true
           end
         end
-    
+
         it "returns false for a coordinate outside the shape" do
           oversized_shape = m_inst.shape.map &.+(2)
           proper_coords = all_coords_lex_order(m_inst.shape)
-    
+
           all_coords_lex_order(oversized_shape) do |(row, col)|
             next if proper_coords.includes? [row, col]
-    
+
             m_inst.has_coord?([row, col]).should be_false
             m_inst.has_coord?(row, col).should be_false
           end
         end
-    
+
         it "returns false when the coordinate is of the wrong dimension" do
           m_inst.has_coord?([0]).should be_false
           m_inst.has_coord?(0).should be_false
         end
       end
+
+      describe "#has_region?" do
+        it "returns true for valid literal regions", tags: ["bad"] do
+          make_valid_regions(m_inst.shape).each do |region|
+            unless m_inst.has_region?(region)
+              fail(m_inst.shape.join("x") + " #{M} should include #{region}, but has_region? was false")
+            end
+          end
+        end
+
+        it "returns false for invalid regions" do
+          make_invalid_regions(m_inst.shape).each do |region|
+            if m_inst.has_region?(region)
+              fail(m_inst.shape.join("x") + " #{M} should not include #{region}, but has_region? was true")
+            end
+          end
+        end
+
+        it "returns true for valid IndexRegions" do
+          make_valid_regions(m_inst.shape).each do |region_literal|
+            idx_r = IndexRegion.new(region_literal, m_inst.shape)
+
+            unless m_inst.has_region?(idx_r)
+              fail(m_inst.shape.join("x") + " #{M} should include #{idx_r}, but has_region? was false")
+            end
+          end
+        end
+
+        it "returns false for invalid IndexRegions" do
+          # Note: We want to use valid regions (so that IndexRegions can be constructed),
+          # and then make them invalid for this shape by translating them massively.
+          # TODO: I'm not sure what happens here if you make an IndexRegion that
+          # spans zero elements, or if that's even possible.
+          make_valid_regions(m_inst.shape).each do |region_literal|
+            idx_r = IndexRegion.new(region_literal, m_inst.shape).translate!(m_inst.shape)
+
+            if m_inst.has_region?(idx_r)
+              fail(m_inst.shape.join("x") + " #{M} should not include #{idx_r}, but has_region? was true")
+            end
+          end
+        end
+      end
+
+      {% for method in {:get, :get_element} %}
+        describe "#" + {{method.id.stringify}} do
+          it "returns the correct element for all valid coordinates" do
+            all_coords_lex_order(m_inst.shape) do |coord|
+              expected_elem = narr.{{method.id}}(coord)
+              actual = m_inst.{{method.id}}(coord)
+
+              # Note: This architecture cannot test the tuple version, because
+              # the number of dimensions is not known at compile-time.
+              if actual != expected_elem
+                fail("Indexable accepting verision failed: #" + "narr.{{method.id}}(#{coord}) should have been #{expected_elem}, but was #{actual}")
+              end
+            end
+          end
+
+          it "raises for for invalid coordinates" do
+            oversized_shape = narr.shape.map &.+(2)
+            proper_coords = all_coords_lex_order(narr.shape)
+
+            all_coords_lex_order(oversized_shape) do |coord|
+              next if proper_coords.includes? coord
+
+              expect_raises IndexError do
+                m_inst.{{method.id}}(coord)
+              end
+            end
+          end
+
+          it "raises for coordinates with too many dimensions", do
+            expect_raises(DimensionError) do
+              m_inst.{{method.id}}(narr.shape.map &.pred + [0])
+            end
+          end
+
+          it "raises for coordinates with too few dimensions" do
+            expect_raises(DimensionError) do
+              m_inst.{{method.id}}([0] * (narr.dimensions - 1))
+            end
+          end
+        end
+      {% end %}
+
+      {% for method in {:get_chunk} %}
+        describe "#" + {{method.id.stringify}} do
+          it "returns a chunk for each valid region" do
+            {true, false}.each do |drop|
+              make_valid_regions(narr.shape).each do |region_literal|
+                expected = narr.{{method.id}}(region_literal, drop: drop)
+                actual = m_inst.{{method.id}}(region_literal, drop: drop)
+
+                actual.to_narr.should eq expected
+              end
+            end
+          end
+
+          it "returns a chunk for each valid indexregion" do
+            {true, false}.each do |drop|
+              make_valid_regions(narr.shape).each do |region_literal|
+                idx_r = IndexRegion.new(region_literal, bound_shape: narr.shape, drop: drop)
+                expected = narr.{{method.id}}(idx_r)
+                actual = m_inst.{{method.id}}(idx_r)
+
+                actual.to_narr.should eq expected
+              end
+            end
+          end
+
+          pending "does something appropriate when you pass an IndexRegion but also give drop" do
+            # right now, this gives a very confusing error because it gets caught by the tuple
+            # accepting overload of #get_chunk (get_chunk(*tuple, drop)), and then tries
+            # to canonicalize IndexRegion :p
+            #
+            # I propose we either add a get_chunk(_ : IndexRegion, drop : Bool) that either
+            # does { % raise % } or overrides the degeneracy of the IndexRegion.
+            {true, false}.each do |drop|
+              make_valid_regions(narr.shape).each do |region_literal|
+                idx_r = IndexRegion.new(region_literal, bound_shape: narr.shape, drop: drop)
+                actual = m_inst.{{method.id}}(idx_r, drop: true)
+              end
+            end
+          end
+        end
+      {% end %}
+
+      # describe "#get_available" do
+      #   it "returns the correct output for a simple region literal" do
+      #     expected_buffer = Slice[3, 'c', 3f64]
+      #     r_narr.get_available([0..8, 5..-3..2]).buffer.should eq expected_buffer
+      #   end
+    
+      #   it "returns the correct output for a simple region literal (tuple accepting)" do
+      #     expected_buffer = Slice[3, 'c', 3f64]
+      #     r_narr.get_available(0..8, 5..-3..2).buffer.should eq expected_buffer
+      #   end
+    
+      #   it "returns the correct output for an IndexRegion" do
+      #     expected_buffer = Slice[3, 'c', 3f64]
+      #     idx_r = IndexRegion(Int32).new([0..8, 5..-3..2])
+      #     r_narr.get_available(idx_r).buffer.should eq expected_buffer
+      #   end
+      # end
     end
   end
 end

@@ -180,5 +180,6 @@ describe NArray do
     end
   end
 
-  
+  it "goes", focus: true do 
+  end
 end
