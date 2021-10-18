@@ -6,7 +6,12 @@ module Phase::Buffered::Indexed
     def self.cover(shape)
       new(IndexRegion.cover(shape), shape)
     end
-    
+
+    private def initialize(@first : Indexable(I), @last, @step, @buffer_step)
+      @buffer_index = @buffer_step.map_with_index { |e, i| e * @first[i] }.sum
+      super(@first, @step, @last)
+    end
+
     protected def self.new(region : IndexRegion, shape : Shape)
       if region.dimensions == 0
         raise DimensionError.new("Failed to create {{@type.id}}: cannot iterate over empty shape \"[]\"")
@@ -14,16 +19,6 @@ module Phase::Buffered::Indexed
       
       buffer_step = Buffered.axis_strides(shape)
       new(region.@first, region.@last, region.@step, buffer_step)
-    end
-    
-    private def initialize(@first : Indexable(I), @last, @step, @buffer_step)
-      @buffer_index = I.zero
-      super(@first, @step, @last)
-    end
-    
-    def reset : self
-      @buffer_index = @buffer_step.map_with_index { |e, i| e * @first[i] }.sum
-      super
     end
     
     def unsafe_next_with_index
