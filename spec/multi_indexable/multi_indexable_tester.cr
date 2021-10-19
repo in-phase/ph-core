@@ -163,6 +163,12 @@ abstract class MultiIndexableTester(M, T, I)
 
       # Region that is too negatively large
       shape.map { |axis| (-axis - 1)... },
+
+      # Region that starts in bounds but is too large
+      shape.map { |axis| (axis // 2)..(axis + 3) },
+
+      # Region who's stride and bounds are misaligned
+      shape.map { |axis| axis..1..0 },
     }
   end
 
@@ -372,7 +378,7 @@ abstract class MultiIndexableTester(M, T, I)
         end
       {% end %}
 
-      {% for method in {:get_chunk} %}
+      {% for method in {:get_chunk, :[]} %}
         describe "#" + {{method.id.stringify}} do
           it "returns a chunk for each valid region" do
             {true, false}.each do |drop|
@@ -414,22 +420,318 @@ abstract class MultiIndexableTester(M, T, I)
         end
       {% end %}
 
-      # describe "#get_available" do
-      #   it "returns the correct output for a simple region literal" do
-      #     expected_buffer = Slice[3, 'c', 3f64]
-      #     r_narr.get_available([0..8, 5..-3..2]).buffer.should eq expected_buffer
+      describe "#get_available" do
+        oversize_region = narr.shape.map { |axis| (axis // 2)..(axis + 4) }
+
+        it "returns the same result as get_chunk for valid regions" do
+          make_valid_regions(narr.shape).each do |region|
+            m_inst.get_available(region).should eq narr.get_chunk(region)
+          end
+        end
+
+        it "returns a partial result for an oversize region" do
+          m_inst.get_available(oversize_region).should eq narr.get_available(oversize_region)
+        end
+
+        it "returns the correct output for valid IndexRegions" do
+          make_valid_regions(narr.shape).each do |region|
+            idx_r = IndexRegion.new(region, m_inst.shape)
+            m_inst.get_available(idx_r).should eq narr.get_available(idx_r)
+          end
+        end
+
+        it "returns a partial result for an oversize region" do
+          idx_r = IndexRegion(I).new(oversize_region)
+          m_inst.get_available(idx_r).should eq narr.get_available(idx_r)
+        end
+      end
+
+      describe "#[]?(region)" do
+        it "returns a chunk for each valid region" do
+          make_valid_regions(narr.shape).each do |region|
+            m_inst[region]?.should eq narr[region]?
+          end
+        end
+
+        it "returns a chunk for each valid indexregion" do
+          make_valid_regions(narr.shape).each do |region|
+            idx_r = IndexRegion.new(region, m_inst.shape)
+            m_inst[idx_r]?.should eq narr[idx_r]?
+          end
+        end
+
+        it "returns nil for invalid regions" do
+          make_invalid_regions(narr.shape).each do |region|
+            m_inst[region]?.should be_nil
+          end
+        end
+      end
+
+      describe "#[]?(mask)" do
+        it "raises a ShapeError for mismatched mask size" do
+          mask = NArray.fill(m_inst.shape + [2], false)
+
+          expect_raises ShapeError do
+            m_inst[mask]?
+          end
+        end
+
+        it "returns nil where the mask is false and the copied element where the mask is true" do
+          mask = NArray.build(m_inst.shape) { |_, i| i % 2 == 0 }
+          m_inst[mask]?.should eq narr[mask]?
+        end
+      end
+
+      describe "#each_coord" do
+        it "yields only the correct coordinates in the correct order" do
+          m_inst.each_coord.to_a.should eq narr.each_coord.to_a
+        end
+      end
+
+      describe "#colex_each_coord" do
+        it "yields only the correct coordinates in the correct order" do
+          m_inst.colex_each_coord.to_a.should eq narr.colex_each_coord.to_a
+        end
+      end
+
+      describe "#each" do
+        it "yields all elements in lexicographic order" do
+          elem_iter = narr.each
+
+          m_inst.each do |el|
+            el.should eq elem_iter.next
+          end
+
+          elem_iter.empty?.should be_true
+        end
+
+        it "provides an iterator over every element in lexicographic order" do
+          elem_iter = m_inst.each
+
+          narr.each do |el|
+            el.should eq elem_iter.next
+          end
+
+          elem_iter.empty?.should be_true
+        end
+      end
+
+      describe "#colex_each" do
+        it "yields all elements in colexicographic order" do
+          elem_iter = narr.colex_each
+
+          m_inst.colex_each do |el|
+            el.should eq elem_iter.next
+          end
+
+          elem_iter.empty?.should be_true
+        end
+
+        it "provides an iterator over every element in colexicographic order" do
+          elem_iter = m_inst.colex_each
+
+          narr.colex_each do |el|
+            el.should eq elem_iter.next
+          end
+
+          elem_iter.empty?.should be_true
+        end
+      end
+
+      describe "#each_with_coord" do
+        it "yields all elements and coordinates in lexicographic order" do
+          iter = narr.each_with_coord
+
+          m_inst.each_with_coord do |el|
+            el.should eq iter.next
+          end
+
+          iter.empty?.should be_true
+        end
+
+        it "iterates over all elements and coordinates in lexicographic order" do
+          iter = m_inst.each_with_coord
+
+          narr.each_with_coord do |el|
+            el.should eq iter.next
+          end
+
+          iter.empty?.should be_true
+        end
+      end
+
+      # describe "#map_with_coord" do
+      # end
+
+      # describe "#fast_each" do
+      #   # this is my favorite unit test because fast_each promises almost nothing lol
+      #   it "returns all the elements in whatever order" do
+      #     # NOTE: This set testing only works because there are no duplicate items in r_narr.
+      #     r_narr.fast_each.to_set.should eq test_buffer.to_set
       #   end
-    
-      #   it "returns the correct output for a simple region literal (tuple accepting)" do
-      #     expected_buffer = Slice[3, 'c', 3f64]
-      #     r_narr.get_available(0..8, 5..-3..2).buffer.should eq expected_buffer
+
+      #   it "provides a block form" do
+      #     set = Set(typeof(test_buffer.sample)).new
+      #     r_narr.fast_each { |e| set << e }
+      #     set.should eq test_buffer.to_set
       #   end
-    
-      #   it "returns the correct output for an IndexRegion" do
-      #     expected_buffer = Slice[3, 'c', 3f64]
-      #     idx_r = IndexRegion(Int32).new([0..8, 5..-3..2])
-      #     r_narr.get_available(idx_r).buffer.should eq expected_buffer
+      # end
+
+      # describe "#each_slice" do
+      #   test_each_slice(:each_slice)
+
+      #   it "works with a block" do
+      #     r_narr.dimensions.times do |axis|
+      #       slices = [] of MultiIndexable(typeof(r_narr.sample))
+
+      #       r_narr.each_slice(axis) do |slice|
+      #         slices.push(slice)
+      #       end
+
+      #       compare_slices(test_slices[axis], slices, axis)
+      #     end
       #   end
+      # end
+
+      # describe "#slices" do
+      #   test_each_slice(:slices)
+      # end
+
+      # describe "#reshape" do
+      #   it "returns a reshaped MultiIndexable containing the same elements" do
+      #     r_narr.reshape([12]).should eq NArray.new(test_buffer.to_a)
+      #   end
+
+      #   it "raises a ShapeError for incompatible shapes" do
+      #     expect_raises(ShapeError) do
+      #       r_narr.reshape([15, 20])
+      #     end
+      #   end
+      # end
+
+      # describe "#permute" do
+      #   it "returns a permuted MultiIndexable containing the same elements" do
+      #     permuted = NArray[[1, 'a', 1f64], [2, 'b', 2f64], [3, 'c', 3f64], [4, 'd', 4f64]]
+      #     r_narr.permute([1, 0]).should eq permuted
+      #     r_narr.permute(1, 0).should eq permuted
+      #     r_narr.permute.should eq permuted
+      #   end
+
+      #   it "raises an IndexError for illegal permutation indices" do
+      #     expect_raises(IndexError) do
+      #       r_narr.permute([2, 3])
+      #     end
+      #   end
+      # end
+
+      # describe "#reverse", tags: ["yikes"] do
+      #   it "returns a View with a ReverseTransform applied over this MultiIndexable" do
+      #     r_narr.reverse.@buffer.should eq test_buffer.clone.reverse!
+      #   end
+      # end
+
+      # describe "#to_narr" do
+      #   it "converts a MultiIndexable into an NArray copy" do
+      #     narr = r_narr.to_narr
+
+      #     pointerof(narr.@buffer).should_not(eq(pointerof(r_narr.@buffer)), "buffer was not safely duplicated")
+
+      #     narr.equals?(r_narr) { |x, y| x == y }.should(be_true, "data was not equivalent")
+      #   end
+      # end
+
+      # describe "#equals?" do
+      #   it "returns true for equivalent MultiIndexables" do
+      #     copy_narr = RONArray.new(test_shape.clone, test_buffer.clone)
+      #     r_narr.should eq copy_narr
+      #   end
+
+      #   it "returns false for MultiIndexables with the same elements in a different shape" do
+      #     other_narr = RONArray.new([test_shape[0], 1, 1, test_shape[1]], test_buffer.clone)
+      #     r_narr.should_not eq other_narr
+      #   end
+
+      #   it "returns false for MultiIndexables with different elements but the same shape" do
+      #     new_buffer = test_buffer.map &.hash
+      #     other_narr = RONArray.new(test_shape, new_buffer)
+      #     r_narr.should_not eq other_narr
+      #   end
+
+      #   it "returns false for MultiIndexables of a different class" do
+      #     copy_narr = r_narr.to_narr
+      #     r_narr.should_not eq copy_narr
+      #   end
+      # end
+
+      # describe "#view" do
+      #   it "creates a View of the source MultiIndexable" do
+      #     # we aren't testing the functionality of the view here - only that #view
+      #     # creates what we're expecting.
+
+      #     r_narr.view.is_a?(View).should be_true
+      #   end
+      # end
+
+      # describe "#process" do
+      #   it "creates a ProcView fo the source MultiIndexable" do
+      #     # we aren't testing the functionality of the view here - only that #process
+      #     # creates what we're expecting.
+
+      #     r_narr.process { |el| el.hash % 2 }.is_a?(ProcView).should be_true
+      #   end
+      # end
+
+      # describe "#eq" do
+      #   it "returns an NArray containing elementwise equality with another MultiIndexable" do
+      #     altered_buffer = Slice[1, 2, "string", 4, 'a', 'b', 9, 'd', 1f64, 2f64, 3f64, 4f64]
+      #     altered_r_narr = RONArray.new(test_shape, altered_buffer)
+      #     equality = altered_r_narr.eq(r_narr)
+      #     equality.@buffer.should eq Slice[true, true, false, true, true, true, false, true, true, true, true, true]
+      #   end
+
+      #   it "raises a DimensionError for an NArray of a different shape" do
+      #     altered_r_narr = RONArray.new([test_buffer.size], test_buffer)
+      #     expect_raises(DimensionError) do
+      #       altered_r_narr.eq(r_narr)
+      #     end
+      #   end
+
+      #   it "returns an NArray containing elementwise equality with a scalar" do
+      #     comparison_el = 'b'
+      #     expected_buffer = test_buffer.map &.==(comparison_el)
+      #     r_narr.eq(comparison_el).@buffer.should eq expected_buffer
+      #   end
+      # end
+
+      # describe "#hash" do
+      #   it "returns different hashes for different MultiIndexables", tags: ["probabilistic"] do
+      #     h1 = RONArray.new([2, 2], Slice[1, 1, 4, 9]).hash
+      #     h2 = RONArray.new([2], Slice[3, 4]).hash
+      #     h1.should_not eq h2
+      #   end
+
+      #   it "returns the same hash for identical MultiIndexables" do
+      #     h1 = RONArray.new([2, 2], Slice[1, 1, 4, 9]).hash
+      #     h2 = RONArray.new([2, 2], Slice[1, 1, 4, 9]).hash
+      #     h1.should eq h2
+      #   end
+      # end
+
+      # describe "#tile" do
+      #   it "tiles a MultiIndexable into a larger NArray" do
+      #     tile = RONArray.new([2, 2], Slice[1, 0, 0, 1])
+      #     tiled = tile.tile([2, 3])
+      #     expected = NArray.new([[1, 0, 1, 0, 1, 0], [0, 1, 0, 1, 0, 1], [1, 0, 1, 0, 1, 0], [0, 1, 0, 1, 0, 1]])
+      #     tiled.should eq expected
+      #   end
+      # end
+
+      # describe "arithmetic" do
+      # end
+
+      # describe "Enumerable methods" do
+      #   # If we are confident enough in our #each testing we can
+      #   # get rid of this
       # end
     end
   end

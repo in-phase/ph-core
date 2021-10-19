@@ -27,5 +27,9 @@ module Phase
     def to_s(io : IO)
       inspect(io)
     end
+
+    def ==(other : self)
+      self.equals?(other) { |e1, e2| e1 == e2 }
+    end
   end
 end
