@@ -172,6 +172,29 @@ abstract class MultiIndexableTester(M, T, I)
     }
   end
 
+  # `#slices` and `#each_slice` have effectively the same API, and can
+  # both be tested in this way.
+  macro test_each_slice(name)
+    it "returns axis zero slices by default" do
+      m_inst.{{name.id}}.to_a.map(&.to_narr).should eq narr.slices 
+    end
+
+    it "returns the correct slices along each axis as an Enumerable" do
+      narr.dimensions.times do |axis|
+        expected_slices = narr.each_slice(axis)
+        actual_slices = m_inst.{{name.id}}(axis)
+        count = 0
+
+        actual_slices.zip(expected_slices) do |actual_slice, expected_slice|
+          actual_slice.to_narr.should eq expected_slice
+          count += 1
+        end
+
+        count.should eq narr.shape[axis]
+      end
+    end
+  end
+
   def test_target
     describe M do
       m_inst, narr = make_pair
@@ -560,69 +583,74 @@ abstract class MultiIndexableTester(M, T, I)
         end
       end
 
-      # describe "#map_with_coord" do
-      # end
+      describe "#fast_each" do
+        it "returns all the elements in whatever order" do
+          # NOTE: This set testing only works because there are no duplicate items in r_narr.
+          m_inst.fast_each.to_a.tally.should eq narr.fast_each.to_a.tally
+        end
 
-      # describe "#fast_each" do
-      #   # this is my favorite unit test because fast_each promises almost nothing lol
-      #   it "returns all the elements in whatever order" do
-      #     # NOTE: This set testing only works because there are no duplicate items in r_narr.
-      #     r_narr.fast_each.to_set.should eq test_buffer.to_set
-      #   end
+        it "provides a block form" do
+          arr = [] of typeof(m_inst.first)
+          m_inst.fast_each { |e| arr << e }
+          arr.tally.should eq narr.fast_each.to_a.tally
+        end
+      end
 
-      #   it "provides a block form" do
-      #     set = Set(typeof(test_buffer.sample)).new
-      #     r_narr.fast_each { |e| set << e }
-      #     set.should eq test_buffer.to_set
-      #   end
-      # end
+      describe "#each_slice" do
+        test_each_slice(:each_slice)
 
-      # describe "#each_slice" do
-      #   test_each_slice(:each_slice)
+        it "works with a block" do
+          narr.dimensions.times do |axis|
+            expected_slices = narr.each_slice(axis)
+            m_inst.each_slice(axis) do |slice|
+              slice.to_narr.should eq expected_slices.next
+            end
 
-      #   it "works with a block" do
-      #     r_narr.dimensions.times do |axis|
-      #       slices = [] of MultiIndexable(typeof(r_narr.sample))
+            expected_slices.empty?.should be_true
+          end
+        end
+      end
 
-      #       r_narr.each_slice(axis) do |slice|
-      #         slices.push(slice)
-      #       end
+      describe "#slices" do
+        test_each_slice(:slices)
+      end
 
-      #       compare_slices(test_slices[axis], slices, axis)
-      #     end
-      #   end
-      # end
+      describe "#reshape" do
+        it "returns a reshaped MultiIndexable containing the same elements" do
+          m_inst.reshape([narr.size]).should eq narr.reshape(narr.size)
+        end
 
-      # describe "#slices" do
-      #   test_each_slice(:slices)
-      # end
+        it "raises a ShapeError for incompatible shapes" do
+          expect_raises(ShapeError) do
+            m_inst.reshape([narr.size, 2])
+          end
+        end
+      end
 
-      # describe "#reshape" do
-      #   it "returns a reshaped MultiIndexable containing the same elements" do
-      #     r_narr.reshape([12]).should eq NArray.new(test_buffer.to_a)
-      #   end
+      describe "#permute" do
+        it "returns a permuted MultiIndexable containing the same elements" do
+          pattern = narr.dimensions.times.to_a # [0, 1, 2, .., narr.dimensions - 1]
+          pattern.rotate! # [1, 2, .., narr.dimensions - 1, 0]
 
-      #   it "raises a ShapeError for incompatible shapes" do
-      #     expect_raises(ShapeError) do
-      #       r_narr.reshape([15, 20])
-      #     end
-      #   end
-      # end
+          m_inst.permute(pattern).should eq narr.permute(pattern)
+        end
 
-      # describe "#permute" do
-      #   it "returns a permuted MultiIndexable containing the same elements" do
-      #     permuted = NArray[[1, 'a', 1f64], [2, 'b', 2f64], [3, 'c', 3f64], [4, 'd', 4f64]]
-      #     r_narr.permute([1, 0]).should eq permuted
-      #     r_narr.permute(1, 0).should eq permuted
-      #     r_narr.permute.should eq permuted
-      #   end
+        it "raises an IndexError for illegal permutation indices" do
+          pattern = narr.dimensions.times.to_a
+          pattern[-1] = narr.dimensions
+          pattern.rotate!
 
-      #   it "raises an IndexError for illegal permutation indices" do
-      #     expect_raises(IndexError) do
-      #       r_narr.permute([2, 3])
-      #     end
-      #   end
-      # end
+          expect_raises(IndexError) do
+            m_inst.permute(pattern)
+          end
+        end
+
+        it "raises an IndexError for repeated permutation indices" do
+          expect_raises(ArgumentError) do
+            m_inst.permute([0] * narr.dimensions)
+          end
+        end
+      end
 
       # describe "#reverse", tags: ["yikes"] do
       #   it "returns a View with a ReverseTransform applied over this MultiIndexable" do
