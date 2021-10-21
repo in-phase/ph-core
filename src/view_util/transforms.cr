@@ -205,9 +205,8 @@ module Phase
         @buffer = @pattern.clone
       end
 
-      def initialize(size : Int32)
-        @pattern = Array.new(size) { |i| size - i - 1 }
-        @buffer = @pattern.clone
+      def self.new(size : Int32)
+        new(Array.new(size) { |i| size - i - 1 })
       end
 
       def compose(t : CoordTransform) : CoordTransform
