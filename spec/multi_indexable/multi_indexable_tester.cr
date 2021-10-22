@@ -645,51 +645,42 @@ abstract class MultiIndexableTester(M, T, I)
           end
         end
 
-        it "raises an IndexError for repeated permutation indices" do
+        pending "raises an IndexError for repeated permutation indices" do
+          # TODO: We may actually want to allow this behaviour? I'm not sure.
           expect_raises(ArgumentError) do
             m_inst.permute([0] * narr.dimensions)
           end
         end
       end
 
-      # describe "#reverse", tags: ["yikes"] do
-      #   it "returns a View with a ReverseTransform applied over this MultiIndexable" do
-      #     r_narr.reverse.@buffer.should eq test_buffer.clone.reverse!
-      #   end
-      # end
+      describe "#reverse", tags: ["yikes"] do
+        it "returns a MultiIndexable with reversed element order" do
+          m_inst.reverse.should eq narr.reverse
+        end
+      end
 
-      # describe "#to_narr" do
-      #   it "converts a MultiIndexable into an NArray copy" do
-      #     narr = r_narr.to_narr
+      pending "#equals?" do
+        it "returns true for equivalent MultiIndexables" do
+          copy_narr = RONArray.new(test_shape.clone, test_buffer.clone)
+          r_narr.should eq copy_narr
+        end
 
-      #     pointerof(narr.@buffer).should_not(eq(pointerof(r_narr.@buffer)), "buffer was not safely duplicated")
+        it "returns false for MultiIndexables with the same elements in a different shape" do
+          other_narr = RONArray.new([test_shape[0], 1, 1, test_shape[1]], test_buffer.clone)
+          r_narr.should_not eq other_narr
+        end
 
-      #     narr.equals?(r_narr) { |x, y| x == y }.should(be_true, "data was not equivalent")
-      #   end
-      # end
+        it "returns false for MultiIndexables with different elements but the same shape" do
+          new_buffer = test_buffer.map &.hash
+          other_narr = RONArray.new(test_shape, new_buffer)
+          r_narr.should_not eq other_narr
+        end
 
-      # describe "#equals?" do
-      #   it "returns true for equivalent MultiIndexables" do
-      #     copy_narr = RONArray.new(test_shape.clone, test_buffer.clone)
-      #     r_narr.should eq copy_narr
-      #   end
-
-      #   it "returns false for MultiIndexables with the same elements in a different shape" do
-      #     other_narr = RONArray.new([test_shape[0], 1, 1, test_shape[1]], test_buffer.clone)
-      #     r_narr.should_not eq other_narr
-      #   end
-
-      #   it "returns false for MultiIndexables with different elements but the same shape" do
-      #     new_buffer = test_buffer.map &.hash
-      #     other_narr = RONArray.new(test_shape, new_buffer)
-      #     r_narr.should_not eq other_narr
-      #   end
-
-      #   it "returns false for MultiIndexables of a different class" do
-      #     copy_narr = r_narr.to_narr
-      #     r_narr.should_not eq copy_narr
-      #   end
-      # end
+        it "returns false for MultiIndexables of a different class" do
+          copy_narr = r_narr.to_narr
+          r_narr.should_not eq copy_narr
+        end
+      end
 
       # describe "#view" do
       #   it "creates a View of the source MultiIndexable" do
