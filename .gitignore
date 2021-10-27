@@ -2,7 +2,4 @@ docs/
 coverage/
 lib/
 bin/
-run_tests
-run_tests.cr
 shard.lock
-upload_coverage.sh 
