@@ -11,7 +11,7 @@ module Phase
   # Implementing `MultiIndexable` will require that you provide a `#shape` and
   # `#unsafe_fetch_element` method, however this is the bare minimum. For a
   # performant implementation, you should consider overriding
-  # `#unsafe_fetch_chunk`, `#fast`, and `#size` in that order of importance
+  # `#unsafe_fetch_chunk`, `#fast_each`, and `#size` in that order of importance
   # (and more as you see fit).
   module MultiIndexable(T)
     # provides search, traversal methods
@@ -33,10 +33,10 @@ module Phase
     # safe to mutate without affecting the MultiIndexable.
     abstract def shape : Array
 
-    # Returns the element at the provided *coord*, without canonicalizing or bounds-checking it.
+    # Returns the element at the provided *coord*, possibly mutating *coord*, without performing canonicalization or bounds-checking.
     # This method cannot be used with negative coordinates, and is not safe
     # unless you are certain your coordinate is already canonicalized.
-    abstract def unsafe_fetch_element(coord : Coord) : T
+    abstract def unsafe_fetch_element(coord : Indexable) : T
 
     # By default, this is an alias of `shape` - however, `MultiIndexable` will
     # never mutate it, so it's safe to override this so that it returns a direct
@@ -175,10 +175,30 @@ module Phase
     # ```
     def first : T
       if size == 0
-        raise IndexError.new("{{@type}} has zero elements (shape: #{shape_internal}).")
+        raise ShapeError.new("{{@type}} has zero elements (shape: #{shape_internal}).")
       end
 
       get_element(Array.new(shape_internal.size, 0))
+    end
+
+    # Returns the element with the largest ordinate in each axis (the element at the largest coordinate).
+    # For example:
+    #
+    # ```crystal
+    # # create the following matrix:
+    # # [5 2]
+    # # [8 3]
+    # narr = NArray.new([[5, 2, 1], [8, 3, 4]])
+    # 
+    # # extract the bottom-right element (coordinate [1, 2])
+    # narr.last # => 4
+    # ```
+    def last : T
+      if size == 0
+        raise ShapeError.new("{{@type}} has zero elements (shape: #{shape_internal}).")
+      end
+
+      get_element(shape_internal.map &.pred)
     end
 
     # Returns a random element from the `{{@type}}`. Note that this might not
@@ -618,8 +638,25 @@ module Phase
     # iter.next # => [1, 2]
     # iter.next # => Iterator::Stop
     # ```
-    def each_coord : Iterator
-      LexIterator.cover(shape)
+    def each_coord : LexIterator
+      LexIterator.cover(shape_internal)
+    end
+    
+    # Returns an iterator that will yield each coordinate of `self` in colexicographic (column-major) order.
+    #
+    # ```crystal
+    # narr = NArray[[1, 2, 3], [4, 5, 6]]
+    # iter = narr.each_coord
+    # iter.next # => [0, 0]
+    # iter.next # => [0, 1]
+    # iter.next # => [0, 2]
+    # iter.next # => [1, 0]
+    # iter.next # => [1, 1]
+    # iter.next # => [1, 2]
+    # iter.next # => Iterator::Stop
+    # ```
+    def colex_each_coord : ColexIterator
+      ColexIterator.cover(shape_internal)
     end
 
     # Returns an iterator that will yield each element of `self` in lexicographic (row-major) order.
@@ -635,26 +672,32 @@ module Phase
     # iter.next # => 6
     # iter.next # => Iterator::Stop
     # ```
-    def each : Iterator(T)
-      each(each_coord)
+    #
+    # `#each` can also be chained with other calls to manipulate its behaviour -
+    # for example `each.with_coord.reverse_each`. See `MultiIndexable::ElemIterator`
+    # for more information.
+    def each : ElemIterator
+      ElemIterator.new(self, each_coord)
     end
 
-    # An overload of `#each` that allows you to provide a coordinate iterator in place of the default lexicographic iterator.
+    # Returns an iterator that will yield each element of `self` in colexicographic (column-major) order.
     #
     # ```crystal
     # narr = NArray[[1, 2, 3], [4, 5, 6]]
-    # coord_iter = ColexIterator.cover(narr.shape).reverse!
-    # iter = narr.each(coord_iter)
-    # iter.next # => 6
-    # iter.next # => 3
-    # iter.next # => 5
-    # iter.next # => 2
-    # iter.next # => 4
+    # iter = narr.each
     # iter.next # => 1
+    # iter.next # => 4
+    # iter.next # => 2
+    # iter.next # => 5
+    # iter.next # => 3
+    # iter.next # => 6
     # iter.next # => Iterator::Stop
     # ```
-    def each(iter : CoordIterator(I)) : Iterator(T) forall I
-      ElemIterator.new(self, iter)
+    #
+    # `#colex_each` can be manipulated the same ways as `#each`. See `#each`
+    # or `MultiIndexable::ElemIterator` for more information.
+    def colex_each : ElemIterator
+      ElemIterator.new(self, colex_each_coord)
     end
 
     # Returns an iterator that will yield tuples of the elements and coords comprising `self` in lexicographic (row-major) order.
@@ -670,25 +713,11 @@ module Phase
     # iter.next # => {6, [1, 2]}
     # iter.next # => Iterator::Stop
     # ```
-    def each_with_coord : Iterator # Iterator(Tuple(T, Coord)) # "Error: can't use Indexable(T) as a generic type argument yet"
-      each_with_coord(each_coord)
-    end
-
-    # An overload of `#each_with_coord` that allows you to provide a coordinate iterator in place of the default lexicographic iterator.
     #
-    # ```crystal
-    # narr = NArray[[1, 2, 3], [4, 5, 6]]
-    # coord_iter = ColexIterator.cover(narr.shape).reverse!
-    # iter = narr.each_with_coord(coord_iter)
-    # puts iter.next # => {6, [1, 2]}
-    # puts iter.next # => {3, [0, 2]}
-    # puts iter.next # => {5, [1, 1]}
-    # puts iter.next # => {2, [0, 1]}
-    # puts iter.next # => {4, [1, 0]}
-    # puts iter.next # => {1, [0, 0]}
-    # ```
-    def each_with_coord(iter : CoordIterator(I)) : Iterator forall I # Iterator(Tuple(T, Coord))
-      ElemAndCoordIterator.new(self, iter)
+    # This method is a convenience included to mirror `Indexable#each_with_index`.
+    # If you're looking for a colexicographic version, use `#colex_each.with_coord`. 
+    def each_with_coord : ElemAndCoordIterator # Iterator(Tuple(T, Coord)) # "Error: can't use Indexable(T) as a generic type argument yet"
+      ElemAndCoordIterator.new(self, each_coord)
     end
 
     # Returns a `MultiIndexable` with the results of running the block against each element and coordinate comprising `self`.
@@ -746,12 +775,12 @@ module Phase
     # if the `MultiIndexable` you call it on explicitly mentions that you should.
     #
     # ```crystal
-    # NArray[1, 2, 3].fast.each do |el|
+    # NArray[1, 2, 3].fast_each.each do |el|
     #   # ...
     # end
     # ```
-    def fast : Iterator(T)
-      ElemIterator.of(self)
+    def fast_each : Iterator(T)
+      ElemIterator.new(self)
     end
 
     # Returns an Iterator equivalent to the method `#each_slice(axis, &block)`.
@@ -801,7 +830,7 @@ module Phase
       each_slice(axis).to_a
     end
 
-    {% for name in %w(each each_coord each_with_coord fast) %}
+    {% for name in %w(each colex_each each_coord colex_each_coord each_with_coord fast_each) %}
       # Block accepting form of `#{{name.id}}`.
       def {{name.id}}(&block) : Nil
         {{name.id}}.each {|arg| yield arg}
@@ -834,7 +863,7 @@ module Phase
     def tile(counts : Enumerable(Int)) : MultiIndexable
       new_shape = shape_internal.map_with_index { |axis, idx| axis * counts[idx] }
 
-      iter = WrappedLexIterator.new(IndexRegion.cover(new_shape), shape_internal).each
+      iter = TilingLexIterator.new(IndexRegion.cover(new_shape), shape_internal).each
 
       build(new_shape) do
         iter.next
@@ -895,7 +924,6 @@ module Phase
     end
 
     def view(region : Indexable? | IndexRegion = nil) : View(self, T)
-      puts region
       View.of(self, region)
     end
 

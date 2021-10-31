@@ -98,8 +98,14 @@ module Phase
       view(region)
     end
 
-    def unsafe_fetch_element(coord) : R
-      @src.unsafe_fetch_element(@transform.apply(coord)).as(R)
+    def unsafe_fetch_element(coord : Indexable) : R
+      # TODO OPTIMIZE
+      # The transform chain only accept `Array` because it needs mutability.
+      # ideally we should have an Array stored in each ReadonlyView that
+      # can be used as a temp buffer for coordinates that aren't writable.
+      # When coord is Array, no allocation is done. But when Coord is
+      # ReadonlyWrapper, an allocation is done on every single fetch!
+      @src.unsafe_fetch_element(@transform.apply(coord.to_a)).as(R)
     end
 
     def process(new_proc : (R -> U)) : ProcView(S, R, U) forall U
