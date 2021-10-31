@@ -110,7 +110,7 @@ module Phase
       step = Array.new(bound_shape.size, 1)
       # TODO handle bound_shape given with 0
       last = bound_shape.map &.pred
-      shape = bound_shape.dup
+      shape = bound_shape.clone
       new(first, step, last, shape, drop, degeneracy)
     end
 
@@ -223,7 +223,19 @@ module Phase
       local_to_absolute_unsafe(coord)
     end
 
+    def first
+      @first.clone
+    end
+
+    def last
+      @last.clone
+    end
+
     # ========================== Other =====================================
+
+    def stride
+      @step.clone
+    end
 
     def includes?(coord)
       # DISCUSS: DimensionError or return false?
@@ -362,11 +374,12 @@ module Phase
       end
     end
 
-    def each : CoordIterator(T)
+    def each : LexIterator(T)
+      # TODO: Discuss if this should return LexIterator or maybe just Iterator(Indexable(I))
       LexIterator.new(self)
     end
 
-    protected def drop_degenerate(arr : Array, &when_full : -> Array(T)) : Array(T)
+    protected def drop_degenerate(arr : Array, &when_empty : -> Array(T)) : Array(T)
       new_arr = Array(T).new(arr.size)
       arr.each_with_index do |value, idx|
         new_arr << value unless @degeneracy[idx]

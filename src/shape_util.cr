@@ -4,6 +4,12 @@ module Phase
 
     # checks if two shapes define the same data layout, i.e. are equal up to trailing ones.
     def compatible_shapes?(shape1, shape2)
+      # If either shape is the empty array (no information), then we must
+      # ensure that they are both empty , because [] and [1] cannot be compatible.
+      if shape1.size == 0 || shape2.size == 0
+        return shape1 == shape2
+      end
+
       if shape1.size > shape2.size
         larger = shape1
         shared_dims = shape2.size

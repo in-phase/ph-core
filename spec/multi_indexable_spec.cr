@@ -11,14 +11,11 @@ VALID_REGIONS = ABSOLUTE_REGIONS + RELATIVE_REGIONS
 INVALID_REGIONS = [[0..8], [1, 1, 1], [-1...-10]]
 
 test_shape = [3, 4]
+# test_buffer must not contain any duplicate elements! test_buffer.to_set is used to simulate a bag/multiset
 test_buffer = Slice[1, 2, 3, 4, 'a', 'b', 'c', 'd', 1f64, 2f64, 3f64, 4f64]
 r_narr = uninitialized RONArray(Int32 | Char | Float64)
 
 test_slices = [[[1, 2, 3, 4], ['a', 'b', 'c', 'd'], [1f64, 2f64, 3f64, 4f64]], [[1, 'a', 1f64], [2, 'b', 2f64], [3, 'c', 3f64], [4, 'd', 4f64]]]
-
-Spec.before_each do
-  r_narr = RONArray.new(test_shape, test_buffer)
-end
 
 # get and get_element are aliases, so this prevents testing redundancy.
 macro test_get_element(method)
@@ -56,7 +53,7 @@ macro test_get_element(method)
     end
   end
 
-  it "raises for coordinates with too many dimensions" do
+  it "raises for coordinates with too many dimensions", do
     expect_raises(DimensionError) do
       r_narr.{{method.id}}([1, 1, 1, 1, 1])
     end
@@ -196,6 +193,10 @@ macro test_each_slice(method)
 end
 
 describe Phase::MultiIndexable do
+  before_each do
+    r_narr = RONArray.new(test_shape, test_buffer)
+  end
+  
   describe "#empty?" do
     it "returns true for an empty MultiIndexable" do
       empty_buffer = Slice(Int32).new(size: 0)
@@ -260,8 +261,8 @@ describe Phase::MultiIndexable do
       RONArray.new([2, 2], Slice[1, 2, 3, 4]).first.should eq 1
     end
 
-    it "raises some sort of error when there are no elements" do
-      expect_raises IndexError do
+    it "raises an ShapeError when there are no elements" do
+      expect_raises(ShapeError) do
         RONArray.new([1, 1, 0], Slice(Int32).new(0, 0)).first
       end
     end
@@ -308,7 +309,7 @@ describe Phase::MultiIndexable do
     end
 
     it "raises when called on an empty MultiIndexable" do
-      expect_raises IndexError do
+      expect_raises ShapeError do
         RONArray.new([1, 1, 0], Slice(Int32).new(0)).sample
       end
     end
@@ -517,6 +518,39 @@ describe Phase::MultiIndexable do
         end
       end
     end
+
+    it "yields the coords in the correct order" do
+      r_narr.each_coord.to_a.should eq all_coords_lex_order(test_shape).to_a
+    end
+  end
+
+  describe "#colex_each_coord" do
+    it "yields only the correct coordinates, and all of the correct coordinates" do
+      {[1, 2, 3], [5, 10], [2]}.each do |shape| 
+        narr = RONArray.new(shape, Slice.new(shape.product, 0))
+        actual_coords = narr.colex_each_coord.to_a
+        actual_count = actual_coords.size
+        actual_coords = actual_coords.to_set
+
+        if actual_coords.size != actual_count
+          fail("the same coordinate was yielded multiple times (shape: #{shape})")
+        end
+
+        if actual_count != shape.product
+          fail("not all coordinates were covered (shape: #{shape})")
+        end
+
+        all_coords_colex_order(shape) do |coord|
+          unless actual_coords.includes?(coord)
+            fail("#{coord}, an expected coordinate, was not present in each_coord for a MultiIndexable with shape #{shape}")
+          end
+        end
+      end
+    end
+
+    it "yields the coords in the correct order" do
+      r_narr.colex_each_coord.to_a.should eq all_coords_colex_order(test_shape).to_a
+    end
   end
 
   describe "#each" do
@@ -541,16 +575,41 @@ describe Phase::MultiIndexable do
     end
   end
 
+  describe "#colex_each" do
+    colex_buffer = [1, 'a', 1f64, 2, 'b', 2f64, 3, 'c', 3f64, 4, 'd', 4f64]
+
+    it "yields all elements in colexicographic order" do
+      elem_iter = colex_buffer.each
+
+      r_narr.colex_each do |el|
+        el.should eq elem_iter.next
+      end
+
+      elem_iter.empty?.should be_true
+    end
+
+    it "provides an iterator over every element in colexicographic order" do
+      iter = r_narr.colex_each
+
+      colex_buffer.each do |el|
+        el.should eq iter.next
+      end
+
+      iter.empty?.should be_true
+    end
+  end
+
   describe "#each_with_coord" do
     it "yields all elements and coordinates in lexicographic order" do
       elem_iter = test_buffer.each
       coord_iter = all_coords_lex_order(r_narr.shape).each
 
-      r_narr.each_with_coord do |tuple|
-        expected_coord = coord_iter.next
+      r_narr.each_with_coord do |(el, coord)|
         expected_elem = elem_iter.next
+        expected_coord = coord_iter.next
 
-        {expected_elem, expected_coord}.should eq tuple
+        el.should eq expected_elem
+        coord.to_a.should eq expected_coord
       end
 
       elem_iter.empty?.should be_true
@@ -569,7 +628,7 @@ describe Phase::MultiIndexable do
           actual_el, actual_coord = actual_value
           actual_el.should eq elem_iter.next
 
-          actual_coord.should eq coord
+          actual_coord.to_a.should eq coord
         end
       end
 
@@ -581,10 +640,17 @@ describe Phase::MultiIndexable do
   describe "#map_with_coord" do
   end
 
-  describe "#fast" do
-    # this is my favorite unit test because fast promises almost nothing lol
+  describe "#fast_each" do
+    # this is my favorite unit test because fast_each promises almost nothing lol
     it "returns all the elements in whatever order" do
-      r_narr.fast.each.to_set.should eq test_buffer.to_set
+      # NOTE: This set testing only works because there are no duplicate items in r_narr.
+      r_narr.fast_each.to_set.should eq test_buffer.to_set
+    end
+
+    it "provides a block form" do
+      set = Set(typeof(test_buffer.sample)).new
+      r_narr.fast_each { |e| set << e }
+      set.should eq test_buffer.to_set
     end
   end
 
@@ -609,20 +675,35 @@ describe Phase::MultiIndexable do
   end
 
   describe "#reshape" do
-    pending "returns a View with a ReshapeTransform applied over this MultiIndexable" do
+    it "returns a reshaped MultiIndexable containing the same elements" do
+      r_narr.reshape([12]).should eq NArray.new(test_buffer.to_a)
+    end
+
+    it "raises a ShapeError for incompatible shapes" do
+      expect_raises(ShapeError) do
+        r_narr.reshape([15, 20])
+      end
     end
   end
 
   describe "#permute" do
-    pending "returns a View with a PermuteTransform applied over this MultiIndexable" do
+    it "returns a permuted MultiIndexable containing the same elements" do
+      permuted = NArray[[1, 'a', 1f64], [2, 'b', 2f64], [3, 'c', 3f64], [4, 'd', 4f64]]
+      r_narr.permute([1, 0]).should eq permuted
+      r_narr.permute(1, 0).should eq permuted
+      r_narr.permute.should eq permuted
+    end
+
+    it "raises an IndexError for illegal permutation indices" do
+      expect_raises(IndexError) do
+        r_narr.permute([2, 3])
+      end
     end
   end
 
   describe "#reverse", tags: ["yikes"] do
-    pending "returns a View with a ReverseTransform applied over this MultiIndexable" do
-      # puts r_narr
-      # puts r_narr.permute
-      # checkout the branch "nightmare" for why this isn't present
+    it "returns a View with a ReverseTransform applied over this MultiIndexable" do
+      r_narr.reverse.@buffer.should eq test_buffer.clone.reverse!
     end
   end
 

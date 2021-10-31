@@ -13,8 +13,7 @@ module Phase
   class NArray(T)
     include MultiIndexable(T)
     include MultiWritable(T)
-
-    include BufferUtil
+    include Buffered(T)
 
     # Stores the elements of an `{{@type}}` in lexicographic (row-major) order.
     getter buffer : Slice(T)
@@ -29,7 +28,7 @@ module Phase
     # TODO: Doc
     protected def self.ensure_valid(shape : Array(Int32), buffer : Slice)
       if shape.product != buffer.size
-        raise ArgumentError.new("Cannot create {{@type}}: Given shape does not match number of elements in buffer.")
+        raise ShapeError.new("Cannot create {{@type}}: Given shape does not match number of elements in buffer.")
       end
     end
 
@@ -51,7 +50,7 @@ module Phase
       end.to_a
 
       num_elements = shape.product.to_i32
-      @axis_strides = BufferUtil.axis_strides(@shape)
+      @axis_strides = Buffered.axis_strides(@shape)
 
       @buffer = Slice(T).new(num_elements) { |i| yield i }
     end
@@ -61,7 +60,7 @@ module Phase
     # `reshape` as of Feb 5th 2021).
     protected def initialize(shape : Array(Int32), @buffer : Slice(T))
       @shape = shape.dup
-      @axis_strides = BufferUtil.axis_strides(@shape)
+      @axis_strides = Buffered.axis_strides(@shape)
     end
 
     def self.of_buffer(shape : Array(Int32), buffer : Slice(T))
@@ -101,14 +100,16 @@ module Phase
     #  [3],
     #  [4]]
     # ```
-    def self.build(shape : Enumerable, &block : Array(Int32), Int32 -> T)
-      coord_iter = IndexedLexIterator.cover(shape.to_a)
-      {{@type}}.new(shape) do |idx|
+    def self.build(shape : Enumerable, &block : Indexable(Int32), Int32 -> T)
+      coord_iter = Indexed::LexIterator.cover(shape.to_a)
+      {{@type}}.new(shape) do
+        # pp coord_iter
+        # puts coord_iter.unsafe_next_with_index
         yield *(coord_iter.unsafe_next_with_index)
       end
     end
 
-    def self.build(*shape : Int, &block : Array(Int32), Int32 -> T)
+    def self.build(*shape : Int, &block : Indexable(Int32), Int32 -> T)
       build(shape, &block)
     end
 
@@ -180,7 +181,7 @@ module Phase
     def self.tile(narr : MultiIndexable(T), counts : Enumerable)
       shape = narr.shape.map_with_index { |axis, idx| axis * counts[idx] }
 
-      iter = WrappedLexIterator.new(IndexRegion.cover(shape), narr.shape).each
+      iter = TilingLexIterator.new(IndexRegion.cover(shape), narr.shape).each
 
       build(shape) do
         iter.next
@@ -306,10 +307,6 @@ module Phase
       {{@type}}.new(@shape, @buffer.dup)
     end
 
-    def slices(axis = 0) : Array(T)
-      previous_def(axis)
-    end
-
     # TODO any way to avoid copying these out yet, too? Iterator magic?
     # def slices(axis = 0) : Array(self)
     #   region = [] of (Int32 | Range(Int32, Int32))
@@ -346,11 +343,6 @@ module Phase
       reshape(splat)
     end
 
-    # Checks that the array is a 1-vector (a "zero-dimensional" {{@type}})
-    def scalar? : Bool
-      @shape.size == 1 && @shape[0] == 1
-    end
-
     # Checks for elementwise equality between `self` and *other*.
     def ==(other : MultiIndexable) : Bool
       equals?(other) { |x, y| x == y }
@@ -359,14 +351,14 @@ module Phase
     # Copies the elements in `region` to a new `{{@type}}`, assuming that `region` is in canonical form and in-bounds for this `{{@type}}`.
     # For full specification of canonical form see `IndexRegion` documentation.
     def unsafe_fetch_chunk(region : IndexRegion)
-      iter = BufferedECIterator.new(self, IndexedLexIterator.new(region, @shape))
-      typeof(self).new(region.shape) { iter.unsafe_next_value }
+      iter = Indexed::ElemAndCoordIterator.new(self, Indexed::LexIterator.new(region, @shape))
+      typeof(self).new(region.shape) { iter.unsafe_next[0] }
     end
 
     # Retrieves the element specified by `coord`, assuming that `coord` is in canonical form and in-bounds for this `{{@type}}`.
     # For full specification of canonical form see `IndexRegion` documentation.
     def unsafe_fetch_element(coord) : T
-      @buffer.unsafe_fetch(BufferUtil.coord_to_index_fast(coord, @shape, @axis_strides))
+      @buffer.unsafe_fetch(Buffered.coord_to_index_fast(coord, @shape, @axis_strides))
     end
 
     # Takes a single index into the {{@type}}, returning a slice of the largest dimension possible.
@@ -413,7 +405,7 @@ module Phase
     end
 
     def unsafe_set_element(coord : Enumerable, value : T)
-      @buffer[BufferUtil.coord_to_index_fast(coord, @shape, @axis_strides)] = value
+      @buffer[Buffered.coord_to_index_fast(coord, @shape, @axis_strides)] = value
     end
 
     # replaces all values in a boolean mask with a given value
@@ -437,16 +429,16 @@ module Phase
       @buffer.each
     end
 
-    def fast
+    def fast_each
       @buffer.each
     end
 
     def each_coord
-      IndexedLexIterator.cover(shape_internal)
+      Indexed::LexIterator.cover(shape_internal)
     end
 
-    def each_with_coord(iter : IndexedCoordIterator(I)) forall I
-      BufferedECIterator.new(self, iter)
+    def each_with_coord(iter : IndexedStrideIterator(I)) forall I
+      Indexed::ElemAndCoordIterator.new(self, iter)
     end
 
     def each_with_index(&block : T, Int32 ->)
@@ -468,7 +460,7 @@ module Phase
       NArray.new(@shape.clone, new_buffer)
     end
 
-    def map_with_coord(&block : T, Array(Int32), Int32 -> U) forall U
+    def map_with_coord(&block : T, Indexable(Int32), Int32 -> U) forall U
       NArray(U).build(@shape) do |coord, idx|
         yield @buffer[idx], coord, idx
       end
@@ -488,7 +480,7 @@ module Phase
       self
     end
 
-    def map_with_coord!(&block : T, Array(Int32), Int32 -> T) : self
+    def map_with_coord!(&block : T, Indexable(Int32), Int32 -> T) : self
       iter = LexIterator.cover(shape_internal)
       @buffer.map_with_index! do |el, idx|
         yield el, iter.unsafe_next, idx
@@ -531,6 +523,7 @@ module Phase
     end
 
     # optimization for pushing other NArrays on axis 0, in-place
+    # TODO: axis = 0 should not be a user modifiable parameter and never should have been
     def push(*others : self, axis = 0) : self
       raise DimensionError.new("Cannot concatenate these arrays along axis #{axis}: shapes do not match") if !compatible?(*others, axis: axis)
 
@@ -561,7 +554,7 @@ module Phase
 
     def concatenate!(*others, axis = 0) : self
       @shape, @buffer = NArray(T).concatenate_to_slice(self, *others, axis: axis)
-      @axis_strides = BufferUtil.axis_strides(@shape)
+      @axis_strides = Buffered.axis_strides(@shape)
       self
     end
 
@@ -620,7 +613,7 @@ module Phase
         else
           if shape[depth] != current.size
             # We've been at this before, but the shape was different then.
-            raise DimensionError.new("Could not profile nested array: Array shape was inconsistent.")
+            raise ShapeError.new("Could not profile nested array: Array shape was inconsistent.")
           end
         end
 
@@ -756,44 +749,6 @@ module Phase
         raise YAML::Error.new("Could not read NArray from YAML: 'shape' and/or 'elements' were missing.")
       else
         raise YAML::Error.new("Could not read NArray from YAML: Expected mapping, found #{node.class}")
-      end
-    end
-
-    private class WrappedLexIterator(T) < CoordIterator(T)
-      getter smaller_coord : Array(T)
-      @smaller_shape : Array(T)
-
-      def initialize(region : IndexRegion(T), @smaller_shape)
-        super(region)
-        @smaller_coord = wrap_coord(@first)
-      end
-
-      def initialize(region_literal, @smaller_shape)
-        super(IndexRegion(T).new(region_literal))
-        @smaller_coord = wrap_coord(@first)
-      end
-
-      def clone 
-        raise "Can't clone private class WrappedLexIterator(T)"
-      end
-
-      def wrap_coord(coord)
-        coord.map_with_index { |axis, idx| axis % @smaller_shape[idx] }
-      end
-
-      def advance_coord
-        (@coord.size - 1).downto(0) do |i| # ## least sig .. most sig
-          if @coord[i] == @last[i]
-            @coord[i] = @first[i]
-            @smaller_coord[i] = @coord[i] % @smaller_shape[i]
-            return stop if i == 0 # most sig
-          else
-            @coord[i] += @step[i]
-            @smaller_coord[i] = @coord[i] % @smaller_shape[i]
-            break
-          end
-        end
-        @coord
       end
     end
   end

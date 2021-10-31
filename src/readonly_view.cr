@@ -25,10 +25,6 @@ module Phase
     protected def initialize(@src : S, @shape : Array(Int32), @transform = ComposedTransform.new)
     end
 
-    # def initialize(@src : S, region)
-    #     self.of(@src, region)
-    # end
-
     def clone : self
       typeof(self).new(@src, @shape.clone, @transform.clone)
     end
@@ -53,9 +49,9 @@ module Phase
 
     def reshape!(new_shape) : self
       if new_shape.product != @shape.product
-        # BETTER_ERROR
-        raise "number of elements can't change on reshape."
+        raise ShapeError.new("Cannot change shape from #{@shape.join('x')} (#{@shape.product} elements) to #{new_shape.join('x')} (#{new_shape.product} elements) because reshape cannot add or remove elements.")
       end
+
       @transform.compose!(ReshapeTransform.new(@shape, new_shape))
       @shape = new_shape
       self
@@ -75,6 +71,14 @@ module Phase
     def permute(order : Enumerable? = nil) : self
       clone.permute!(order)
     end
+    {% begin %}
+      {% for name in {"permute", "permute!", "reshape", "reshape!"} %}
+        # Tuple-accepting overload of `#{{name}}`.
+        def {{name.id}}(*args)
+          {{name.id}}(args)
+        end
+      {% end %}
+    {% end %}
 
     def reverse! : self
       @transform.compose!(ReverseTransform.new(@shape))
@@ -85,13 +89,18 @@ module Phase
       clone.reverse!
     end
 
-    def unsafe_fetch_chunk(region : IndexRegion, drop : Bool) : self
-      # TODO !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!11
+    def unsafe_fetch_chunk(region : IndexRegion) : self
       view(region)
     end
 
-    def unsafe_fetch_element(coord) : R
-      @src.unsafe_fetch_element(@transform.apply(coord)).as(R)
+    def unsafe_fetch_element(coord : Indexable) : R
+      # TODO OPTIMIZE
+      # The transform chain only accept `Array` because it needs mutability.
+      # ideally we should have an Array stored in each ReadonlyView that
+      # can be used as a temp buffer for coordinates that aren't writable.
+      # When coord is Array, no allocation is done. But when Coord is
+      # ReadonlyWrapper, an allocation is done on every single fetch!
+      @src.unsafe_fetch_element(@transform.apply(coord.to_a)).as(R)
     end
 
     def process(new_proc : (R -> U)) : ProcView(S, R, U) forall U
