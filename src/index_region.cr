@@ -321,7 +321,8 @@ module Phase
       self.clone.translate!(offset)
     end
 
-    def to_s(io)
+    def to_s(io : IO)
+      io << "IndexRegion"
       io << @degeneracy.map_with_index do |degen, i|
         if degen
           @first[i]
@@ -331,6 +332,10 @@ module Phase
           @first[i]..@step[i]..@last[i]
         end
       end
+    end
+
+    def inspect(io : IO)
+      to_s(io)
     end
 
     def local_to_absolute(coord)

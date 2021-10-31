@@ -62,6 +62,10 @@ module Phase
     end
 
     def permute!(order : Enumerable? = nil) : self
+      if order && (bad_axis = order.find { |axis| axis < 0 || axis >= @shape.size })
+        raise IndexError.new("Could not use pattern #{order} to permute: Axis #{bad_axis} is not present in a #{dimensions}-dimensional MultiIndexable")
+      end
+
       pt = PermuteTransform.new(order || self.dimensions)
       @shape = pt.permute(@shape)
       @transform.compose!(pt)
@@ -71,6 +75,7 @@ module Phase
     def permute(order : Enumerable? = nil) : self
       clone.permute!(order)
     end
+
     {% begin %}
       {% for name in {"permute", "permute!", "reshape", "reshape!"} %}
         # Tuple-accepting overload of `#{{name}}`.
