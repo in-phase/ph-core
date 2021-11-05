@@ -72,7 +72,7 @@ module ReadUtils(T)
   # end
 
   def unsafe_fetch_element(coord) : T
-    @buffer.[](unsafe_coord_to_index(coord))
+    @buffer[unsafe_coord_to_index(coord)]
   end
 end
 
@@ -85,12 +85,23 @@ module WriteUtils(T)
   end
 end
 
-class ReadableTestNArray(T) < TestNArray(T)
-  include ReadUtils(T)
-end
+# this used to superclass RONArray to fix a wierd bug
+# class ReadableTestNArray(T) < TestNArray(T)
+#   include ReadUtils(T)
+# end
 
 # Read only NArray
-class RONArray(T) < ReadableTestNArray(T)
+class RONArray(T) < TestNArray(T)
+  include ReadUtils(T)
+
+  def build(shape, &block)
+    coords = LexIterator.cover(shape)
+    count = shape.product
+    buffer = Slice.new(count) do
+      yield coords.unsafe_next
+    end
+    RONArray.new(shape, buffer)
+  end
 end
 
 # Write only NArray

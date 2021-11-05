@@ -11,7 +11,7 @@ abstract class MultiIndexableTester(M, T, I)
   # with more than one element! The shape can be anything you want, but
   # we reccommend something like [3, 4, 5] (3 dimensions captures most complex
   # behaviour, and differing extents >=3 allow for more robust bug detection)
-  abstract def make : M
+  abstract def make : Array(M)
 
   # If your `MultiIndexable` supports it, this should return a pure empty container (`#shape.to_a == [0]`). If not, return nil.
   abstract def make_pure_empty : M?
@@ -112,9 +112,8 @@ abstract class MultiIndexableTester(M, T, I)
     end
   end
 
-  private def make_pair : Tuple(M, NArray(T))
-    m_inst = make
-    {m_inst, m_inst.to_narr}
+  private def make_pairs : Array(Tuple(M, NArray(T)))
+    make.map { |m_inst| {m_inst, m_inst.to_narr} }
   end
 
   private def make_valid_regions(shape : Indexable(I))
@@ -197,13 +196,15 @@ abstract class MultiIndexableTester(M, T, I)
 
   def test_target
     describe M do
-      m_inst, narr = make_pair
+      pairs = make_pairs
+      m_inst, narr = pairs[0]
 
       valid_regions = make_valid_regions(narr.shape)
       invalid_regions = make_invalid_regions(narr.shape)
 
       before_each do
-        m_inst, narr = make_pair
+        pairs = make_pairs
+        m_inst, narr = pairs[0]
       end
 
       describe "#to_narr" do
@@ -215,7 +216,9 @@ abstract class MultiIndexableTester(M, T, I)
       {% for test in {:empty, :scalar} %}
         describe("#" + "{{test.id}}?") do
           it "returns false when not {{test.id}}" do
-            m_inst.{{test.id}}?.should be_false
+            pairs.each do |m, _|
+              m.{{test.id}}?.should be_false
+            end
           end
 
           {% for type in [:pure, :volumetric] %}
@@ -448,38 +451,38 @@ abstract class MultiIndexableTester(M, T, I)
 
         it "returns the same result as get_chunk for valid regions" do
           make_valid_regions(narr.shape).each do |region|
-            m_inst.get_available(region).should eq narr.get_chunk(region)
+            m_inst.get_available(region).to_narr.should eq narr.get_chunk(region)
           end
         end
 
         it "returns a partial result for an oversize region" do
-          m_inst.get_available(oversize_region).should eq narr.get_available(oversize_region)
+          m_inst.get_available(oversize_region).to_narr.should eq narr.get_available(oversize_region)
         end
 
         it "returns the correct output for valid IndexRegions" do
           make_valid_regions(narr.shape).each do |region|
             idx_r = IndexRegion.new(region, m_inst.shape)
-            m_inst.get_available(idx_r).should eq narr.get_available(idx_r)
+            m_inst.get_available(idx_r).to_narr.should eq narr.get_available(idx_r)
           end
         end
 
         it "returns a partial result for an oversize region" do
           idx_r = IndexRegion(I).new(oversize_region)
-          m_inst.get_available(idx_r).should eq narr.get_available(idx_r)
+          m_inst.get_available(idx_r).to_narr.should eq narr.get_available(idx_r)
         end
       end
 
       describe "#[]?(region)" do
         it "returns a chunk for each valid region" do
           make_valid_regions(narr.shape).each do |region|
-            m_inst[region]?.should eq narr[region]?
+            m_inst[region]?.try(&.to_narr).should eq narr[region]?
           end
         end
 
         it "returns a chunk for each valid indexregion" do
           make_valid_regions(narr.shape).each do |region|
             idx_r = IndexRegion.new(region, m_inst.shape)
-            m_inst[idx_r]?.should eq narr[idx_r]?
+            m_inst[idx_r]?.try(&.to_narr).should eq narr[idx_r]?
           end
         end
 
@@ -501,7 +504,7 @@ abstract class MultiIndexableTester(M, T, I)
 
         it "returns nil where the mask is false and the copied element where the mask is true" do
           mask = NArray.build(m_inst.shape) { |_, i| i % 2 == 0 }
-          m_inst[mask]?.should eq narr[mask]?
+          m_inst[mask]?.to_narr.should eq narr[mask]?
         end
       end
 
@@ -617,7 +620,7 @@ abstract class MultiIndexableTester(M, T, I)
 
       describe "#reshape" do
         it "returns a reshaped MultiIndexable containing the same elements" do
-          m_inst.reshape([narr.size]).should eq narr.reshape(narr.size)
+          m_inst.reshape([narr.size]).to_narr.should eq narr.reshape(narr.size)
         end
 
         it "raises a ShapeError for incompatible shapes" do
@@ -632,7 +635,7 @@ abstract class MultiIndexableTester(M, T, I)
           pattern = narr.dimensions.times.to_a # [0, 1, 2, .., narr.dimensions - 1]
           pattern.rotate! # [1, 2, .., narr.dimensions - 1, 0]
 
-          m_inst.permute(pattern).should eq narr.permute(pattern)
+          m_inst.permute(pattern).to_narr.should eq narr.permute(pattern)
         end
 
         it "raises an IndexError for illegal permutation indices" do
@@ -655,95 +658,98 @@ abstract class MultiIndexableTester(M, T, I)
 
       describe "#reverse", tags: ["yikes"] do
         it "returns a MultiIndexable with reversed element order" do
-          m_inst.reverse.should eq narr.reverse
+          m_inst.reverse.to_narr.should eq narr.reverse
         end
       end
 
-      # describe "#equals?" do
-      #   it "returns true for equivalent MultiIndexables" do
-      #     copy_narr = RONArray.new(test_shape.clone, test_buffer.clone)
-      #     r_narr.should eq copy_narr
-      #   end
+      describe "#equals?" do
+        it "returns true if the block always does" do
+          m_inst.equals?(m_inst) { true }.should be_true
+        end
 
-      #   it "returns false for MultiIndexables with the same elements in a different shape" do
-      #     other_narr = RONArray.new([test_shape[0], 1, 1, test_shape[1]], test_buffer.clone)
-      #     r_narr.should_not eq other_narr
-      #   end
+        it "returns false for MultiIndexables of a different shape" do
+          bigger = narr.tile([2] + [1] * (m_inst.dimensions - 1))
+          m_inst.equals?(bigger) { true }.should be_false
+        end
 
-      #   it "returns false for MultiIndexables with different elements but the same shape" do
-      #     new_buffer = test_buffer.map &.hash
-      #     other_narr = RONArray.new(test_shape, new_buffer)
-      #     r_narr.should_not eq other_narr
-      #   end
+        it "iterates over elements of both inputs" do
+          other = narr.map &.hash
+          
+          m_bag = [] of T
+          other_bag = [] of typeof(narr.first.hash)
 
-      #   it "returns false for MultiIndexables of a different class" do
-      #     copy_narr = r_narr.to_narr
-      #     r_narr.should_not eq copy_narr
-      #   end
-      # end
+          m_inst.equals?(other) do |m, o|
+            m_bag << m
+            other_bag << o
+            true
+          end
 
-      # describe "#view" do
-      #   it "creates a View of the source MultiIndexable" do
-      #     # we aren't testing the functionality of the view here - only that #view
-      #     # creates what we're expecting.
+          m_bag.tally.should eq narr.to_a.tally
+          other_bag.tally.should eq other.to_a.tally
+        end
+      end
 
-      #     r_narr.view.is_a?(View).should be_true
-      #   end
-      # end
+      describe "#view" do
+        it "creates a View of the source MultiIndexable" do
+          # we aren't testing the functionality of the view here - only that #view
+          # creates what we're expecting.
 
-      # describe "#process" do
-      #   it "creates a ProcView fo the source MultiIndexable" do
-      #     # we aren't testing the functionality of the view here - only that #process
-      #     # creates what we're expecting.
+          m_inst.view.is_a?(View).should be_true
+        end
+      end
 
-      #     r_narr.process { |el| el.hash % 2 }.is_a?(ProcView).should be_true
-      #   end
-      # end
+      describe "#process" do
+        it "creates a ProcView fo the source MultiIndexable" do
+          # we aren't testing the functionality of the view here - only that #process
+          # creates what we're expecting.
 
-      # describe "#eq" do
-      #   it "returns an NArray containing elementwise equality with another MultiIndexable" do
-      #     altered_buffer = Slice[1, 2, "string", 4, 'a', 'b', 9, 'd', 1f64, 2f64, 3f64, 4f64]
-      #     altered_r_narr = RONArray.new(test_shape, altered_buffer)
-      #     equality = altered_r_narr.eq(r_narr)
-      #     equality.@buffer.should eq Slice[true, true, false, true, true, true, false, true, true, true, true, true]
-      #   end
+          m_inst.process { |el| el.hash }.is_a?(ProcView).should be_true
+        end
+      end
 
-      #   it "raises a DimensionError for an NArray of a different shape" do
-      #     altered_r_narr = RONArray.new([test_buffer.size], test_buffer)
-      #     expect_raises(DimensionError) do
-      #       altered_r_narr.eq(r_narr)
-      #     end
-      #   end
+      describe "#eq" do
+        it "returns a MultiIndexable containing elementwise equality with another MultiIndexable" do
+          comparison_narr = NArray.fill(narr.shape, narr.first)
+          m_inst.eq(comparison_narr).to_narr.should eq narr.eq(comparison_narr)
+        end
 
-      #   it "returns an NArray containing elementwise equality with a scalar" do
-      #     comparison_el = 'b'
-      #     expected_buffer = test_buffer.map &.==(comparison_el)
-      #     r_narr.eq(comparison_el).@buffer.should eq expected_buffer
-      #   end
-      # end
+        it "raises a DimensionError for an NArray of a different shape" do
+          bigger = narr.tile([2] + [1] * (m_inst.dimensions - 1))
 
-      # describe "#hash" do
-      #   it "returns different hashes for different MultiIndexables", tags: ["probabilistic"] do
-      #     h1 = RONArray.new([2, 2], Slice[1, 1, 4, 9]).hash
-      #     h2 = RONArray.new([2], Slice[3, 4]).hash
-      #     h1.should_not eq h2
-      #   end
+          expect_raises(DimensionError) do
+            m_inst.eq(bigger)
+          end
+        end
 
-      #   it "returns the same hash for identical MultiIndexables" do
-      #     h1 = RONArray.new([2, 2], Slice[1, 1, 4, 9]).hash
-      #     h2 = RONArray.new([2, 2], Slice[1, 1, 4, 9]).hash
-      #     h1.should eq h2
-      #   end
-      # end
+        it "returns an NArray containing elementwise equality with a scalar" do
+          comparison_el = narr.first
+          m_inst.eq(comparison_el).to_narr.should eq narr.eq(comparison_el)
+        end
+      end
 
-      # describe "#tile" do
-      #   it "tiles a MultiIndexable into a larger NArray" do
-      #     tile = RONArray.new([2, 2], Slice[1, 0, 0, 1])
-      #     tiled = tile.tile([2, 3])
-      #     expected = NArray.new([[1, 0, 1, 0, 1, 0], [0, 1, 0, 1, 0, 1], [1, 0, 1, 0, 1, 0], [0, 1, 0, 1, 0, 1]])
-      #     tiled.should eq expected
-      #   end
-      # end
+      describe "#hash" do
+        it "returns different hashes for different MultiIndexables", tags: ["probabilistic"] do
+          pool = make
+          pool.each_cartesian(pool) do |m1, m2|
+            if m1.to_narr != m2
+              m1.hash.should_not eq m2.hash
+            end
+          end
+        end
+
+        it "returns the same hash for identical MultiIndexables" do
+          m1 = make[0]
+          m2 = make[0]
+          m1.hash.should eq m2.hash
+        end
+      end
+
+      describe "#tile" do
+        it "tiles a MultiIndexable into a larger one" do
+          pattern = narr.shape.map_with_index { |_, idx| (idx % 2) + 1 }
+          m_inst.tile(pattern).to_narr.should eq narr.tile(pattern)
+        end
+      end
 
       # describe "arithmetic" do
       # end
