@@ -120,7 +120,7 @@ module Phase
     end
 
     def reset!
-      @coord.map! { |i| @first[i] }
+      @coord.map_with_index! { |_, i| @first[i] }
       @hold = true
     end
 

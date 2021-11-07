@@ -179,6 +179,4 @@ describe NArray do
       stock_narr.reshape(1, 6, 1).shape.should eq [1, 6, 1]
     end
   end
-
-  
 end
