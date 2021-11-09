@@ -100,7 +100,8 @@ module Phase
     #  [3],
     #  [4]]
     # ```
-    def self.build(shape : Enumerable, &block : Indexable(Int32), Int32 -> T)
+    def self.build(shape : Enumerable, &block : ReadonlyWrapper(Int32), Int32 -> T)
+      puts :hi
       coord_iter = Indexed::LexIterator.cover(shape.to_a)
       {{@type}}.new(shape) do
         # pp coord_iter
