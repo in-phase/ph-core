@@ -33,7 +33,7 @@ def all_coords_lex_order(shape : Array(T), &block : Array(T) ->) forall T
   # turns [1, 2] into [[0], [0, 1]]
   axis_coords = shape.map &.times.to_a
 
-  Array.each_product(axis_coords) do |coord|
+  Indexable.each_cartesian(axis_coords) do |coord|
     yield coord
   end
 end
@@ -53,7 +53,7 @@ def all_coords_colex_order(shape : Array(T), &block : Array(T) ->) forall T
   # Reverse so that the deepest axes become the shallowest
   axis_coords.reverse!
 
-  Array.each_product(axis_coords) do |coord|
+  Indexable.each_cartesian(axis_coords) do |coord|
     yield coord.reverse!
   end
 end

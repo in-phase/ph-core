@@ -342,8 +342,13 @@ module Phase
     end
 
     # Checks for elementwise equality between `self` and *other*.
-    def ==(other : MultiIndexable) : Bool
+    def ==(other : NArray) : Bool
       equals?(other) { |x, y| x == y }
+    end
+
+    # :nodoc:
+    def ==(other : MultiIndexable) : Bool
+      false
     end
 
     # Copies the elements in `region` to a new `{{@type}}`, assuming that `region` is in canonical form and in-bounds for this `{{@type}}`.

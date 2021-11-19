@@ -1,4 +1,5 @@
 require "./spec_helper.cr"
+require "./test_narray.cr"
 
 describe NArray do
   stock_narr = NArray.build(2,3) { |_, i| i }
@@ -177,6 +178,23 @@ describe NArray do
 
     it "works for change in shape and dimensionality" do
       stock_narr.reshape(1, 6, 1).shape.should eq [1, 6, 1]
+    end
+  end
+
+  describe "#==" do
+    it "returns true for equal NArrays" do
+      same_narr = NArray.build(2,3) { |_, i| i }
+      stock_narr.should eq same_narr
+    end
+
+    it "returns false for different NArrays" do
+      other_narr = NArray.fill([2, 3], 9)
+    end
+
+    it "returns false for a different type of MultiIndexable" do
+      buf = stock_narr.buffer
+      r_narr = RONArray.new([2, 3], buf.clone)
+      stock_narr.should_not eq r_narr
     end
   end
 end
