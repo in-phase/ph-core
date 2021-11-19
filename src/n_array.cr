@@ -101,11 +101,8 @@ module Phase
     #  [4]]
     # ```
     def self.build(shape : Enumerable, &block : ReadonlyWrapper(Int32), Int32 -> T)
-      puts :hi
       coord_iter = Indexed::LexIterator.cover(shape.to_a)
       {{@type}}.new(shape) do
-        # pp coord_iter
-        # puts coord_iter.unsafe_next_with_index
         yield *(coord_iter.unsafe_next_with_index)
       end
     end
