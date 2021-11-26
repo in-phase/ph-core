@@ -107,7 +107,7 @@ module Phase
       end
     end
 
-    def self.build(*shape : Int, &block : Indexable(Int32), Int32 -> T)
+    def self.build(*shape : Int, &block : ReadonlyWrapper(Int32), Int32 -> T)
       build(shape, &block)
     end
 
@@ -390,7 +390,7 @@ module Phase
     # Copies the elements from a MultiIndexable `src` into `region`, assuming that `region` is in canonical form and in-bounds for this `{{type}}`
     # and the shape of `region` matches the shape of `src`.
     def unsafe_set_chunk(region : IndexRegion, src : MultiIndexable(T))
-      absolute_iter = IndexedLexIterator.new(region, @shape)
+      absolute_iter = Indexed::LexIterator.new(region, @shape)
       src_iter = src.each
 
       src_iter.each do |src_el|
@@ -401,7 +401,7 @@ module Phase
 
     # Sets each element in `region` to `value`, assuming that `region` is in canonical form and in-bounds for this `{{type}}`
     def unsafe_set_chunk(region : IndexRegion, value : T)
-      iter = IndexedLexIterator.new(region, @shape)
+      iter = Indexed::LexIterator.new(region, @shape)
       iter.each do
         @buffer[iter.current_index] = value
       end
