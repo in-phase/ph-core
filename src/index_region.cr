@@ -334,10 +334,6 @@ module Phase
       end
     end
 
-    def inspect(io : IO)
-      to_s(io)
-    end
-
     def local_to_absolute(coord)
       get(coord)
     end
