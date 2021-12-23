@@ -107,9 +107,8 @@ module Phase
     # Gets the region including all coordinates in the given bound_shape
     def self.cover(bound_shape : Indexable(T), *, drop : Bool = DROP_BY_DEFAULT, degeneracy : Array(Bool)? = nil)
       first = Array.new(bound_shape.size, T.zero)
-      step = Array.new(bound_shape.size, 1)
-      # TODO handle bound_shape given with 0
-      last = bound_shape.map &.pred
+      step = bound_shape.map { |x| x == 0 ? 0 : 1 }
+      last = bound_shape.map { |x| {T.zero, x.pred}.max }
       shape = bound_shape.clone
       new(first, step, last, shape, drop, degeneracy)
     end
@@ -126,7 +125,7 @@ module Phase
       region_literal.each_with_index do |range, i|
         RangeSyntax.ensure_nonnegative(range)
         if !RangeSyntax.bounded?(range)
-          # BETTER_ERROR
+          # TODO: better error message
           raise "Cannot create IndexRegion without an explicit upper bound unless you provide a bounding shape"
         end
 

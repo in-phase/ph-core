@@ -38,7 +38,7 @@ module Phase
     # to return a coordinate. This would by default skip the first
     # coordinate, so instead we introduce an artificial lag of one
     # iteration with this flag.
-    @hold : Bool = true
+    @hold : Bool
 
     # Constructs an iterator that will traverse from `first` to `stop` by incrementing by `step[n]` in axis `n`.
     # If `@first[i] == @last[i]`, then `@step[i]` can be 1 to indicate that all
@@ -70,6 +70,15 @@ module Phase
       # @step = step.map &.to_i32
       @coord = ::Slice(I).new(@first.size) { |i| @first[i] }
       @wrapper = ReadonlyWrapper.new(@coord.to_unsafe, @coord.size)
+
+      # Normally we want to give the first coordinate a chance to be consumed,
+      # but that's not true if the step size is zero (which would mean that
+      # no coordinates should be provided).
+      if @step.any? &.zero?
+        @hold = false
+      else
+        @hold = true
+      end
     end
 
     # Constructs an iterator that will provide every coordinate described by an `IndexRegion`.
@@ -86,8 +95,8 @@ module Phase
     end
 
     # Constructs an iterator that will provide every coordinate described by a region literal.
-    def self.new(region_literal : Indexable)
-      new(IndexRegion.new(region_literal))
+    def self.new(region_literal : Indexable(I)) forall I
+      new(IndexRegion(I).new(region_literal))
     end
 
     # Constructs an iterator that will provide every coordinate in `src.shape`.
@@ -106,7 +115,7 @@ module Phase
     def next : ReadonlyWrapper(I) | Stop
       if @hold
         @hold = false
-        return stop if started_empty?
+        # return stop if started_empty?
       else
         return stop if advance!.is_a? Stop
       end

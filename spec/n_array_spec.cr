@@ -187,14 +187,41 @@ describe NArray do
       stock_narr.should eq same_narr
     end
 
+    it "returns true for equal-shape empty NArrays" do
+      a = NArray.build(0, 0, 0) {0}
+      b = NArray.build(0, 0, 0) {0}
+      a.should eq b
+    end
+
     it "returns false for different NArrays" do
       other_narr = NArray.fill([2, 3], 9)
+      other_narr.should_not eq stock_narr
     end
 
     it "returns false for a different type of MultiIndexable" do
       buf = stock_narr.buffer
       r_narr = RONArray.new([2, 3], buf.clone)
       stock_narr.should_not eq r_narr
+    end
+  end
+
+  describe "#unsafe_fetch_chunk" do
+    it "returns the correct data for a simple chunk" do
+      region = IndexRegion.new([1, 0..2..2], bound_shape: [2, 3])
+      expected = NArray[3, 5]
+      stock_narr.unsafe_fetch_chunk(region).should eq expected
+    end
+
+    it "returns the correct data for a relative chunk" do
+      region = IndexRegion.new([-2, -1..0], bound_shape: [2, 3])
+      expected = NArray[2, 1, 0]
+      stock_narr.unsafe_fetch_chunk(region).should eq expected
+    end
+
+    it "returns the empty NArray for a zero-size chunk" do
+      region = IndexRegion.new([0...0, 0...0], bound_shape: [2, 3])
+      expected = NArray.build(0, 0) { 0 }
+      stock_narr.unsafe_fetch_chunk(region).should eq expected
     end
   end
 end
