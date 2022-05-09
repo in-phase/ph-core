@@ -148,8 +148,12 @@ module Phase
     end
 
     # Returns a coordinate that stores the largest possible value this `StrideIterator` can output in each ordinate.
-    def largest_coord : Indexable(I)
+    # If there are no coordinates contained in this `IndexRegion` (e.g. `IndexRegion[0...0]`),
+    # returns null.
+    def largest_coord : Indexable(I)?
       @step.map_with_index do |step_value, idx|
+        return nil if step_value == 0
+
         if step_value.positive?
           @last[idx]
         else

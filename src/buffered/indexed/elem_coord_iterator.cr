@@ -13,13 +13,15 @@ module Phase::Buffered::Indexed
       shape = @src.shape
       largest_coord = @coord_iter.largest_coord
       
-      if shape.size != largest_coord.size
-        raise ShapeError.new("The coordinate iterator's dimensionality (#{largest_coord.size}D) does not match the dimensionality of the MultiIndexable (#{shape.size}D).")
-      end
-      
-      largest_coord.each_with_index do |ord, axis|
-        if ord >= shape[axis]
-          raise IndexError.new("The largest coord in the provided coordinate iterator, #{largest_coord}, overflows the MultiIndexable shape (#{shape}) on axis #{axis}")
+      if largest_coord = @coord_iter.largest_coord
+        if shape.size != largest_coord.size
+          raise ShapeError.new("The coordinate iterator's dimensionality (#{largest_coord.size}D) does not match the dimensionality of the MultiIndexable (#{shape.size}D).")
+        end
+        
+        largest_coord.each_with_index do |ord, axis|
+          if ord >= shape[axis]
+            raise IndexError.new("The largest coord in the provided coordinate iterator, #{largest_coord}, overflows the MultiIndexable shape (#{shape}) on axis #{axis}")
+          end
         end
       end
     end
