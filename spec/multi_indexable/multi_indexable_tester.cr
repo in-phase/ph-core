@@ -1,5 +1,15 @@
 require "../spec_helper.cr"
 
+# This class implements an abstract test suite that verifies your
+# `MultiIndexable ` implementation (`M`) against the standard `NArray(T)` type.
+# This suite relies only on the correctness of `NArray(T)` and `M#to_narr`,
+# which leads to some complications. For example, if a test should be run only
+# on equal `MultiIndexables`, `m_inst_1 == m_inst_2` is not the correct
+# condition - if the implementation `M` incorrectly implements equality, this
+# will return false, creating a red herring. Instead. use `m_inst_1.to_narr ==
+# m_inst_2.to_narr`. This will always return the correct value, given that
+# `NArray#==` and `#to_narr` are implemented correctly, which is somewhat
+# axiomatic. `I` is the index type of `M` - `M#shape` has elements of type `I`.
 abstract class MultiIndexableTester(M, T, I)
   # Produces a new instance of `M`, which is a MultiIndexable.
   # If `M` has a generic element type, it is good idea to return
@@ -727,22 +737,28 @@ abstract class MultiIndexableTester(M, T, I)
         end
       end
 
-      describe "#hash" do
-        it "returns different hashes for different MultiIndexables", tags: ["probabilistic"] do
-          pool = make
-          pool.each_cartesian(pool) do |m1, m2|
-            if m1.to_narr != m2
-              m1.hash.should_not eq m2.hash
-            end
-          end
-        end
-
-        it "returns the same hash for identical MultiIndexables" do
-          m1 = make[0]
-          m2 = make[0]
-          m1.hash.should eq m2.hash
-        end
-      end
+      # TODO: I don't think that testing #hash is really in our jurisdiction
+      # For example, if someone makes a wierd type, like an NArray with a creation
+      # timestamp, or an image buffer with a list of color channel names, the'll
+      # probably want #hash to include that extra data. I imagine that #hash and #==
+      # are up to the implementation, whereas #equals?(&predicate) is actually useful
+      # for comparing elementwise equality
+      # describe "#hash" do
+      #   it "returns different hashes for different MultiIndexables", tags: ["probabilistic"] do
+      #     pool = make
+      #     pool.each_cartesian(pool) do |m1, m2|
+      #       if m1 != m2
+      #         m1.hash.should_not eq m2.hash
+      #       end
+      #     end
+      #   end
+      # 
+      #   it "returns the same hash for identical MultiIndexables" do
+      #     m1 = make[0]
+      #     m2 = make[0]
+      #     m1.hash.should eq m2.hash
+      #   end
+      # end
 
       describe "#tile" do
         it "tiles a MultiIndexable into a larger one" do
