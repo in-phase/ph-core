@@ -73,18 +73,20 @@ module Phase
 
           # TODO: evil hack needs to go away
           # @iter.coord_iter.unsafe_skip(depth, size - max_count)
-          @iter.coord_iter.@coord[depth] += size - max_count
+          @iter.coord_iter.@coord[depth] += size - (max_count - 1)
           
           yield Flags::SKIP, -1
 
-          right.times do |idx|
-            yield (idx == right - 1 ? Flags::LAST : Flags::ELEM), size - right + idx
+          (right - 1).times do |idx|
+            yield Flags::ELEM, size - right + idx
           end
         else
-          size.times do |idx|
-            yield (idx == size - 1 ? Flags::LAST : Flags::ELEM), idx
+          (size - 1).times do |idx|
+            yield Flags::ELEM, idx
           end
         end
+
+        yield Flags::LAST, size - 1
       end
 
       # get the length of the longest element to be displayed (for justification purposes)
