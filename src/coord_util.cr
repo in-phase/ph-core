@@ -1,11 +1,21 @@
 module Phase
+  # A collection of utility functions for putting coordinates (whose ordinates
+  # may be positive, forward indexes, or negative, reverse indexes) into
+  # canoncial form.
   module CoordUtil
     extend self
 
+    # :ditto:
     def has_index?(index, size : Int::Unsigned)
+      # TODO
+      # In the case that `size` is an unsigned int, we cast it to a bigint in
+      # order to make sure we don't overflow the axis. But this is slow and could
+      # probably be replaced with a macro to ensure that we just cast to the smallest
+      # native container
       index < size && index >= -(size.to_big_i)
     end
 
+    # Returns true if a given `index` can be used to access an array axis with `size` elements.
     def has_index?(index, size : Int)
       index < size && index >= -size
     end
@@ -28,6 +38,8 @@ module Phase
       canonicalize_index(index, shape[axis])
     end
 
+    # Returns the canonical (positive) form of `index` along a particular axis of a given `size` (number of elements).
+    # Throws an `IndexError` if `index` is not a valid positive or negative array index for `size` elements.
     def canonicalize_index(index, size)
       if !has_index?(index, size)
         raise IndexError.new("Could not canonicalize index: #{index} is not a valid index for an axis of length #{size}.")
