@@ -20,7 +20,7 @@ module Phase
         @@commutes
       end
 
-      abstract def apply(coord : Array(Int32)) : Array(Int32)
+      abstract def apply(coord : Indexable(Int32)) : Array(Int32)
     end
 
     # probably done for now
@@ -31,7 +31,7 @@ module Phase
       end
 
       def self.[](*transforms)
-        new (transforms.map &.as(CoordTransform)).to_a
+        new((transforms.map &.as(CoordTransform)).to_a)
       end
 
       def clone
@@ -71,9 +71,9 @@ module Phase
       end
 
       # TODO: is this in-place? Should it not be?
-      def apply(coord : Array(Int32)) : Array(Int32)
+      def apply(coord : Indexable(Int32)) : Array(Int32)
         # NOTE: if we ever add a PadTransform, this could break. If a PadTransform encounters a coord outside the src, it should return a default/computed value early.
-        @transforms.reduce(coord) { |coord, trans| trans.apply(coord) }
+        @transforms.reduce(coord.to_a) { |coord, trans| trans.apply(coord) }
       end
 
       # TODO: see clone
@@ -92,8 +92,8 @@ module Phase
         t
       end
 
-      def apply(coord : Array(Int32)) : Array(Int32)
-        coord
+      def apply(coord : Indexable(Int32)) : Array(Int32)
+        coord.to_a
       end
     end
 
@@ -162,7 +162,7 @@ module Phase
         ret
       end
 
-      def apply(coord : Array(Int32)) : Array(Int32)
+      def apply(coord : Indexable(Int32)) : Array(Int32)
         index = coord_to_index(coord, @view_axis_strides)
         index_to_coord(index, @src_shape, @buffer)
       end
@@ -190,7 +190,7 @@ module Phase
         end
       end
 
-      def apply(coord : Array(Int32)) : Array(Int32)
+      def apply(coord : Indexable(Int32)) : Array(Int32)
         @region.unsafe_fetch_element(coord)
       end
     end
@@ -236,7 +236,7 @@ module Phase
         src_coord_buffer
       end
 
-      def apply(coord : Array(Int32)) : Array(Int32)
+      def apply(coord : Indexable(Int32)) : Array(Int32)
         unpermute(coord, @buffer)
       end
     end
@@ -264,7 +264,7 @@ module Phase
         end
       end
 
-      def apply(coord : Array(Int32)) : Array(Int32)
+      def apply(coord : Indexable(Int32)) : Array(Int32)
         coord.each_with_index do |el, i|
           @buffer[i] = @shape[i] - 1 - el
         end

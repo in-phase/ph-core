@@ -219,7 +219,7 @@ module Phase
 
     # gets absolute coordinate of a coord in the region's local reference frame
     def unsafe_fetch_element(coord : Coord) : Array(T)
-      local_to_absolute_unsafe(coord)
+      local_to_absolute_unsafe(coord.to_a)
     end
 
     def first
@@ -337,7 +337,7 @@ module Phase
       get(coord)
     end
 
-    def local_to_absolute_unsafe(coord)
+    def local_to_absolute_unsafe(coord : Coord) : Array(T)
       if @drop
         local_axis = 0
         degeneracy.map_with_index do |degenerate, i|
