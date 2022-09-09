@@ -7,29 +7,29 @@ module Phase
   # The only standard container type that could do the same  is a Slice
   # with read_only set to true, but this would lead to unexpected runtime errors.
   # By using ReadonlyWrapper, the compiler can prevent improper write calls safely.
-  private class ReadonlyWrapper(T)
+  private class ReadonlyWrapper(S, T)
     include Indexable(T)
     
-    getter size : Int32
-    @buffer : Pointer(T)
+    @src : S
+    delegate size, inspect, to_s, to: @src
     
-    def initialize(@buffer : Pointer(T), @size)
+    protected def initialize(*, internal_name @src : S)
     end
     
-    def unsafe_fetch(index : Int)
-      @buffer[index]
-    end
-    
-    def inspect(io : IO)
-      to_a.inspect(io)
-    end
-    
-    def to_s(io : IO)
-      inspect(io)
+    def self.new(src : Indexable(T)) forall T
+      instance = ReadonlyWrapper(typeof(src), T).new(internal_name: src)
     end
 
+    def unsafe_fetch(index : Int)
+      @src.unsafe_fetch(index)
+    end
+    
     def ==(other : self)
       self.equals?(other) { |e1, e2| e1 == e2 }
+    end
+
+    def ==(other)
+      false
     end
   end
 end

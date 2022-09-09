@@ -22,7 +22,7 @@ module Phase::Buffered::Indexed
     end
     
     def unsafe_next_with_index
-      {self.next.unsafe_as(ReadonlyWrapper(I)), @buffer_index}
+      {self.next.unsafe_as(ReadonlyWrapper(Array(I), I)), @buffer_index}
     end
     
     def current_index : I
@@ -42,7 +42,7 @@ module Phase::Buffered::Indexed
         @coord = other.@coord.clone
         @buffer_index = other.@buffer_index
         @buffer_step = other.@buffer_step.clone
-        @wrapper = ReadonlyWrapper.new(@coord.to_unsafe, @coord.size)
+        @wrapper = ReadonlyWrapper.new(@coord)
         self
       end
       

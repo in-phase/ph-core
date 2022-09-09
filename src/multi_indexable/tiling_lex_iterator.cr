@@ -5,13 +5,13 @@ module Phase
     class TilingLexIterator(I) < StrideIterator(I)
       @smaller_shape : Array(I)
       @smaller_coord : Array(I)
-      @smaller_coord_wrapper : ReadonlyWrapper(I)
+      @smaller_coord_wrapper : ReadonlyWrapper(Array(I), I)
 
       private def initialize(@first : Array(I), @step : Array(Int32), @last : Array(I), @smaller_shape : Array(I))
         super(@first, @step, @last)
 
         @smaller_coord = global_to_tile(@first)
-        @smaller_coord_wrapper = ReadonlyWrapper.new(@smaller_coord.to_unsafe, @smaller_coord.size)
+        @smaller_coord_wrapper = ReadonlyWrapper.new(@smaller_coord)
       end
 
       def self.new(region : IndexRegion(I), smaller_shape)
@@ -24,7 +24,7 @@ module Phase
         new(idx_r, smaller_shape)
       end
 
-      def advance! : ::Slice(I) | Stop
+      def advance! : Array(I) | Stop
         (@coord.size - 1).downto(0) do |i| # ## least sig .. most sig
           if @coord[i] == @last[i]
             @coord[i] = @first[i]
@@ -59,8 +59,8 @@ module Phase
         @coord = other.@coord.clone
         @smaller_shape = other.@smaller_shape.clone
         @smaller_coord = other.@smaller_coord.clone
-        @smaller_coord_wrapper = ReadonlyWrapper.new(@smaller_coord.to_unsafe, @coord.size)
-        @wrapper = ReadonlyWrapper.new(@coord.to_unsafe, @coord.size)
+        @smaller_coord_wrapper = ReadonlyWrapper.new(@smaller_coord)
+        @wrapper = ReadonlyWrapper.new(@coord)
 
         self
       end

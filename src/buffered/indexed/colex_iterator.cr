@@ -4,7 +4,7 @@ module Phase::Buffered::Indexed
   class ColexIterator(I) < Indexed::StrideIterator(I)
     def_standard_clone
     
-    def advance! : ::Slice(I) | Stop
+    def advance! : Array(I) | Stop
       0.upto(@coord.size - 1) do |i| # ## least sig .. most sig
         if @coord.unsafe_fetch(i) == @last.unsafe_fetch(i)
           @buffer_index -= (@coord.unsafe_fetch(i) - @first.unsafe_fetch(i)) * @buffer_step.unsafe_fetch(i)

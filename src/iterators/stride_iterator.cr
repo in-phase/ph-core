@@ -26,12 +26,12 @@ module Phase
     @last : Array(I)
 
     # The working memory buffer that stores the current coordinate.
-    @coord : ::Slice(I)
+    @coord : Array(I)
 
     # Because @coord is writable, but we don't want the user mutating it,
     # we will only ever expose this wrapper to them. This ensures that
     # they cannot alter the working coordinate.
-    @wrapper : ReadonlyWrapper(I)
+    @wrapper : ReadonlyWrapper(Array(I), I)
 
     # For efficiency reasons related to reuse of the coordinate buffer,
     # `StrideIterator` must advance the coordinate before it is able
@@ -68,8 +68,8 @@ module Phase
       # end
       
       # @step = step.map &.to_i32
-      @coord = ::Slice(I).new(@first.size) { |i| @first[i] }
-      @wrapper = ReadonlyWrapper.new(@coord.to_unsafe, @coord.size)
+      @coord = Array(I).new(@first.size) { |i| @first[i] }
+      @wrapper = ReadonlyWrapper.new(@coord)
 
       # Normally we want to give the first coordinate a chance to be consumed,
       # but that's not true if the step size is zero (which would mean that
@@ -86,7 +86,7 @@ module Phase
       # @first = idx_region.@first
       # @step = idx_region.@step
       # @last = idx_region.@last
-      # @coord = ::Slice(I).new(@first.size) { |i| @first[i] }
+      # @coord = Array(I).new(@first.size) { |i| @first[i] }
       # @wrapper = ReadonlyWrapper.new(@coord.to_unsafe, @coord.size)
 
       # TODO: should we be cloning these, or just using them outright? We'll never
@@ -110,9 +110,9 @@ module Phase
     end
 
     # Advances the internal state of this `StrideIterator` and returns the new coord (or `Iterator::Stop` if iteration is finished). 
-    abstract def advance! : ::Slice(I) | Stop
+    abstract def advance! : Array(I) | Stop
 
-    def next : ReadonlyWrapper(I) | Stop
+    def next : ReadonlyWrapper(Array(I), I) | Stop
       if @hold
         @hold = false
         # return stop if started_empty?
@@ -125,7 +125,7 @@ module Phase
 
     # Returns `next` typecast to an `Indexable(I)`. This will raise if the iterator returns `Stop`.
     def unsafe_next : Indexable(I)
-      self.next.as(ReadonlyWrapper(I))
+      self.next.as(ReadonlyWrapper(Array(I), I))
     end
 
     def reset!
@@ -173,7 +173,7 @@ module Phase
         @step = other.@step.clone
         @last = other.@last.clone
         @coord = other.@coord.clone
-        @wrapper = ReadonlyWrapper.new(@coord.to_unsafe, @coord.size)
+        @wrapper = ReadonlyWrapper.new(@coord)
         self
       end
 
