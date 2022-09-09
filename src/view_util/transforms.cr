@@ -20,7 +20,8 @@ module Phase
         @@commutes
       end
 
-      abstract def apply(coord : Indexable(Int32)) : Array(Int32)
+      # must not mutate coord
+      abstract def apply(coord : InputCoord(Int32)) : ReadonlyWrapper(OutputCoord(Int32), Int32)
     end
 
     # probably done for now
@@ -70,8 +71,7 @@ module Phase
         clone.compose!(t)
       end
 
-      # TODO: is this in-place? Should it not be?
-      def apply(coord : Indexable(Int32)) : Array(Int32)
+      def apply(coord : InputCoord(Int32)) : ReadonlyWrapper(OutputCoord(Int32), Int32)
         # NOTE: if we ever add a PadTransform, this could break. If a PadTransform encounters a coord outside the src, it should return a default/computed value early.
         @transforms.reduce(coord.to_a) { |coord, trans| trans.apply(coord) }
       end
@@ -92,8 +92,11 @@ module Phase
         t
       end
 
-      def apply(coord : Indexable(Int32)) : Array(Int32)
-        coord.to_a
+      def apply(coord : InputCoord(Int32)) : ReadonlyWrapper(OutputCoord(Int32), Int32)
+        # TODO: Optimize. There should be an internal buffer and readonly wrapper stored as member
+        # variables, and coord should just get copied to that buffer. This also requires that
+        # a coordtransform should be initialized with its container shape / num dimensions
+        ReadonlyWrapper.new(coord.to_a)
       end
     end
 
@@ -104,11 +107,13 @@ module Phase
 
       @buffer : Array(Int32) # has same size as output coord (and @src_shape)
       @view_axis_strides : Array(Int32)
+      @wrapper : ReadonlyWrapper(Array(Int32), Int32)
 
       def initialize(src_shape : Enumerable(Int32), new_shape : Enumerable(Int32))
         @src_shape = src_shape.to_a
         @new_shape = new_shape.to_a
         @buffer = @src_shape.clone
+        @wrapper = ReadonlyWrapper.new(@buffer)
         @view_axis_strides = axis_strides(@new_shape)
       end
 
@@ -162,9 +167,10 @@ module Phase
         ret
       end
 
-      def apply(coord : Indexable(Int32)) : Array(Int32)
+      def apply(coord : InputCoord(Int32)) : ReadonlyWrapper(OutputCoord(Int32), Int32)
         index = coord_to_index(coord, @view_axis_strides)
         index_to_coord(index, @src_shape, @buffer)
+        @wrapper
       end
     end
 
@@ -173,9 +179,11 @@ module Phase
       # TODO: Try to make this accept a generic coordinate type
       getter region : IndexRegion(Int32)
       @buffer : Array(Int32)
+      @wrapper : ReadonlyWrapper(Array(Int32), Int32)
 
       def initialize(@region)
         @buffer = Array.new(@region.dimensions, 0)
+        @wrapper = ReadonlyWrapper.new(@buffer)
       end
 
       # TODO: check reaaaaally carefully
@@ -190,8 +198,9 @@ module Phase
         end
       end
 
-      def apply(coord : Indexable(Int32)) : Array(Int32)
+      def apply(coord : InputCoord(Int32)) : ReadonlyWrapper(OutputCoord(Int32), Int32)
         @region.unsafe_fetch_element(coord)
+        @wrapper
       end
     end
 
@@ -199,10 +208,12 @@ module Phase
       # each of these has size = dimensions
       getter pattern : Array(Int32)
       @buffer : Array(Int32)
+      @wrapper : ReadonlyWrapper(Array(Int32), Int32)
 
       def initialize(pattern : Enumerable(Int32))
         @pattern = pattern.to_a
         @buffer = @pattern.clone
+        @wrapper = ReadonlyWrapper.new(Array(Int32), Int32)
       end
 
       def self.new(size : Int32)
@@ -236,8 +247,9 @@ module Phase
         src_coord_buffer
       end
 
-      def apply(coord : Indexable(Int32)) : Array(Int32)
+      def apply(coord : InputCoord(Int32)) : ReadonlyWrapper(OutputCoord(Int32), Int32)
         unpermute(coord, @buffer)
+        @wrapper
       end
     end
 
@@ -245,9 +257,11 @@ module Phase
       # each of these has size = dimensions
       @shape : Array(Int32)
       @buffer : Array(Int32)
+      @wrapper : ReadonlyWrapper(Array(Int32), Int32)
 
       def initialize(@shape)
         @buffer = @shape.clone
+        @wrapper = ReadonlyWrapper.new(Array(Int32), Int32)
       end
 
       def compose(t : CoordTransform) : CoordTransform
@@ -264,12 +278,12 @@ module Phase
         end
       end
 
-      def apply(coord : Indexable(Int32)) : Array(Int32)
+      def apply(coord : InputCoord(Int32)) : ReadonlyWrapper(OutputCoord(Int32), Int32)
         coord.each_with_index do |el, i|
           @buffer[i] = @shape[i] - 1 - el
         end
 
-        @buffer
+        @wrapper
       end
     end
   end

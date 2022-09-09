@@ -8,7 +8,9 @@ module Phase
 
   # Should be used for return types and type restriction. This will always be
   # defined as loosely as possible
-  alias Coord = Indexable
+  alias Coord = Indexable # deprecated
+  alias InputCoord = Indexable # The type of coordinate that a user can provide (basically any container)
+  alias OutputCoord = Array # The type of coordinate that phase will output
 
   alias Shape = Indexable
 end
