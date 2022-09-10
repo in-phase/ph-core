@@ -232,7 +232,7 @@ module Phase
       def initialize(pattern : Enumerable(Int32))
         @pattern = pattern.to_a
         @buffer = @pattern.clone
-        @wrapper = ReadonlyWrapper.new(Array(Int32), Int32)
+        @wrapper = ReadonlyWrapper.new(@buffer)
       end
 
       def self.new(size : Int32)
@@ -280,7 +280,7 @@ module Phase
 
       def initialize(@shape)
         @buffer = @shape.clone
-        @wrapper = ReadonlyWrapper.new(Array(Int32), Int32)
+        @wrapper = ReadonlyWrapper.new(@buffer)
       end
 
       def compose(t : CoordTransform) : CoordTransform

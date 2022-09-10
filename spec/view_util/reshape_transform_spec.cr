@@ -10,7 +10,7 @@ describe RV do
         new_shape = [6, 2]
 
         input_coord = [2, 1]
-        output_coord = [1, 1]
+        output_coord = ReadonlyWrapper.new([1, 1])
 
         tf = RV::ReshapeTransform.new(src_shape, new_shape)
         tf.apply(input_coord).should eq output_coord
