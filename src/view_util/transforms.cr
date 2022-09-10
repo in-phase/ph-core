@@ -27,6 +27,9 @@ module Phase
     # probably done for now
     struct ComposedTransform < CoordTransform
       @transforms : Array(CoordTransform)
+      
+      # This is used when the transform list is empty
+      @id : IdentityTransform = IdentityTransform.new()
 
       def initialize(@transforms = [] of CoordTransform)
       end
@@ -73,7 +76,18 @@ module Phase
 
       def apply(coord : InputCoord(Int32)) : ReadonlyWrapper(OutputCoord(Int32), Int32)
         # NOTE: if we ever add a PadTransform, this could break. If a PadTransform encounters a coord outside the src, it should return a default/computed value early.
-        @transforms.reduce(coord.to_a) { |coord, trans| trans.apply(coord) }
+        if @transforms.empty?
+          @id.apply(coord)
+        else
+          output = @transforms.reduce(coord) do |coord, trans|
+            trans.apply(coord)
+          end
+
+          # The compiler is concerned that output might be equal to coord
+          # (in the case when transforms has no elements). We checked that
+          # isn't true at runtime, but we still need to typecast
+          output.as(ReadonlyWrapper(OutputCoord(Int32), Int32))
+        end
       end
 
       # TODO: see clone
@@ -199,7 +213,12 @@ module Phase
       end
 
       def apply(coord : InputCoord(Int32)) : ReadonlyWrapper(OutputCoord(Int32), Int32)
-        @region.unsafe_fetch_element(coord)
+        # TODO: Optimize by directly populating the buffer with
+        # this calculation
+        @region.unsafe_fetch_element(coord).each_with_index do |el, idx|
+          @buffer[idx] = el
+        end
+
         @wrapper
       end
     end
