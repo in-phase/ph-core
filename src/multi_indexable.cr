@@ -95,7 +95,9 @@ module Phase
     # NArray.new([[0, 1], [1, 0]]).size # => 4
     # ```
     def size
-      shape_internal.product
+      s = shape_internal
+      return 0 if s.size == 0
+      s.product
     end
 
     # Returns `true` if and only if this `MultiIndexable` spans no elements.

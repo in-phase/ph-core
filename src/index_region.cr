@@ -3,24 +3,94 @@ require "./multi_indexable"
 require "./type_aliases"
 
 module Phase
+  # An `IndexRegion` represents the relationship between the coordinates in a source `MultiIndexable` and
+  # the coordinates of its slicing. For example:
+  # ```crystal
+  # # This is the "source MultiIndexable" referred to above
+  # narr = NArray[['a', 'b', 'c'],
+  #               ['d', 'e', 'f'],
+  #               ['g', 'h', 'i']]
+  # 
+  # # And this is a possible slicing of it:
+  # sliced = narr[0..2.., 1..]
+  # puts sliced # => [['b', 'c'],
+  #             #     ['h', 'i']]
+  # 
+  # # An `IndexRegion` is a function from a coordinate in the context of `sliced`
+  # # to a coordinate in the original `NArray`. We can see this by creating an
+  # # `IndexRegion` via the source shape and the slicing operation:
+  # mapping = IndexRegion.new(region_literal: [0..2.., 1..], bound_shape: narr.shape)
+  # 
+  # # sliced[0, 0] has the same element as narr[0, 1]
+  # puts mapping.get(0, 0) # => [0, 1]
+  # 
+  # # sliced[1, 1] has the same element as narr[2, 2]
+  # puts mapping.get(1, 1) # => [2, 2]
+  # 
+  # # We can even print the whole `IndexRegion` to see where
+  # # each element of sliced is coming from:
+  # puts mapping.to_narr
+  # # 2x2 Phase::NArray(Array(Int32))
+  # # [[[0, 1], [0, 2]],
+  # #  [[2, 1], [2, 2]]]
+  # 
+  # # Phase uses this internally to compute slicing!
+  # narr[mapping] == sliced # => true
+  # ```
   struct IndexRegion(T)
+    # See `MultiIndexable::DROP_BY_DEFAULT`
     DROP_BY_DEFAULT = MultiIndexable::DROP_BY_DEFAULT
 
     # DISCUSS: should it be a MultiIndexable?
     # should .each give an iterator over dimensions, or over coords?
     include MultiIndexable(Array(T))
 
+    # The coordinates of the "corners" of this `IndexRegion`. For example,
+    # if the region literal is `[1..3, 5..-2..1]`, the "first corner" is `[1, 5]` - 
+    # the first ordinate on the axis 0 range is 1, and the first ordinate on axis 1 is 5.
+    # Similarly, the `last` coordinate is `[3, 1]`.
+    # Note that if and only if `@step[i] == 0`, then `@first[i]` and `@last[i]` will be
+    # meaningless, as an empty set of coordinates has no corners. See `@step`.
     @first : Array(T)
     @last : Array(T)
 
     # @first, @last, @proper_shape, @reduced_shape must all be valid index representers but @step need not be (e.g. may be negative)
     # TODO: see if there is a way to generalize to any SignedInt
+    # The step size along each axis of the region literal. For example, the region literal
+    # `[3, 1..3, 5..-2..1]` would have a @step array of `[1, 1, -2]`.
+    # This variable has a few edge cases to take note of:
+    # - `a..b`, `a..`, `a...b`, and `a...` all have a step size of 1
+    # - `a` has a step size of 1
+    # - `a..x..a`, `a..x..b`, and `a...x..b` have a step size of x
+    # - A step size of 0 along an axis means that it has zero valid indexes on that axis (e.g. this is an empty IndexRegion)
+    # The lattermost case can be demonstrated as such:
+    # `IndexRegion.cover([0, 1]).@size # => [0, 1]`
+    # TODO: We probably want to make a clearer mechanism to indicate an empty IndexRegion
     @step : Array(Int32)
     
+    # The shape of this `IndexRegion` in the full number of dimensions as its output coordinates.
+    # E.g. `IndexRegion(Int32).new([1, 1..5])` has `@proper_shape == [1, 5]` regardless of
+    # whether dimension dropping is enabled.
     @proper_shape : Array(T)
+
+    # The shape of this `IndexRegion` once integer-indexed dimension dropping is applied.
+    # (see `MultiIndexable::DROP_BY_DEFAULT`).
+    # E.g. `IndexRegion(Int32).new([1, 1..5], drop: true)` has `@reduced_shape == [5]`,
+    # `IndexRegion(Int32).new([1..1, 1..5], drop: true)` has `@reduced_shape == [1, 5]`,
+    # and `IndexRegion(Int32).new([1, 1..5], drop: false)` has `@reduced_shape == [1, 5]`
     @reduced_shape : Array(T)
 
+    # Stores the user-hinted dimension dropping information from the region
+    # literal. For example: `IndexRegion(Int32).new(1, 1..1, 1..2)` has
+    # `@degeneracy == [true, false, false]` because axis 0 was an integer
+    # (droppable) whereas axis 1 and 2 were both ranges (and thus aren't
+    # reliably droppable). This array will be populated regardless of if
+    # dimension dropping is enabled. If this `IndexRegion` does not correspond
+    # to a region literal (e.g. `IndexRegion.cover(shape)`), @degeneracy should
+    # be populated with `false`.
     property degeneracy : Array(Bool)
+
+    # Whether or not dimensions should be dropped.
     getter drop : Bool
 
     def_equals_and_hash @first, @step, @last, @degeneracy, @drop
@@ -28,15 +98,22 @@ module Phase
 
     # =========================== Constructors ==============================
 
-    def self.new(region : IndexRegion, bound_shape)
+    # Copy constructor that throws a `ShapeError` if *region* doesn't fit inside of *bound_shape*.
+    # (see `IndexRegion#fits_in?`)
+    # TODO: Code sample
+    def self.new(region : IndexRegion, bound_shape : Shape)
       if region.fits_in?(bound_shape)
         return region.clone
       end
-      raise IndexError.new("Region #{region} does not fit inside #{bound_shape}")
+
+      raise ShapeError.new("Region #{region} does not fit inside #{bound_shape}")
     end
 
-    # doesn't allow negative (relative) indices, and allows you to clip
-    # a region_literal down so it will fit inside of *trim_to*.
+    # Creates an `IndexRegion` by clipping the *region_literal* to fit inside of the shape *trim_to*.
+    # By default, only absolute (positive) ordinates can be used in the region
+    # literal - however, if a *bound_shape* is passed, relative (negative)
+    # indexing can be used, and will refer to it.
+    # TODO: Code sample
     def self.new(region_literal : Enumerable, bound_shape : Indexable? = nil, drop : Bool = DROP_BY_DEFAULT,
                  *, trim_to : Indexable(T))
       first = Array.new(trim_to.size, T.zero)
@@ -44,6 +121,7 @@ module Phase
       last = Array.new(trim_to.size, T.zero)
       shape = Array.new(trim_to.size, T.zero)
       degeneracy = Array(Bool).new(trim_to.size, false)
+
       # you can only use negative indexes as relative offsets if you've explicitly passed the bound
       # shape that they should reference.
       allow_relative = !bound_shape.nil?
@@ -114,7 +192,7 @@ module Phase
     end
 
     # creates an indexRegion from positive, bounded literals
-    def self.new(region_literal : Enumerable, drop : Bool = DROP_BY_DEFAULT)
+    def self.new(region_literal : RegionLiteral, drop : Bool = DROP_BY_DEFAULT)
       dims = region_literal.size
       first = Array(T).new(dims, T.zero)
       step = Array(Int32).new(dims, 0)
@@ -182,12 +260,9 @@ module Phase
       @reduced_shape.dup
     end
 
+    # TODO: *drop* isn't being used here, why is it included?
     def shape_internal(drop = MultiIndexable::DROP_BY_DEFAULT)
       @reduced_shape
-    end
-
-    def size
-      @reduced_shape.product
     end
 
     def proper_dimensions : Int32
@@ -236,7 +311,7 @@ module Phase
       @step.clone
     end
 
-    def includes?(coord)
+    def includes?(coord : InputCoord)
       # DISCUSS: DimensionError or return false?
       return false unless coord.size == proper_dimensions
       coord.each_with_index do |ord, i|
@@ -251,18 +326,29 @@ module Phase
       true
     end
 
-    def fits_in?(bound_shape) : Bool 
+    # Returns true if this `IndexRegion` contains coordinates that all fit inside of
+    # the given *bound_shape*. For example:
+    # ```crystal
+    # idx_r = IndexRegion.new(region_literal: [1..2..], bound_shape: [5])
+    # idx_r.to_narr # => [[1], [3]]
+    # 
+    # idx_r.fits_in?([3]) # => false
+    # idx_r.fits_in?([4]) # => true
+    # idx_r.fits_in?([4, 4]) # => DimensionError
+    # ```
+    def fits_in?(bound_shape : Shape) : Bool 
       if bound_shape.size != proper_dimensions
-        # DISCUSS: DimensionError or return false?
-        return false
+        raise DimensionError.new("The bound shape provided had a different number of dimensions than this IndexRegion, so fits_in? is meaningless.")
       end
+
       bound_shape.map_with_index do |bound, i|
         return false if bound <= {@first.unsafe_fetch(i), @last.unsafe_fetch(i)}.max
       end
+
       true
     end
 
-    def trim!(bound_shape) : self
+    def trim!(bound_shape : Shape) : self
       if bound_shape.size != proper_dimensions
         # BETTER_ERROR
         raise DimensionError.new("invalid error :)")

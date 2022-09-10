@@ -11,6 +11,7 @@ module Phase
   alias Coord = Indexable # deprecated
   alias InputCoord = Indexable # The type of coordinate that a user can provide (basically any container)
   alias OutputCoord = Array # The type of coordinate that phase will output
+  alias RegionLiteral = Indexable # The type of a user-provided region literal (e.g [1..2, -3..2..])
 
   alias Shape = Indexable
 end

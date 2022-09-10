@@ -1,10 +1,10 @@
-[ ] buffered/buffered.cr
+[x] buffered/buffered.cr
 [ ] buffered/indexed/colex_iterator.cr
 [ ] buffered/indexed/elem_coord_iterator.cr
 [ ] buffered/indexed/elem_iterator.cr
 [ ] buffered/indexed/lex_iterator.cr
 [ ] buffered/indexed/stride_iterator.cr
-[ ] coord_util.cr
+[x] coord_util.cr
 [ ] exceptions/exceptions.cr
 [ ] index_region.cr
 [ ] iterators/colex_iterator.cr
