@@ -223,8 +223,13 @@ module Phase
       new(first, step, last, shape, drop, degeneracy)
     end
 
-    # Gets the region including all coordinates in the given bound_shape
-    def self.cover(bound_shape : Indexable(T), *, drop : Bool = DROP_BY_DEFAULT, degeneracy : Array(Bool)? = nil)
+    # Creates an `IndexRegion` whose coordinates fully cover the given *bound_shape*.
+    # ```crystal
+    # IndexRegion.cover([2, 3]).to_narr # => 2x3 Phase::NArray(Array(Int32))
+    #                                   #    [[[0, 0], [0, 1], [0, 2]],
+    #                                   #     [[1, 0], [1, 1], [1, 2]]]
+    # ```
+    def self.cover(bound_shape : Shape(T), *, drop : Bool = DROP_BY_DEFAULT, degeneracy : Array(Bool)? = nil)
       first = Array.new(bound_shape.size, T.zero)
       step = bound_shape.map { |x| x == 0 ? 0 : 1 }
       last = bound_shape.map { |x| {T.zero, x.pred}.max }
@@ -232,7 +237,14 @@ module Phase
       new(first, step, last, shape, drop, degeneracy)
     end
 
-    # creates an indexRegion from positive, bounded literals
+    # Creates an `IndexRegion` from an absolute (positive, bounded) *region_literal*.
+    # This allows you to bypass the usual requirement of passing a *bound_shape*, which
+    # is usually needed in order to process negative or nil indexes.
+    # ```crystal
+    # IndexRegion.new([1, 2...5]) # => IndexRegion[1, 2..4]
+    # IndexRegion.new([..]) # => Exception (TODO: pick a better exception)
+    # IndexRegion.new([-1]) # => Exception (TODO: pick a better exception)
+    # ```
     def self.new(region_literal : RegionLiteral, drop : Bool = DROP_BY_DEFAULT)
       dims = region_literal.size
       first = Array(T).new(dims, T.zero)
@@ -262,8 +274,13 @@ module Phase
       new(first, step, last, shape, drop, degeneracy)
     end
 
+    # Produces an `IndexRegion` given that the *first* and *last* coordinates are already known.
+    # A *step* size can be provided if present, but if not, the steps will be
+    # inferred to be -1, 0, or 1.
+    # TODO: Code sample
     protected def self.new(first, step = nil, *, last : Indexable(T))
       if !step
+        # If step isn't defined, populate it with +/- 1 depending on the order of first and last
         step = first.map_with_index { |s, i| last[i] <=> s }
       end
 
@@ -271,28 +288,49 @@ module Phase
       new(first, step, last, shape, DROP_BY_DEFAULT)
     end
 
-    protected def self.new(first, step = nil, *, shape : Indexable(T))
-      if !step
-        step = first.map_with_index { |s, i| last[i] <=> s }
-      end
-      last = first.zip(step, shape).map { |x0, dx, size| x0 + dx * size }
-      new(first, step, last, shape, DROP_BY_DEFAULT)
-    end
-
+    # Automatically populates the reduced shape (and optionally degeneracy) of an otherwise fully defined `IndexRegion`.
     protected def initialize(@first, @step, @last, @proper_shape : Indexable(T), @drop : Bool, degeneracy : Array(Bool)? = nil)
+      # If no degeneracy information exists, we keep all the axes
       @degeneracy = degeneracy || Array(Bool).new(@proper_shape.size, false)
-
-      @reduced_shape = @proper_shape.dup
-      unless degeneracy.nil?
-        reduce_shape
-      end
+      @reduced_shape = IndexRegion.compute_reduced_shape(@proper_shape, @degeneracy, @drop)
     end
 
-    protected def reduce_shape 
-      if @drop
-        @reduced_shape = drop_degenerate(@proper_shape){ [@proper_shape.product] }
+    # Produces a new Array that only contains the values `arr[i]` where `degeneracy[i]` is false.
+    # In the case that *degeneracy* is true (all axes are dropped), the caller must produce
+    # a sensible return value via the block argument.
+    #
+    # This is used in several places to reduce the number of dimensions of some output array
+    # in accordance with dimension dropping rules.
+    protected def self.drop_degenerate(arr : Array(T), degeneracy : Array(Bool), &when_empty : -> Array(T)) : Array(T) forall T
+      new_arr = Array(T).new(arr.size)
+
+      arr.each_with_index do |value, idx|
+        new_arr << value unless degeneracy[idx]
+      end
+
+      return yield if new_arr.empty?
+      new_arr
+    end
+
+    # See `IndexRegion.drop_degenerate`.
+    protected def drop_degenerate(arr : Array, &when_empty : -> Array(T)) : Array(T)
+      IndexRegion.drop_degenerate(arr, @degeneracy) { yield }
+    end
+
+    # Computes the reduced shape of an `IndexRegion` given its *proper_shape*, *degeneracy* and *drop* value.
+    # More specifically, it drops axes off of the *proper_shape* where appropriate, and handles the
+    # scalar case.
+    protected def self.compute_reduced_shape(proper_shape : Shape, degeneracy : Array(Bool), drop : Bool)
+      if drop
+        drop_degenerate(proper_shape, degeneracy) do
+          # This block is only called when all of the axes are degenerate. That
+          # means that the IndexRegion selects a single element, or that the
+          # IndexRegion contains no elements at all. In both of these cases,
+          # we want the reduced shape to be 1d and contain either 0 or 1 elements:
+          [proper_shape.product]
+        end
       else
-        @reduced_shape = @proper_shape.dup 
+        proper_shape.dup
       end
     end
 
@@ -400,7 +438,7 @@ module Phase
           IndexRegion.trim_axis(container_size, @first[axis], @step[axis], @last[axis], @proper_shape[axis])
       end
 
-      reduce_shape
+      @reduced_shape = IndexRegion.compute_reduced_shape(@proper_shape, @degeneracy, @drop)
       self
     end
 
@@ -504,16 +542,6 @@ module Phase
     def each : LexIterator(T)
       # TODO: Discuss if this should return LexIterator or maybe just Iterator(Indexable(I))
       LexIterator.new(self)
-    end
-
-    protected def drop_degenerate(arr : Array, &when_empty : -> Array(T)) : Array(T)
-      new_arr = Array(T).new(arr.size)
-      arr.each_with_index do |value, idx|
-        new_arr << value unless @degeneracy[idx]
-      end
-      # If every axis was dropped, you must have a scalar
-      return yield if new_arr.empty?
-      new_arr
     end
 
     protected def package_range(axis)
