@@ -315,7 +315,7 @@ module Phase
     def has_region?(region_literal : Indexable, drop : Bool = DROP_BY_DEFAULT) : Bool
       IndexRegion.new(region_literal, shape_internal)
       true
-    rescue ex : IndexError
+    rescue ex : IndexError | DimensionError
       false
     end
 

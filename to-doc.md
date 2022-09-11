@@ -5,8 +5,8 @@
 [ ] buffered/indexed/lex_iterator.cr
 [ ] buffered/indexed/stride_iterator.cr
 [x] coord_util.cr
-[ ] exceptions/exceptions.cr
-[ ] index_region.cr
+[x] exceptions/exceptions.cr
+[~] index_region.cr
 [ ] iterators/colex_iterator.cr
 [ ] iterators/lex_iterator.cr
 [ ] iterators/region_iterator.cr

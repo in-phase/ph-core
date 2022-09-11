@@ -159,7 +159,7 @@ macro test_on(type, cast)
                     max_val = {v[:first], v[:last]}.max
                     if max_val > 0
                         new_bound = {{type}}.zero + max_val - 1
-                        expect_raises IndexError do 
+                        expect_raises ShapeError do 
                             copy = IndexRegion.new(idx_r, [new_bound])
                         end
                     end

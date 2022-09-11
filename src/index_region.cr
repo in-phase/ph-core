@@ -100,7 +100,12 @@ module Phase
 
     # Copy constructor that throws a `ShapeError` if *region* doesn't fit inside of *bound_shape*.
     # (see `IndexRegion#fits_in?`)
-    # TODO: Code sample
+    #
+    # ```crystal
+    # src = IndexRegion.cover([3, 4]) # => IndexRegion[0..2, 0..3]
+    # IndexRegion.new(src, [4, 4]) # => IndexRegion[0..2, 0..3]
+    # IndexRegion.new(src, [2, 2]) # => ShapeError
+    # ```
     def self.new(region : IndexRegion, bound_shape : Shape)
       if region.fits_in?(bound_shape)
         return region.clone
@@ -111,11 +116,22 @@ module Phase
 
     # Creates an `IndexRegion` by clipping the *region_literal* to fit inside of the shape *trim_to*.
     # By default, only absolute (positive) ordinates can be used in the region
-    # literal - however, if a *bound_shape* is passed, relative (negative)
+    # literal - however, if a *bound_shape* is passed, relative (negative / unbounded)
     # indexing can be used, and will refer to it.
-    # TODO: Code sample
+    # 
+    # ```crystal
+    # # Using *trim_to* allows you to clip a region to a shape
+    # IndexRegion.new([0..5, 1..2], trim_to: [2, 2]) # => IndexRegion[0..1, 1..1]
+    # 
+    # # A *bound_shape* lets you use relative indexes
+    # IndexRegion.new([.., 2..-2], bound_shape: [3, 5], trim_to: [2, 3]) # => IndexRegion[0..1, 2..2]
+    # 
+    # # This method won't throw, but it *will* return an empty
+    # # IndexRegion if the *region_literal* doesn't fit in *trim_to*.
+    # IndexRegion.new([5..8], trim_to: [3]) # => IndexRegion[0..0..0]
+    # ```
     def self.new(region_literal : Enumerable, bound_shape : Indexable? = nil, drop : Bool = DROP_BY_DEFAULT,
-                 *, trim_to : Indexable(T))
+                 *, trim_to : Shape(T))
       first = Array.new(trim_to.size, T.zero)
       step = Array.new(trim_to.size, 1)
       last = Array.new(trim_to.size, T.zero)
@@ -151,13 +167,38 @@ module Phase
       new(first, step, last, shape, drop, degeneracy).trim!(trim_to)
     end
 
-    # Main constructor
+    # Creates an `IndexRegion` from a *region_literal*, using *bound_shape* for relative index handling.
+    # This is the most commonly used `IndexRegion` constructor. If the region literal
+    # has fewer dimensions than *bound_shape*, then the latter axes will be inferred as `..`.
+    #
+    # ```crystal
+    # # Normal usage
+    # IndexRegion.new([1...5, ..-3], [5, 5]) # => IndexRegion[1..4, 0..2]
+    # 
+    # # If the region literal is shorter than the bound shape, it
+    # # is filled with trailing ".."s
+    # IndexRegion.new([1], [2, 3])     # => IndexRegion[1, 0..2]
+    # IndexRegion.new([1, ..], [2, 3]) # => IndexRegion[1, 0..2]
+    # 
+    # # If the region literal is longer than the bound shape, a
+    # # DimensionError is raised
+    # IndexRegion.new([.., 3], [3]) # => DimensionError
+    # 
+    # # If the region literal is out of bounds, an IndexError
+    # # is raised
+    # IndexRegion.new([5..10], [2]) # => IndexError
+    # IndexRegion.new([5..10], [-2]) # => IndexError
+    # ```
     def self.new(region_literal : Enumerable, bound_shape : Indexable(T), drop : Bool = DROP_BY_DEFAULT) : IndexRegion(T)
       first = Array.new(bound_shape.size, T.zero)
       step = Array.new(bound_shape.size, 1)
       last = Array.new(bound_shape.size, T.zero)
       shape = Array.new(bound_shape.size, T.zero)
       degeneracy = Array(Bool).new(bound_shape.size, false)
+
+      if region_literal.size > bound_shape.size
+        raise DimensionError.new("The region literal #{region_literal} had more dimensions than its bound shape #{bound_shape}")
+      end
 
       region_literal.each_with_index do |range, i|
         r = RangeSyntax.canonicalize_range(range, bound_shape[i])
