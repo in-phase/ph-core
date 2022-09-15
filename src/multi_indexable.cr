@@ -27,26 +27,23 @@ module Phase
     # behaviour.
     DROP_BY_DEFAULT = true
 
-    # Returns the capacity of each axis spanned by `self`.
-    # For example, a matrix with 4 rows and 2 columns will have the shape
-    # [4, 2]. This must always return a clone of the actual shape, and is
-    # safe to mutate without affecting the MultiIndexable.
-    abstract def shape : Array
+    # Implementors must use this to expose the shape of a `MultiIndexable`.
+    # The returned `Shape` is allowed to be mutable, as callers of this method
+    # are trusted to never mutate the result. This allows for performance
+    # optimizations where cloning and wrapping are too costly.
+    protected abstract def shape_internal : Shape
 
     # Returns the element at the provided *coord*, possibly mutating *coord*, without performing canonicalization or bounds-checking.
     # This method cannot be used with negative coordinates, and is not safe
     # unless you are certain your coordinate is already canonicalized.
     abstract def unsafe_fetch_element(coord : Indexable) : T
 
-    # By default, this is an alias of `shape` - however, `MultiIndexable` will
-    # never mutate it, so it's safe to override this so that it returns a direct
-    # reference to a shape variable. Doing so will make most operations faster,
-    # because `shape` performs an often useless clone for safety.
-    #
-    # You do not have to override this method, but unless you have a very strange
-    # use case, you almost certainly should.
-    protected def shape_internal : Shape
-      shape
+    # Returns the capacity of each axis spanned by `self`.
+    # For example, a matrix with 4 rows and 2 columns will have the shape
+    # [4, 2]. This must always return a clone of the actual shape, and is
+    # safe to mutate without affecting the MultiIndexable.
+    def shape : Array
+      shape_internal.clone
     end
 
     # Populates a new `MultiIndexable` (by default, an `NArray`) by yielding each coordinate in the shape to a block.

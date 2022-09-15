@@ -335,12 +335,8 @@ module Phase
     end
 
     # ============= Methods required by MultiIndexable ===========================
-    def shape : Array(T)
-      @reduced_shape.dup
-    end
-
     # TODO: *drop* isn't being used here, why is it included?
-    def shape_internal(drop = MultiIndexable::DROP_BY_DEFAULT)
+    def shape_internal(drop = MultiIndexable::DROP_BY_DEFAULT) : Array(T)
       @reduced_shape
     end
 

@@ -5,19 +5,27 @@ module Phase
     # For performance gains, we recommend the user to consider overriding the following methods when including MultiWritable(T):
     # - `#unsafe_set_element` - while behaviour is identical to setting a one-element region, there may be optimizations for setting a single element.
 
-    # Returns the number of elements in the `{{@type}}`; equal to `shape.product`.
-    abstract def size
-
-    # Returns the length of the `{{@type}}` in each dimension.
-    # For a `coord` to specify an element of the `{{@type}}` it must satisfy `coord[i] < shape[i]` for each `i`.
-    abstract def shape : Shape
+    # Implementors must use this to expose the shape of a `MultiIndexable`.
+    # The returned `Shape` is allowed to be mutable, as callers of this method
+    # are trusted to never mutate the result. This allows for performance
+    # optimizations where cloning and wrapping are too costly.
+    protected abstract def shape_internal : Shape
 
     # Given a coordinate representing some location in the {{@type}} and a value, store the value at that coordinate.
     # Assumes that the coordinate is in-bounds for this {{@type}}.
     abstract def unsafe_set_element(coord : Coord, value : T)
 
-    protected def shape_internal : Shape
-      shape
+    def size
+      shape = shape_internal
+      if shape.size == 0
+        0
+      else
+        shape.product
+      end
+    end
+
+    def shape : Shape
+      shape_internal.clone
     end
 
     # Copies the elements from a MultiIndexable `src` into `region`, assuming that `region` is in canonical form and in-bounds for this `{{@type}}`

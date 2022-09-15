@@ -283,12 +283,6 @@ module Phase
       @shape
     end
 
-    # Returns the number of elements in each axis of the `{{@type}}`.
-    # More explicitly, axis *k* contains `shape[k]` elements.
-    def shape : Array(Int32)
-      @shape.clone
-    end
-
     def size : Int32
       @buffer.size
     end

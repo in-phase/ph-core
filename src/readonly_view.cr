@@ -29,8 +29,8 @@ module Phase
       typeof(self).new(@src, @shape.clone, @transform.clone)
     end
 
-    def shape : Array(Int32)
-      @shape.clone
+    def shape_internal : Array(Int32)
+      @shape
     end
 
     def view(region = nil) : self
