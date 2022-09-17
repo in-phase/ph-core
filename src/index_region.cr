@@ -340,11 +340,23 @@ module Phase
       @reduced_shape
     end
 
+    # Returns the number of dimensions of the space that this `IndexRegion` maps into.
+    # For example:
+    # ```crystal
+    # #                          region   proper shape
+    # idx_r = IndexRegion.new([1, .., ..], [5, 5, 5])
+    # 
+    # # The IndexRegion above describes a 2D region (a matrix)
+    # puts idx_r.dimensions # => 2
+    # 
+    # # But the matrix draws out of a 3D MultiIndexable:
+    # puts idx_r.proper_dimensions # => 3
+    # ```
     def proper_dimensions : Int32
       @proper_shape.size
     end
 
-    # composes regions
+    # :ditto:
     def unsafe_fetch_chunk(region : IndexRegion, drop : Bool) : IndexRegion(T)
       # Because IndexRegions store not just shape, but also positional information (the first element is
       # not always the zero coordinate), it isn't safe to drop a dimension fully. The best we can do
@@ -367,25 +379,46 @@ module Phase
       IndexRegion(T).new(new_first, new_step, new_last, region.shape)
     end
 
-    # gets absolute coordinate of a coord in the region's local reference frame
+    # :ditto:
     def unsafe_fetch_element(coord : Coord) : Array(T)
       local_to_absolute_unsafe(coord.to_a)
     end
 
+    # Returns a copy of the coordinate of the first "corner" in this `IndexRegion`.
+    # For example, if the region literal is `[1..3, 5..-2..1]`, the "first
+    # corner" is `[1, 5]` - the first ordinate on the axis 0 range is 1, and
+    # the first ordinate on axis 1 is 5.
+    # Similarly, the `last` coordinate is `[3, 1]`.
+    # Note that if and only if `@step[i] == 0`, then `@first[i]` and `@last[i]` will be
+    # meaningless, as an empty set of coordinates has no corners. See `@step`.
     def first
       @first.clone
     end
 
+    # Similar to `IndexRegion#first`.
+    # For example, if the region literal is `[1..3, 5..-2..1]`, the "last
+    # corner" is `[3, 1]` - the last ordinate on the axis 0 range is 3, and
+    # the last ordinate on axis 1 is 1.
     def last
       @last.clone
     end
 
     # ========================== Other =====================================
 
+    # Returns the spacing between elements along each axis.
+    # For example, if the region literal is `[1..3, 5..-2..1]`, the
+    # stride on axis 0 is `1` (by default), and the stride on axis 1 is
+    # `-2` (as written in the region literal). Thus, calling `#stride` on
+    # the corresponding `IndexRegion` would yield `[1, -2]`.
+    # ```crystal
+    # idx_r = IndexRegion(Int32).new([1..3, 5..-2..1])
+    # puts idx_r.stride # => [1, -2]
+    # ```
     def stride
       @step.clone
     end
 
+    # 
     def includes?(coord : InputCoord)
       # DISCUSS: DimensionError or return false?
       return false unless coord.size == proper_dimensions

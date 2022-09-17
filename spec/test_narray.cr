@@ -24,8 +24,8 @@ abstract class TestNArray(T)
     @axis_strides = {{@type}}.axis_strides(@shape)
   end
 
-  def shape : Array(Int32)
-    @shape.dup
+  def shape_internal : Array(Int32)
+    @shape
   end
 
   protected def self.unsafe_coord_to_index_fast(coord, axis_strides) : Int32

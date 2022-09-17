@@ -94,5 +94,8 @@
 - use external and internal names if it helps readability
     - example: `def multiply(by value)`
 
-- follow crystal convention on !, ?
-- return self where appropriate for chaining
+- follow crystal convention on !, ?, unsafe
+    - ! means "in-place operation", "dangerous operation", or "can raise"
+    - ? means "won't raise", "returns a boolean"
+    - unsafe means "faster", "no validation", "can raise"
+- return `self` where appropriate for chaining
