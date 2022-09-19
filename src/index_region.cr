@@ -418,7 +418,28 @@ module Phase
       @step.clone
     end
 
+    # Returns true if this `IndexRegion` points to the provided *coord*.
+    # For example:
+    # ```crystal
     # 
+    # idx_r = IndexRegion(Int32).new([0..3, 5..7])
+    #
+    # # This IndexRegion maps the input coordinate [0, 0] to [0, 5]
+    # idx_r.get(0, 0) # => [0, 5]
+    #
+    # # And thus it includes [0, 5]
+    # idx_r.includes? [0, 5] # => true
+    #
+    # # On the other hand, no input coordinate will map to [10, 10]
+    # idx_r.includes? [10, 10] # => false
+    #
+    # # Don't confuse input and output coordinates, here! Like all
+    # # `MultiIndexable`s, idx_r implements `#has_coord?`. `#includes?`
+    # # refers to the values (output coordinates) of the `IndexRegion`,
+    # # whereas `#has_coord?` refers to the input coordinates.
+    # idx_r.includes? [0, 0] # => false
+    # idx_r.has_coord? [0, 0] # => true
+    # ```
     def includes?(coord : InputCoord)
       # DISCUSS: DimensionError or return false?
       return false unless coord.size == proper_dimensions
