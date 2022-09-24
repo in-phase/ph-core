@@ -477,6 +477,28 @@ module Phase
       true
     end
 
+    # Clips this `IndexRegion` in-place to fit the *bound_shape* provided.
+    # 
+    # ```crystal
+    # a = IndexRegion(Int32).new([1..3, 10..-2..0])
+    # puts a # => IndexRegion[1..3, 10..-2..0]
+    # 
+    # # Trimming to a shape that `a` fits in has no effect:
+    # a.trim!([100, 100])
+    # puts a # => IndexRegion[1..3, 10..-2..0]
+    # 
+    # a.trim!([2, 3])
+    # puts a # => IndexRegion[1..1, 2..-2..0]
+    # 
+    # # It's possible to recieve an empty result after trimming
+    # b = IndexRegion(Int32).new([5..6])
+    # b.trim!([0])
+    # puts b # => IndexRegion[0..0..0] (no elements)
+    # 
+    # # When using the wrong number of dimensions, a DimensionError is raised
+    # c = IndexRegion(Int32).new([5..4])
+    # c.trim!([4, 3]) # => DimensionError
+    # ```
     def trim!(bound_shape : Shape) : self
       if bound_shape.size != proper_dimensions
         # BETTER_ERROR
