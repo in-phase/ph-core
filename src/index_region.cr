@@ -517,25 +517,42 @@ module Phase
     # DISCUSS: trim! that can trim off the closer-to-0 side also?
     # e.g. trim so all coordinates are above [3]
 
+    # Reverses the ordering of an `IndexRegion` in place.
+    # For example:
+    # ```crystal
+    # idx_r = IndexRegion(Int32).new([0..2..2])
+    # narr = NArray['a', 'b', 'c']
+    #
+    # idx_r.each { |coord| puts coord } # => [0], [2]
+    # narr[idx_r] # => NArray['a', 'c']
+    # 
+    # idx_r.reverse!
+    # idx_r.each { |coord| puts coord } # => [2], [0]
+    # narr[idx_r] # => NArray['c', 'a']
+    # ```
     def reverse! : IndexRegion(T)
       @first, @last = @last, @first
       @step = @step.map &.-
       self
     end
 
+    # Returns a reversed copy of this `IndexRegion`. See `#reverse!`.
     def reverse : self
       clone.reverse!
     end
 
+    # Returns a trimmed copy of this `IndexRegion`. See `#trim!`.
     def trim(bound_shape) : self
       self.clone.trim!(bound_shape)
     end
 
+    # Translates an `IndexRegion` in place, without checking that the result is valid.
+    # See `#translate!`.
     # WARNING: this allows for the creation of IndexRegions with negative ordinates,
     # which may cause undocumented behaviour elsewhere in the code. The burden
     # is on the user to ensure that negative ordinates are not created, or that
     # they are appropriately handled.
-    def unsafe_translate!(by offset : Enumerable) : self
+    def unsafe_translate!(offset : Enumerable) : self
       offset.each_with_index do |amount, axis|
         @first[axis] += amount
         @last[axis] += amount
@@ -543,7 +560,21 @@ module Phase
       self
     end
 
-    def translate!(by offset : Enumerable) : self 
+    # Translates this `IndexRegion` in place by adding an *offset* to each output coordinate.
+    # For example:
+    # ```crystal
+    # idx_r = IndexRegion(Int32).new([0, 5..-2..0])
+    # puts idx_r # => IndexRegion[0, 5..-2..1]
+    # 
+    # idx_r.translate!([1, -1])
+    # puts idx_r # => IndexRegion[1, 4..-2..0]
+    #
+    # IndexRegions only output canonical coordinates. This
+    # translation would produce negative ordinates in the output coords,
+    # which is illegal.
+    # idx_r.translate!([-10, -10]) # => IndexError
+    # ```
+    def translate!(offset : Enumerable) : self 
       offset.each_with_index do |amount, axis|
         if amount < 0 && (@first[axis] < -amount || @last[axis] < -amount)
           # BETTER_ERROR
@@ -553,10 +584,12 @@ module Phase
       unsafe_translate!(offset)      
     end
 
-    def translate(by offset : Enumerable) : self
+    # Returns a translated copy of this `IndexRegion`. See `#translate!`.
+    def translate(offset : Enumerable) : self
       self.clone.translate!(offset)
     end
 
+    # :ditto:
     def to_s(io : IO)
       io << "IndexRegion"
       io << @degeneracy.map_with_index do |degen, i|
@@ -570,10 +603,21 @@ module Phase
       end
     end
 
+    # Maps a local (input) coordinate to its corresponding absolute (output) coordinate.
+    # This is equivalent to using `IndexRegion#[](coord)`, but it is aliased
+    # here in order to make `IndexRegion` code easier to reason
+    # about.
+    # For example:
+    # ```crystal
+    # idx_r = IndexRegion(Int32).new([3..5, 2..1])
+    # idx_r.local_to_absolute([0, 0]) # => [3, 2]
+    # idx_r[0, 0] # => [3, 2]
+    # ```
     def local_to_absolute(coord)
       get(coord)
     end
 
+    # Unsafe version of `#local_to_absolute` that does not check if *coord* is in bounds for this `IndexRegion`.
     def local_to_absolute_unsafe(coord : Coord) : Array(T)
       if @drop
         local_axis = 0
@@ -592,6 +636,13 @@ module Phase
       end
     end
 
+    # Maps an absolute (output) coordinate to its corresponding local (input) coordinate.
+    # ```crystal
+    # idx_r = IndexRegion(Int32).new([3..5, 2..1])
+    # idx_r.absolute_to_local([3, 2]) # => [0, 0]
+    # idx_r.absolute_to_local([4, 2]) # => [1, 0]
+    # idx_r.absolute_to_local([5, 1]) # => [2, 1]
+    # ```
     def absolute_to_local(coord)
       if !includes?(coord)
         raise IndexError.new("Could not convert coordinate: #{coord} does not exist in region #{self}")
@@ -599,6 +650,7 @@ module Phase
       absolute_to_local_unsafe(coord)
     end
 
+    # Unsafe version of `#absolute_to_local` that does not check if *coord* is in bounds for this `IndexRegion`.
     def absolute_to_local_unsafe(coord)
       local = coord.map_with_index do |ord, i|
         (ord - @first.unsafe_fetch(i)) // @step.unsafe_fetch(i)
@@ -611,15 +663,24 @@ module Phase
       end
     end
 
+    # :ditto:
     def each : LexIterator(T)
       # TODO: Discuss if this should return LexIterator or maybe just Iterator(Indexable(I))
       LexIterator.new(self)
     end
 
+    # Returns a packaged range tuple (see `#trim_axis` for further description) for a given
+    # *axis* of this `IndexRegion`. This is just an internal data structure used to communicate
+    # the same information as `start..step..stop` normally would, except it's in a pre-parsed
+    # form.
     protected def package_range(axis)
       {first: @first[axis], step: @step[axis], last: @last[axis], size: @proper_shape[axis]}
     end
 
+    # Helper function that trims the range described by `{first, step, last}` such that it
+    # fits within the range 0...new_bound. *size* must contain the number of elements
+    # that exist in the range described. The output range is returned as a tuple in the
+    # same order as the input - `{new_first, new_step, new_last, new_size}`.
     protected def self.trim_axis(new_bound, first : T, step, last, size) forall T
       if first >= new_bound
         if last >= new_bound # both out of bounds
