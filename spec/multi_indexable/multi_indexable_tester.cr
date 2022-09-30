@@ -48,7 +48,7 @@ abstract class MultiIndexableTester(M, T, I)
   abstract def test_to_narr
 
   {% for category in {:pure_empty, :volumetric_empty, :pure_scalar, :volumetric_scalar} %}
-  # If it is possible to construct one, invokes the block with a {{category.id}} {{@type}}.
+  # If it is possible to construct one, invokes the block with a {{category.id}} M.
   private def get_{{category.id}}(&block : M -> )
     if inst = make_{{category.id}}
       yield inst
@@ -56,7 +56,7 @@ abstract class MultiIndexableTester(M, T, I)
   end
   {% end %}
 
-  # Yields an empty {{@type}} once if possible.
+  # Yields an empty M once if possible.
   # Attempts to provide a volumetric one first, then falls back to scalar.
   private def get_empty(&block : M ->)
     if inst = make_volumetric_empty || make_pure_empty
@@ -64,7 +64,7 @@ abstract class MultiIndexableTester(M, T, I)
     end
   end
 
-  # Yields a scalar {{@type}} once if possible.
+  # Yields a scalar M once if possible.
   # Attempts to provide a volumetric one first, then falls back to scalar.
   private def get_scalar(&block : M ->)
     if inst = make_volumetric_scalar || make_pure_scalar

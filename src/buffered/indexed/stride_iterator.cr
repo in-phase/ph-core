@@ -14,7 +14,7 @@ module Phase::Buffered::Indexed
 
     protected def self.new(region : IndexRegion, shape : Shape)
       if region.dimensions == 0
-        raise DimensionError.new("Failed to create {{@type.id}}: cannot iterate over empty shape \"[]\"")
+        raise DimensionError.new("Creation failed: cannot iterate over empty shape \"[]\"")
       end
       
       buffer_step = Buffered.axis_strides(shape)
@@ -42,6 +42,9 @@ module Phase::Buffered::Indexed
         @coord = other.@coord.clone
         @buffer_index = other.@buffer_index
         @buffer_step = other.@buffer_step.clone
+        # normal clone semantics would set
+        # @wrapper = other.@wrapper.clone, which would be a 
+        # ReadonlyWrapper around other.@coord, not self.@coord!
         @wrapper = ReadonlyWrapper.new(@coord)
         self
       end

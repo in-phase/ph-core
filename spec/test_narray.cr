@@ -17,11 +17,11 @@ abstract class TestNArray(T)
   def initialize(shape, @buffer : Slice(T))
     @size = shape.product.to_i32
     if @size != @buffer.size
-      raise ArgumentError.new("Cannot create {{@type}}: Given shape does not match number of elements in buffer.")
+      raise ArgumentError.new("Cannot create TestNArray: Given shape does not match number of elements in buffer.")
     end
 
     @shape = shape.dup
-    @axis_strides = {{@type}}.axis_strides(@shape)
+    @axis_strides = TestNArray.axis_strides(@shape)
   end
 
   def shape_internal : Array(Int32)
@@ -36,7 +36,7 @@ abstract class TestNArray(T)
       end
       index
     rescue exception
-      raise IndexError.new("Cannot convert coordinate to index: the given index is out of bounds for this {{@type}} along at least one dimension.")
+      raise IndexError.new("Cannot convert coordinate to index: the given index is out of bounds for this TestNArray along at least one dimension.")
     end
   end
 
@@ -59,17 +59,6 @@ end
 # implementation of required MultiIndexable methods
 module ReadUtils(T)
   include MultiIndexable(T)
-
-  # def unsafe_fetch_chunk(idx_region : IndexRegion)
-  #   shape = idx_region.shape # RegionUtil.measure_canonical_region(region)
-  #   iter = ElemIterator.of(self, idx_region)
-
-  #   buffer = Slice(T).new(shape.product) do |idx|
-  #     iter.next.as(T)
-  #   end
-
-  #   {{@type}}.new(idx_region.shape, buffer)
-  # end
 
   def unsafe_fetch_element(coord) : T
     @buffer[unsafe_coord_to_index(coord)]

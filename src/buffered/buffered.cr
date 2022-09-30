@@ -48,7 +48,7 @@ module Phase
       end
       index
     rescue exception
-      raise IndexError.new("Cannot convert coordinate to index: the given index is out of bounds for this {{@type}} along at least one dimension.")
+      raise IndexError.new("Cannot convert coordinate to index: the given index is out of bounds along at least one dimension.")
     end
     
     # Convert from a buffer location to an n-dimensional coord
@@ -66,7 +66,7 @@ module Phase
     # form (nonnegative indexes).
     def self.index_to_coord(index, shape) : Array
       if index > shape.product
-        raise IndexError.new("Cannot convert index to coordinate: the given index is out of bounds for this {{@type}} along at least one dimension.")
+        raise IndexError.new("Cannot convert index to coordinate: the given index is out of bounds along at least one dimension.")
       end
       coord = shape.dup # <- untested; was: Array(Int32).new(shape.size, typeof(shape[0]).zero)
       shape.reverse.each_with_index do |length, dim|

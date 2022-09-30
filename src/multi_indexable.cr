@@ -174,7 +174,7 @@ module Phase
     # ```
     def first : T
       if size == 0
-        raise ShapeError.new("{{@type}} has zero elements (shape: #{shape_internal}).")
+        raise ShapeError.new("This MultiIndexable has zero elements (shape: #{shape_internal}).")
       end
 
       get_element(Array.new(shape_internal.size, 0))
@@ -194,13 +194,13 @@ module Phase
     # ```
     def last : T
       if size == 0
-        raise ShapeError.new("{{@type}} has zero elements (shape: #{shape_internal}).")
+        raise ShapeError.new("This MultiIndexable has zero elements (shape: #{shape_internal}).")
       end
 
       get_element(shape_internal.map &.pred)
     end
 
-    # Returns a random element from the `{{@type}}`. Note that this might not
+    # Returns a random element from the MultiIndexable. Note that this might not
     # return distinct elements if the random number generator returns the same
     # coordinate twice.
 
@@ -1068,6 +1068,7 @@ module Phase
     end
 
     def ensure_writable
+      # See ph-core#17
       {% unless @type < MultiWritable %}
         {% raise "ensure_writable failed: #{@type} is not a MultiWritable." %}
       {% end %}

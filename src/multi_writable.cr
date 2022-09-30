@@ -11,8 +11,8 @@ module Phase
     # optimizations where cloning and wrapping are too costly.
     protected abstract def shape_internal : Shape
 
-    # Given a coordinate representing some location in the {{@type}} and a value, store the value at that coordinate.
-    # Assumes that the coordinate is in-bounds for this {{@type}}.
+    # Given a coordinate and a value, store the value at that coordinate.
+    # Assumes that the coordinate is in-bounds for this `MultiWritable`.
     abstract def unsafe_set_element(coord : Coord, value : T)
 
     def size
@@ -28,7 +28,7 @@ module Phase
       shape_internal.clone
     end
 
-    # Copies the elements from a MultiIndexable `src` into `region`, assuming that `region` is in canonical form and in-bounds for this `{{@type}}`
+    # Copies the elements from a MultiIndexable `src` into `region`, assuming that `region` is in canonical form and in-bounds for this `MultiWritable`
     # and the shape of `region` matches the shape of `src`.
     # For full specification of canonical form see `RegionHelpers` documentation. TODO: make this actually happen
     def unsafe_set_chunk(region : IndexRegion, src : MultiIndexable(T))
@@ -40,7 +40,7 @@ module Phase
       end
     end
 
-    # Sets each element in `region` to `value`, assuming that `region` is in canonical form and in-bounds for this `{{@type}}`
+    # Sets each element in `region` to `value`, assuming that `region` is in canonical form and in-bounds for this `MultiWritable`
     # For full specification of canonical form see `RegionHelpers` documentation. TODO: make this actually happen
     def unsafe_set_chunk(region : IndexRegion, value : T)
       region.each do |coord|
@@ -49,14 +49,14 @@ module Phase
     end
 
     # Sets the element specified by `coord` to `value`.
-    # Raises an error if `coord` is out-of-bounds for this `{{@type}}`.
+    # Raises an error if `coord` is out-of-bounds for this `MultiWritable`.
     def set_element(coord : Indexable, value : T)
       unsafe_set_element(CoordUtil.canonicalize_coord(coord, shape_internal), value)
     end
 
     # NOTE: changed name from 'value' to 'src' - approve?
     # Copies the elements from a MultiIndexable `src` into `region`.
-    # Raises an error if `region` is out-of-bounds for this `{{@type}}` or if the shape of `region` does not match `src.shape`
+    # Raises an error if `region` is out-of-bounds for this `MultiWritable` or if the shape of `region` does not match `src.shape`
     def set_chunk(region_literal : Indexable, src : MultiIndexable(T))
       idx_region = IndexRegion.new(region_literal, shape_internal)
 
@@ -68,7 +68,7 @@ module Phase
     end
 
     # Sets each element in `region` to `value`.
-    # Raises an error if `region` is out-of-bounds for this `{{@type}}`.
+    # Raises an error if `region` is out-of-bounds for this `MultiWritable`.
     def set_chunk(region : Indexable | IndexRegion, value : T)
       idx_r = IndexRegion.new(region, shape_internal)
       unsafe_set_chunk(idx_r, value)

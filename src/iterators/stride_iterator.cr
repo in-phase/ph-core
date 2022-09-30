@@ -168,11 +168,15 @@ module Phase
     end
 
     macro def_standard_clone
+      # Copy constructor that preserves wrapper semantics
       protected def copy_from(other : self)
         @first = other.@first.clone
         @step = other.@step.clone
         @last = other.@last.clone
         @coord = other.@coord.clone
+        # normal clone semantics would set
+        # @wrapper = other.@wrapper.clone, which would be a 
+        # ReadonlyWrapper around other.@coord, not self.@coord!
         @wrapper = ReadonlyWrapper.new(@coord)
         self
       end

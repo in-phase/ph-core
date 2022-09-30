@@ -52,6 +52,7 @@ module Phase
         coord.map_with_index { |axis, idx| axis % @smaller_shape[idx] }
       end
 
+      # Copy constructor that preserves wrapper semantics
       protected def copy_from(other : self)
         @first = other.@first.clone
         @step = other.@step.clone
@@ -59,7 +60,11 @@ module Phase
         @coord = other.@coord.clone
         @smaller_shape = other.@smaller_shape.clone
         @smaller_coord = other.@smaller_coord.clone
+
         @smaller_coord_wrapper = ReadonlyWrapper.new(@smaller_coord)
+        # normal clone semantics would set
+        # @wrapper = other.@wrapper.clone, which would be a 
+        # ReadonlyWrapper around other.@coord, not self.@coord!
         @wrapper = ReadonlyWrapper.new(@coord)
 
         self
