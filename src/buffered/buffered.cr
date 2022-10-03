@@ -65,7 +65,7 @@ module Phase
     # in this `MultiIndexable`. The coordinate will be produced in canonical 
     # form (nonnegative indexes).
     def self.index_to_coord(index, shape) : Array
-      if index > shape.product
+      if index > ShapeUtil.shape_to_size(shape)
         raise IndexError.new("Cannot convert index to coordinate: the given index is out of bounds along at least one dimension.")
       end
       coord = shape.dup # <- untested; was: Array(Int32).new(shape.size, typeof(shape[0]).zero)

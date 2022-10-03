@@ -84,17 +84,18 @@ module Phase
     end
 
     # Returns the total number of elements in this `MultiIndexable`.
-    # This quantity is always equal to `shape.product`. However, this method is
-    # almost always more performant than computing the product directly.
     #
     # ```crystal
     # NArray.new(['a', 'b', 'c']).size # => 3
     # NArray.new([[0, 1], [1, 0]]).size # => 4
+    # 
+    # narr = NArray['a']
+    # narr.size # => 1
+    # empty_narr = narr[...0] # By excluding the only valid index, we create an empty NArray
+    # empty_narr.size # => 0
     # ```
     def size
-      s = shape_internal
-      return 0 if s.size == 0
-      s.product
+      ShapeUtil.shape_to_size(shape_internal)
     end
 
     # Returns `true` if and only if this `MultiIndexable` spans no elements.

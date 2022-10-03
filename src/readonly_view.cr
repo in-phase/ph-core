@@ -48,8 +48,8 @@ module Phase
     end
 
     def reshape!(new_shape) : self
-      if new_shape.product != @shape.product
-        raise ShapeError.new("Cannot change shape from #{@shape.join('x')} (#{@shape.product} elements) to #{new_shape.join('x')} (#{new_shape.product} elements) because reshape cannot add or remove elements.")
+      if ShapeUtil.shape_to_size(new_shape) != size
+        raise ShapeError.new("Cannot change shape from #{@shape.join('x')} (#{size} elements) to #{new_shape.join('x')} (#{ShapeUtil.shape_to_size(new_shape)} elements) because reshape cannot add or remove elements.")
       end
 
       @transform.compose!(ReshapeTransform.new(@shape, new_shape))

@@ -16,12 +16,7 @@ module Phase
     abstract def unsafe_set_element(coord : Coord, value : T)
 
     def size
-      shape = shape_internal
-      if shape.size == 0
-        0
-      else
-        shape.product
-      end
+      ShapeUtil.shape_to_size(shape_internal)
     end
 
     def shape : Shape

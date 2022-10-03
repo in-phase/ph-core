@@ -21,15 +21,16 @@ module Phase
     getter buffer : Slice(T)
 
     # Contains the number of elements in each axis of the `NArray`.
-    # More explicitly, axis *k* contains *@shape[k]* elements.
+    # More explicitly, axis `k` has valid ordinates `0...@shape[k]`
     @shape : Array(Int32)
 
     # Cached version of `.axis_strides`.
     protected getter axis_strides : Array(Int32)
 
-    # TODO: Doc
-    protected def self.ensure_valid(shape : Array(Int32), buffer : Slice)
-      if shape.product != buffer.size
+    # Raises a `ShapeError` if the buffer size is not compatible with the number of 
+    protected def self.ensure_valid!(shape : Array(Int32), buffer : Slice)
+      # TODO: Fix empty shape case!
+      if ShapeUtil.shape_to_size(shape) != buffer.size
         raise ShapeError.new("Cannot create NArray: Given shape does not match number of elements in buffer.")
       end
     end
@@ -51,7 +52,7 @@ module Phase
         dim
       end.to_a
 
-      num_elements = shape.product.to_i32
+      num_elements = ShapeUtil.shape_to_size(shape).to_i32
       @axis_strides = Buffered.axis_strides(@shape)
 
       @buffer = Slice(T).new(num_elements) { |i| yield i }
@@ -66,7 +67,7 @@ module Phase
     end
 
     def self.of_buffer(shape : Array(Int32), buffer : Slice(T))
-      NArray.ensure_valid(shape, buffer)
+      NArray.ensure_valid!(shape, buffer)
       new(shape.dup, buffer)
     end
 
@@ -150,7 +151,7 @@ module Phase
       # fill elements
       buffer = Slice.new(flattened.to_unsafe, flattened.size)
 
-      NArray.ensure_valid(shape, buffer)
+      NArray.ensure_valid!(shape, buffer)
       new(shape, buffer)
     end
 
@@ -328,7 +329,7 @@ module Phase
 
     def reshape(new_shape : Enumerable)
       shape_arr = new_shape.to_a
-      NArray.ensure_valid(shape_arr, @buffer)
+      NArray.ensure_valid!(shape_arr, @buffer)
       NArray.new(shape_arr, @buffer)
     end
 
@@ -571,7 +572,7 @@ module Phase
 
       partial_chunk_size = narrs[0].axis_strides[axis]
       chunk_sizes = narrs.map { |narr| narr.shape[axis] * partial_chunk_size }
-      num_chunks = concat_shape[...axis].product
+      num_chunks = ShapeUtil.shape_to_size(concat_shape[...axis])
 
       values = Array(T).new(initial_capacity: concat_size)
       iters = narrs.map { |narr| BufferedECIterator.of(narr) }
@@ -677,7 +678,7 @@ module Phase
         end
 
         if found_shape && found_elements
-          if shape.product == elements.size
+          if ShapeUtil.shape_to_size(shape) == elements.size
             buffer = Slice.new(elements.to_unsafe, elements.size)
             return new(shape, buffer)
           else
@@ -734,7 +735,7 @@ module Phase
         end
 
         unless shape.nil? || elements.nil?
-          if elements.size == shape.product
+          if elements.size == ShapeUtil.shape_to_size(shape)
             elements = Slice.new(elements.to_unsafe, elements.size)
             ret = new(shape, elements)
             ctx.record_anchor(node, ret)

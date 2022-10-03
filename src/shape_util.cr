@@ -22,11 +22,31 @@ module Phase
       shared_dims.times do |i|
         return false if shape1[i] != shape2[i]
       end
+
       # Check that any extra dimensions are 1
       (shared_dims...larger.size).step(1) do |i|
         return false if larger[i] != 1
       end
+
       true
+    end
+
+    # Returns the number of elements that exist in a `MultiIndexable` of a given *shape*.
+    # See `MultiIndexable#size`.
+    # ```crystal
+    # shape_to_size([] of Int32) # => 0
+    # shape_to_size([1]) # => 1
+    # shape_to_size([2, 3]) # => 6
+    # ```
+    def shape_to_size(shape : Shape(T)) : T forall T
+      {% if T.union? %}
+        {% raise "Phase requires shape axes to be of homogeneous type, but #{T} is a union." %}
+      {% end %}
+      if shape.size == 0
+        T.zero
+      else
+        shape.product
+      end
     end
   end
 end

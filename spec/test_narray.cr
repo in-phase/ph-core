@@ -15,7 +15,7 @@ abstract class TestNArray(T)
   @axis_strides : Array(Int32)
 
   def initialize(shape, @buffer : Slice(T))
-    @size = shape.product.to_i32
+    @size = ShapeUtil.shape_to_size(shape).to_i32
     if @size != @buffer.size
       raise ArgumentError.new("Cannot create TestNArray: Given shape does not match number of elements in buffer.")
     end
@@ -85,7 +85,7 @@ class RONArray(T) < TestNArray(T)
 
   def build(shape, &block)
     coords = LexIterator.cover(shape)
-    count = shape.product
+    count = ShapeUtil.shape_to_size(shape)
     buffer = Slice.new(count) do
       yield coords.unsafe_next
     end

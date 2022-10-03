@@ -21,7 +21,7 @@ class MutableObject
 end
 
 def all_coords_lex_order(shape : Array(T)) : Array(Array(T)) forall T
-  coords = Array(Array(T)).new(initial_capacity: shape.product)
+  coords = Array(Array(T)).new(initial_capacity: ShapeUtil.shape_to_size(shape))
   all_coords_lex_order(shape) do |coord|
     coords << coord
   end
@@ -39,7 +39,7 @@ def all_coords_lex_order(shape : Array(T), &block : Array(T) ->) forall T
 end
 
 def all_coords_colex_order(shape : Array(T)) : Array(Array(T)) forall T
-  coords = Array(Array(T)).new(initial_capacity: shape.product)
+  coords = Array(Array(T)).new(initial_capacity: ShapeUtil.shape_to_size(shape))
   all_coords_colex_order(shape) do |coord|
     coords << coord
   end

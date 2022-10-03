@@ -1,6 +1,9 @@
 require "./spec_helper.cr"
 require "./test_narray.cr"
 
+# Note: The correctness of NArray is used to boostrap the MultiIndexable tester,
+# and thus NArray cannot use that tool for its testing. Other MultiIndexables
+# can be tested using MultiIndexableTester without any circularity, however.
 describe NArray do
   stock_narr = NArray.build(2,3) { |_, i| i }
 
@@ -13,7 +16,7 @@ describe NArray do
       narr.should eq expected
     end
 
-    it "raises for a mismatch between buffer size and shape product" do
+    it "raises for a shape whose computed size doesn't match the buffer size" do
       buf = Slice[1, 2, 3, 4, 5 ,6]
       shape = [4, 4]
 
@@ -124,8 +127,8 @@ describe NArray do
       stock_narr.size.should eq stock_narr.buffer.size
     end
 
-    it "is equal to the product of the shape" do
-      stock_narr.size.should eq stock_narr.shape.product
+    it "is equal to the calculated value based on the shape" do
+      stock_narr.size.should eq ShapeUtil.shape_to_size(stock_narr.shape)
     end
   end
 
@@ -166,7 +169,7 @@ describe NArray do
     it "flattens properly" do
       flat = stock_narr.flatten
       flat.buffer.should eq stock_narr.buffer
-      flat.shape.should eq [stock_narr.shape.product]
+      flat.shape.should eq [ShapeUtil.shape_to_size(stock_narr.shape)]
     end
   end
 
