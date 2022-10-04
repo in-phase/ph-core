@@ -227,4 +227,70 @@ describe NArray do
       stock_narr.unsafe_fetch_chunk(region).should eq expected
     end
   end
+
+  describe "#unsafe_fetch_element" do
+    it "returns the correct value for a given coordinate" do
+      value = stock_narr.unsafe_fetch_element([1, 1])
+      value.should eq 4
+    end
+  end
+
+  describe "#unsafe_set_chunk" do
+    it "correctly sets data for a simple chunk (MultiIndexable source)" do
+      region = IndexRegion.new([1, 0..2..2], bound_shape: [2, 3])
+      src = NArray[6, 7]
+      expected = NArray[[0, 1, 2], [6, 4, 7]]
+
+      narr = stock_narr.clone
+      narr.unsafe_set_chunk(region, src)
+      narr.should eq expected
+    end
+
+    it "correctly sets data for a relative chunk (MultiIndexable source)" do
+      region = IndexRegion.new([-2, -1..0], bound_shape: [2, 3])
+      src = NArray[6, 7, 8]
+      expected = NArray[[8, 7, 6], [3, 4, 5]]
+
+      narr = stock_narr.clone
+      narr.unsafe_set_chunk(region, src)
+      narr.should eq expected
+    end
+
+    it "does not modify the NArray when given a zero-size chunk (MultiIndexable source)" do
+      region = IndexRegion.new([0...0, 0...0], bound_shape: [2, 3])
+      # TODO: If it becomes possible to directly instantiate the empty
+      # narray, use that
+      src = NArray[0][...-1]
+      expected = stock_narr.clone
+      narr = stock_narr.clone
+      narr.unsafe_set_chunk(region, src)
+      narr.should eq expected
+    end
+
+    it "correctly sets data for a simple chunk (scalar source)" do
+      region = IndexRegion.new([1, 0..2..2], bound_shape: [2, 3])
+      expected = NArray[[0, 1, 2], [6, 4, 6]]
+
+      narr = stock_narr.clone
+      narr.unsafe_set_chunk(region, 6)
+      narr.should eq expected
+    end
+
+    it "correctly sets data for a relative chunk (scalar source)" do
+      region = IndexRegion.new([-2, -1..0], bound_shape: [2, 3])
+      expected = NArray[[6, 6, 6], [3, 4, 5]]
+
+      narr = stock_narr.clone
+      narr.unsafe_set_chunk(region, 6)
+      narr.should eq expected
+    end
+
+    it "does not modify the NArray when given a zero-size chunk (scalar source)" do
+      region = IndexRegion.new([0...0, 0...0], bound_shape: [2, 3])
+      expected = stock_narr.clone
+      narr = stock_narr.clone
+      narr.unsafe_set_chunk(region, 6)
+      narr.should eq expected
+    end
+  end
 end
