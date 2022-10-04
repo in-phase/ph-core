@@ -27,19 +27,24 @@ module Phase
     # Cached version of `.axis_strides`.
     protected getter axis_strides : Array(Int32)
 
-    # Raises a `ShapeError` if the buffer size is not compatible with the number of 
+    # Raises a `ShapeError` if the provided *shape* has a computed element count which differs from the *buffer* size.
     protected def self.ensure_valid!(shape : Array(Int32), buffer : Slice)
-      # TODO: Fix empty shape case!
       if ShapeUtil.shape_to_size(shape) != buffer.size
         raise ShapeError.new("Cannot create NArray: Given shape does not match number of elements in buffer.")
       end
     end
 
-    # Creates an `NArray` using only a shape (see `shape`) and a packed index.
-    # This is used internally to make code faster - converting from a packed
-    # index to an unpacked index isn't needed for many constructors, and generating
-    # them would waste resources.
+    # Creates an `NArray` using only a shape (see `shape`) and a lexicographic buffer index.
+    # This is used internally to make code faster - converting from an index to
+    # a coordinate isn't needed for many constructors, and generating them
+    # would waste resources.
     # For more information, see `coord_to_index`, `buffer`, and `build`.
+    #
+    # ```crystal
+    # new([2, 3]) { |idx| idx } # => NArray[[0, 1, 2], [3, 4, 5]]
+    # new([] of Int32) { |idx| idx } # => DimensionError
+    # new([-1]) { |idx| idx } # => DimensionError
+    # ```
     protected def initialize(shape : Enumerable, &block : Int32 -> T)
       if shape.empty?
         raise DimensionError.new("Cannot create NArray: `shape` was empty.")
@@ -59,13 +64,20 @@ module Phase
     end
 
     # Creates an `NArray` out of a shape and a pre-populated buffer.
-    # Frequently used internally (for example, this is used in
-    # `reshape` as of Feb 5th 2021).
+    # This method does not do any validation on the data provided to it,
+    # so ensure that *shape* and *buffer* are compatible.
     protected def initialize(shape : Array(Int32), @buffer : Slice(T))
       @shape = shape.dup
       @axis_strides = Buffered.axis_strides(@shape)
     end
 
+    # Creates an `NArray` out of a shape and a pre-populated lexicographic (row-major) buffer.
+    # This constructor will raise a `ShapeError` if the shape and buffer
+    # have incompatible sizes (see `ShapeUtil#shape_to_size`).
+    # ```crystal
+    # NArray.of_buffer([3, 1], Slice['a', 'b', 'c']) # => NArray[['a'], ['b'], ['c']]
+    # NArray.of_buffer([3, 1], Slice['a']) # => ShapeError
+    # ```
     def self.of_buffer(shape : Array(Int32), buffer : Slice(T))
       NArray.ensure_valid!(shape, buffer)
       new(shape.dup, buffer)
@@ -93,15 +105,13 @@ module Phase
     # The buffer index allows you to easily index elements in lexicographic order.
     # For example:
     # ```
-    # NArray.build([5, 1]) { |coord, index| index }
+    # NArray.build([3, 2]) { |coord, index| index }
     # ```
     # Will create:
     # ```text
-    # [[0],
-    #  [1],
-    #  [2],
-    #  [3],
-    #  [4]]
+    # [[0, 1],
+    #  [2, 3],
+    #  [4, 5]]
     # ```
     def self.build(shape : Enumerable, &block : ReadonlyWrapper(Array(Int32), Int32), Int32 -> T)
       coord_iter = Indexed::LexIterator.cover(shape.to_a)
@@ -110,6 +120,10 @@ module Phase
       end
     end
 
+    # Tuple-accepting variant of `NArray.build(shape : Enumerable, &block).
+    # ```crystal
+    # NArray.build(3, 2) { |coord, index| index } # => NArray[[0, 1], [2, 3], [4, 5]]
+    # ```
     def self.build(*shape : Int, &block : ReadonlyWrapper(Array(Int32), Int32), Int32 -> T)
       build(shape, &block)
     end
@@ -157,6 +171,18 @@ module Phase
 
     # NArray[1, 2, 3] == NArray.new([1, 2, 3])
     # NArray[[1, 2, 3]] == NArray.new([[1, 2, 3]])
+    # Convenience constructor for typing out an `NArray` as a literal.
+    #
+    # For example:
+    # ```crystal
+    # NArray[1, 2, 3] == NArray.new([1, 2, 3])
+    # NArray[1, 2, 3].shape # => [3]
+    # 
+    # NArray[[1, 2, 3]] == NArray.new([[1, 2, 3]])
+    # NArray[[1, 2, 3]].shape # => [1, 3]
+    #
+    # NArray[['a', 'b'], ['c', 'd']].shape # => [2, 2]
+    # ```
     def self.[](*contents)
       new(contents)
     end
@@ -172,20 +198,61 @@ module Phase
     #  [0],
     #  [0]]
     # ```
-    # Note that this method makes no effort to duplicate *value*, so this should only be used
-    # for `Struct`s. If you want to populate an NArray with `Object`s, see `new(shape, &block)`.
+    #
+    # Note that this method makes no effort to duplicate *value*, so this
+    # should only be used for `Value`s. If you want to populate an NArray with
+    # `Reference`s, see `new(shape, &block)`.
+    # For an example of this:
+    # ```crystal
+    # class ImAReference
+    # 	getter foo = 0
+    # 
+    # 	def mutate!
+    # 		@foo += 1
+    # 	end
+    # 
+    # 	def inspect(io : IO)
+    # 		io << "Foo #{@foo}"
+    # 	end
+    # end
+    # 
+    # # This is probably not what you want!
+    # # Fill won't duplicate the `ImAReference` object:
+    # narr = NArray.fill([2], ImAReference.new)
+    # puts narr # => NArray[Foo 0, Foo 0]
+    # narr.get(0).mutate!
+    # # So mutating one element will mutate both!
+    # puts narr # => NArray[Foo 1, Foo 1]
+    # 
+    # # You probably wanted to do this:
+    # # Using the block in NArray.build ensures that each element is distinct
+    # narr = NArray.build([2]) { ImAReference.new }
+    # puts narr # => NArray[Foo 0, Foo 0]
+    # narr.get(0).mutate!
+    # # Now, things behave as expected
+    # puts narr # => NArray[Foo 1, Foo 0]
+    # ```
     def self.fill(shape, value : T)
       NArray(T).new(shape) { value }
     end
 
-    def self.tile(narr : MultiIndexable(T), counts : Enumerable)
-      shape = narr.shape.map_with_index { |axis, idx| axis * counts[idx] }
+    # Repeats a *source* `MultiIndexable` along its axes, *counts[i]* times along axis *i*.
+    #
+    # For example:
+    # ```crystal
+    # src = NArray[[1, 2], [3, 4]]
+    # NArray.tile(src, [2, 1])
+    # # => NArray[[1, 2, 1, 2],
+    # #           [3, 4, 3, 4]]
+    # ```
+    def self.tile(source : MultiIndexable(T), counts : Enumerable)
+      shape = source.shape.map_with_index { |axis, idx| axis * counts[idx] }
 
-      iter = TilingLexIterator.new(IndexRegion.cover(shape), narr.shape).each
+      iter = TilingLexIterator.new(IndexRegion.cover(shape), source.shape).each
 
       build(shape) do
         iter.next
-        narr.get(iter.smaller_coord)
+        source.get(iter.smaller_coord)
       end
     end
 
@@ -255,12 +322,13 @@ module Phase
     # Adds a dimension at highest level, where each "row" is an input NArray.
     # If pad is false, then throw error if shapes of objects do not match;
     # otherwise, pad subarrays along each axis to match whichever is largest in that axis
+    # TODO: Fix
     def self.wrap(*objects : AbstractNArray(T), pad = false) : NArray
       shapes = objects.to_a.map { |x| x.shape }
       if pad
         container = common_container(*objects)
         # TODO pad all arrays to this size
-        raise NotImplementedError.new("As of this time, NArray.wrap() cannot pad arrays for you. Come back after reshaping has been implemented, or get off the couch and go do it yourself.")
+        raise NotImplementedError.new("As of this time, NArray.wrap() cannot pad arrays for you.")
       else
         container = shapes[0]
         # check that all arrays are same size
@@ -285,18 +353,48 @@ module Phase
       @shape
     end
 
+    # :ditto:
     def size : Int32
       @buffer.size
     end
 
-    # Creates a deep copy of this NArray;
-    # Allocates a new buffer of the same shape, and calls #clone on every item in the buffer.
+    # Creates a deep copy of this NArray.
+    # More specifically, this allocates a new buffer of the same shape, and
+    # calls #clone on every item in the buffer. Then, a new `NArray` is constructed
+    # with that copied buffer.
+    # ```crystal
+    # elem = Set{'a'}
+    # narr = NArray[elem]
+    # 
+    # # Calling clone will clone the element, too:
+    # copy = narr.clone
+    # narr.get(0) << 'b'
+    # 
+    # # So the data inside the narr and the copy are distinct
+    # puts narr # => NArray[Set{'a', 'b'}]
+    # puts copy # => NArray[Set{'a'}]
+    # ```
     def clone : self
       NArray.new(@shape, @buffer.clone)
     end
 
-    # Creates a shallow copy of this NArray;
-    # Allocates a new buffer of the same shape, and duplicates every item in the buffer.
+    # Creates a shallow copy of this NArray.
+    # More specifically, this allocates a new buffer of the same shape, and
+    # calls #dup on every item in the buffer. Then, a new `NArray` is constructed
+    # with that copied buffer.
+    #
+    # ```crystal
+    # elem = Set{'a'}
+    # narr = NArray[elem]
+    # 
+    # # Calling clone will dup the element, too:
+    # copy = narr.dup
+    # narr.get(0) << 'b'
+    # 
+    # # So the data inside the narr and the copy aren't distinct:
+    # puts narr # => NArray[Set{'a', 'b'}]
+    # puts copy # => NArray[Set{'a', 'b'}]
+    # ```
     def dup : self
       NArray.new(@shape, @buffer.dup)
     end
@@ -323,18 +421,24 @@ module Phase
     #   end
     # end
 
+    # Converts a potentially multidimensional array into a flat, 1-dimensional NArray.
+    # The elements will be raveled into lexicographic order inside of the new array.
+    # For example:
+    # ```crystal
+    # ```
     def flatten : self
       reshape(@buffer.size)
     end
 
+    # TODO: reshape should return a clone by default
     def reshape(new_shape : Enumerable)
       shape_arr = new_shape.to_a
       NArray.ensure_valid!(shape_arr, @buffer)
       NArray.new(shape_arr, @buffer)
     end
 
-    def reshape(*splat)
-      reshape(splat)
+    def reshape(*new_shape)
+      reshape(new_shape)
     end
 
     # Checks for elementwise equality between `self` and *other*.
@@ -347,15 +451,13 @@ module Phase
       false
     end
 
-    # Copies the elements in `region` to a new `NArray`, assuming that `region` is in canonical form and in-bounds for this `NArray`.
-    # For full specification of canonical form see `IndexRegion` documentation.
+    # :ditto:
     def unsafe_fetch_chunk(region : IndexRegion)
       iter = Indexed::ElemAndCoordIterator.new(self, Indexed::LexIterator.new(region, @shape))
       typeof(self).new(region.shape) { iter.unsafe_next[0] }
     end
 
-    # Retrieves the element specified by `coord`, assuming that `coord` is in canonical form and in-bounds for this `NArray`.
-    # For full specification of canonical form see `IndexRegion` documentation.
+    # :ditto:
     def unsafe_fetch_element(coord) : T
       @buffer.unsafe_fetch(Buffered.coord_to_index_fast(coord, @shape, @axis_strides))
     end
@@ -383,8 +485,7 @@ module Phase
     #   typeof(self).new(new_shape, new_buffer.clone)
     # end
 
-    # Copies the elements from a MultiIndexable `src` into `region`, assuming that `region` is in canonical form and in-bounds for this `{{type}}`
-    # and the shape of `region` matches the shape of `src`.
+    # :ditto:
     def unsafe_set_chunk(region : IndexRegion, src : MultiIndexable(T))
       absolute_iter = Indexed::LexIterator.new(region, @shape)
       src_iter = src.each
@@ -395,7 +496,7 @@ module Phase
       end
     end
 
-    # Sets each element in `region` to `value`, assuming that `region` is in canonical form and in-bounds for this `{{type}}`
+    # :ditto:
     def unsafe_set_chunk(region : IndexRegion, value : T)
       iter = Indexed::LexIterator.new(region, @shape)
       iter.each do
@@ -403,6 +504,7 @@ module Phase
       end
     end
 
+    # :ditto:
     def unsafe_set_element(coord : Enumerable, value : T)
       @buffer[Buffered.coord_to_index_fast(coord, @shape, @axis_strides)] = value
     end
