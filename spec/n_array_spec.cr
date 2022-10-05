@@ -293,4 +293,151 @@ describe NArray do
       narr.should eq expected
     end
   end
+
+  describe "[]=(mask, value)" do
+    it "sets the correct elements for an NArray mask (scalar source)" do
+      src = 6
+      mask = NArray[[true, false, true], [false, true, false]]
+      expected = NArray[[6, 1, 6], [3, 6, 5]]
+      narr = stock_narr.clone
+      narr[mask] = src
+      narr.should eq expected
+    end
+
+    it "sets the correct elements for a generic mask (scalar source)" do
+      src = 6
+      mask = RWNArray.new([2, 3], Slice[true, false, true, false, true, false])
+      expected = NArray[[6, 1, 6], [3, 6, 5]]
+      narr = stock_narr.clone
+      narr[mask] = src
+      narr.should eq expected
+    end
+
+    it "sets the correct elements for an NArray mask (MultiIndexable source)" do
+      src = stock_narr + 10
+      mask = NArray[[true, false, true], [false, true, false]]
+      expected = NArray[[10, 1, 12], [3, 14, 5]]
+      narr = stock_narr.clone
+      narr[mask] = src
+      narr.should eq expected
+    end
+
+    it "sets the correct elements for a generic mask (MultiIndexable source)" do
+      src = stock_narr + 10
+      mask = RWNArray.new([2, 3], Slice[true, false, true, false, true, false])
+      expected = NArray[[10, 1, 12], [3, 14, 5]]
+      narr = stock_narr.clone
+      narr[mask] = src
+      narr.should eq expected
+    end
+  end
+
+  describe "#each" do
+    it "yields all elements in lexicographic order" do
+      copy = [] of Int32
+      stock_narr.each do |el|
+        copy << el
+      end
+
+      copy.should eq stock_narr.@buffer.to_a
+    end
+
+    it "stops immediately for 0D NArrays" do
+      zerodim = NArray[0][...-1]
+      zerodim.each do |el|
+        fail("unexpected element: #{el}")
+      end
+    end
+
+    it "stops immediately for empty NArrays" do
+      empty = NArray.fill([3, 0, 2], 0)
+      empty.each do |el|
+        fail("unexpected element: #{el}")
+      end
+    end
+  end
+
+  describe "#each_coord" do
+    it "yields all coordinates in lexicographic order" do
+      coords = Array(Array(Int32)).new
+      stock_narr.each_coord do |coord|
+        coords << coord.to_a
+      end
+
+      expected = [[0, 0], [0, 1], [0, 2], [1, 0], [1, 1], [1, 2]]
+
+      coords.should eq expected
+    end
+
+    it "stops immediately for 0D NArrays" do
+      zerodim = NArray[0][...-1]
+      zerodim.each_coord do |el|
+        fail("unexpected element: #{el}")
+      end
+    end
+
+    it "stops immediately for empty NArrays" do
+      empty = NArray.fill([3, 0, 2], 0)
+      empty.each_coord do |el|
+        fail("unexpected element: #{el}")
+      end
+    end
+  end
+
+  describe "#each_with_coord" do
+    it "yields all coordinates and elements in lexicographic order" do
+      coords = Array(Array(Int32)).new
+      copy = [] of Int32
+      stock_narr.each_with_coord do |el, coord|
+        coords << coord.to_a
+        copy << el
+      end
+
+      expected = [[0, 0], [0, 1], [0, 2], [1, 0], [1, 1], [1, 2]]
+
+      coords.should eq expected
+      copy.should eq stock_narr.@buffer.to_a
+    end
+
+    it "stops immediately for 0D NArrays" do
+      zerodim = NArray[0][...-1]
+      zerodim.each_with_coord do |el, coord|
+        fail("unexpected element: #{el} at #{coord}")
+      end
+    end
+
+    it "stops immediately for empty NArrays" do
+      empty = NArray.fill([3, 0, 2], 0)
+      empty.each_with_coord do |el, coord|
+        fail("unexpected element: #{el} at #{coord}")
+      end
+    end
+  end
+
+  describe "#each_with_index" do
+    it "yields all elements in lexicographic order with their index" do
+      copy = [] of Int32
+
+      stock_narr.each_with_index do |el, idx|
+        idx.should eq copy.size
+        copy << el
+      end
+
+      copy.should eq stock_narr.@buffer.to_a
+    end
+
+    it "stops immediately for 0D NArrays" do
+      zerodim = NArray[0][...-1]
+      zerodim.each_with_index do |el, index|
+        fail("unexpected element: #{el} at #{index}")
+      end
+    end
+
+    it "stops immediately for empty NArrays" do
+      empty = NArray.fill([3, 0, 2], 0)
+      empty.each_with_index do |el, index|
+        fail("unexpected element: #{el} at #{index}")
+      end
+    end
+  end
 end

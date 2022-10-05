@@ -509,23 +509,54 @@ module Phase
       @buffer[Buffered.coord_to_index_fast(coord, @shape, @axis_strides)] = value
     end
 
-    # replaces all values in a boolean mask with a given value
-    def []=(bool_mask : NArray(Bool), value : T)
-      if bool_mask.shape != @shape
+    # :nodoc:
+    # This is a faster implementation of #[]= for the case where
+    # the mask is an NArray.
+    def []=(mask : NArray(Bool), value : T)
+      if mask.shape != @shape
         raise DimensionError.new("Cannot perform masking: mask shape does not match array shape.")
       end
 
-      bool_mask.buffer.each_with_index do |bool_val, idx|
-        if bool_val
+      mask.buffer.each_with_index do |should_copy, idx|
+        if should_copy
           @buffer[idx] = value
+        end
+      end
+    end
+
+    # :ditto:
+    def []=(mask : MultiIndexable(Bool), value : MultiIndexable(T))
+      # Overloaded for performance
+      if mask.shape != @shape
+        raise DimensionError.new("Cannot perform masking: mask shape does not match array shape.")
+      end
+
+      iter = Indexed::LexIterator.cover(@shape)
+      iter.each do |coord|
+        if mask.get(coord)
+          @buffer[iter.current_index] = value.get(coord)
+        end
+      end
+    end
+
+    # :ditto:
+    def []=(mask : MultiIndexable(Bool), value : T)
+      # Overloaded for performance
+      if mask.shape != @shape
+        raise DimensionError.new("Cannot perform masking: mask shape does not match array shape.")
+      end
+
+      iter = Indexed::LexIterator.cover(@shape)
+      iter.each do |coord|
+        if mask.get(coord)
+          @buffer[iter.current_index] = value
         end
       end
     end
 
     # Iterator overrides for buffer-based speedups
 
-    # The default "each" with no iterator type passed is lexicographic.
-    # For other orders, default to MultiIndexable's implementation.
+    # :ditto:
     def each
       @buffer.each
     end
@@ -534,27 +565,50 @@ module Phase
       @buffer.each
     end
 
+    # :ditto:
     def each_coord
       Indexed::LexIterator.cover(shape_internal)
     end
 
+    # :ditto:
     def each_with_coord(iter : IndexedStrideIterator(I)) forall I
       Indexed::ElemAndCoordIterator.new(self, iter)
     end
 
+    # Iterates over elements in lexicographic order, providing their lexicographic buffer index.
+    # ```crystal
+    # NArray[['a', 'b'],
+    #        ['c', 'd']].each_with_index do |el, idx|
+    #   puts "#{el} at #{idx}"
+    # end
+    # # => 'a' at 0
+    # # => 'b' at 1
+    # # => 'c' at 2
+    # # => 'd' at 3
+    # ```
     def each_with_index(&block : T, Int32 ->)
       @buffer.each_with_index do |elem, idx|
         yield elem, idx
       end
     end
 
+    # :ditto:
     def map(&block : T -> U) forall U
-      map_with_index do |elem|
+      new_buffer = @buffer.map do |elem|
         yield elem
       end
+      NArray.new(@shape.clone, new_buffer)
     end
 
-    def map_with_index(&block : T, Int32 -> U) forall U
+    # Creates a new `NArray` by mapping elements by their lexicographic buffer index and value.
+    # ```crystal
+    # narr = NArray["a", "b", "c"]
+    # narr.map_with_index { |el, idx| el * idx} # => NArray["", "b", "cc"]
+    #
+    # # Note that the source is not changed:
+    # narr # => NArray["a", "b", "c"]
+    # ```
+    def map_with_index(&block : T, Int32 -> U) : NArray(U) forall U
       new_buffer = @buffer.map_with_index do |elem, idx|
         yield elem, idx
       end
