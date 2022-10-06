@@ -440,4 +440,104 @@ describe NArray do
       end
     end
   end
+
+  describe "#map" do
+    it "correctly maps each element" do
+      expected = NArray[[0, 1, 4], [9, 16, 25]]
+      stock_narr.map { |x| x ** 2 }.should eq expected
+    end
+  end
+
+  describe "#map_with_coord" do
+    it "correctly maps each element with a coord" do
+      expected = NArray[[0, 2, 4], [13, 15, 17]]
+      stock_narr.map_with_coord do |el, c|
+        10 * c[0] + c[1] + el
+      end.should eq expected
+    end
+  end
+
+  describe "#map_with_index" do
+    it "correctly maps each element with a lex buffer index" do
+      narr = stock_narr * 2
+      narr.map_with_index do |el, idx|
+        idx + el
+      end.should eq stock_narr * 3
+    end
+  end
+
+  describe "#map!" do
+    it "correctly maps each element in place" do
+      expected = NArray[[0, 1, 4], [9, 16, 25]]
+      narr = stock_narr.clone
+      narr.map! { |x| x ** 2 }
+      narr.should eq expected
+    end
+
+    it "returns self" do
+      expected = NArray[[0, 1, 4], [9, 16, 25]]
+      narr = stock_narr.clone
+      narr.map! { |x| x ** 2 }.should eq expected
+    end
+  end
+
+  describe "#map_with_coord!" do
+    it "correctly maps each element with a coord in place" do
+      expected = NArray[[0, 2, 4], [13, 15, 17]]
+      narr = stock_narr.clone
+      narr.map_with_coord! do |el, c|
+        10 * c[0] + c[1] + el
+      end
+      narr.should eq expected
+    end
+
+    it "returns self" do
+      expected = NArray[[0, 2, 4], [13, 15, 17]]
+      narr = stock_narr.clone
+      narr.map_with_coord! do |el, c|
+        10 * c[0] + c[1] + el
+      end.should eq expected
+    end
+  end
+
+  describe "#map_with_index!" do
+    it "correctly maps each element with a lex buffer index in place" do
+      narr = stock_narr * 2
+      narr.map_with_index! do |el, idx|
+        idx + el
+      end
+      narr.should eq stock_narr * 3
+    end
+
+    it "returns self" do
+      narr = stock_narr * 2
+      narr.map_with_index! do |el, idx|
+        idx + el
+      end.should eq stock_narr * 3
+    end
+  end
+
+  describe "#to_json" do
+    it "converts the NArray to json" do
+      stock_narr.to_json.should eq %({"shape":[2,3],"elements":[0,1,2,3,4,5]})
+    end
+  end
+
+  describe ".from_json" do
+    it "converts json into an NArray" do
+      NArray(Int32).from_json(%({"shape":[2,3],"elements":[0,1,2,3,4,5]})).should eq stock_narr
+    end
+  end
+
+  describe "#to_yaml" do
+    it "converts the NArray to yaml" do
+      stock_narr.to_yaml.should eq "---\nshape: [2, 3]\nelements: [0, 1, 2, 3, 4, 5]\n"
+    end
+  end
+
+  describe ".from_yaml" do
+    it "converts yaml into an NArray" do
+      NArray(Int32).from_yaml("---\nshape: [2, 3]\nelements: [0, 1, 2, 3, 4, 5]\n").should eq stock_narr
+    end
+  end
 end

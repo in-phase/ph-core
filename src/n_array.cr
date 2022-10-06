@@ -597,6 +597,7 @@ module Phase
       new_buffer = @buffer.map do |elem|
         yield elem
       end
+
       NArray.new(@shape.clone, new_buffer)
     end
 
@@ -612,34 +613,46 @@ module Phase
       new_buffer = @buffer.map_with_index do |elem, idx|
         yield elem, idx
       end
+
       NArray.new(@shape.clone, new_buffer)
     end
 
-    def map_with_coord(&block : T, Indexable(Int32), Int32 -> U) forall U
+    # :ditto:
+    def map_with_coord(&block : T, ReadonlyWrapper(Array(Int32), Int32) -> U) forall U
       NArray(U).build(@shape) do |coord, idx|
         yield @buffer[idx], coord, idx
       end
     end
 
+    # In-place version of `#map`.
+    # The element type of this NArray cannot be changed via this method.
     def map!(&block : T -> T) : self
       map_with_index! do |elem|
         yield elem
       end
+
       self
     end
 
+    # In-place version of `#map_with_index`.
+    # The element type of this NArray cannot be changed via this method.
     def map_with_index!(&block : T, Int32 -> T) : self
       @buffer.map_with_index! do |elem, idx|
         yield elem, idx
       end
+
       self
     end
 
-    def map_with_coord!(&block : T, Indexable(Int32), Int32 -> T) : self
+    # In-place version of `#map_with_coord`.
+    # The element type of this NArray cannot be changed via this method.
+    def map_with_coord!(&block : T, ReadonlyWrapper(Array(Int32), Int32) -> U) forall U
       iter = LexIterator.cover(shape_internal)
+
       @buffer.map_with_index! do |el, idx|
         yield el, iter.unsafe_next, idx
       end
+
       self
     end
 
