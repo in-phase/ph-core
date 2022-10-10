@@ -42,14 +42,10 @@ module Phase
     #
     # ```crystal
     # new([2, 3]) { |idx| idx } # => NArray[[0, 1, 2], [3, 4, 5]]
-    # new([] of Int32) { |idx| idx } # => DimensionError
+    # new([] of Int32) { |idx| idx } # => NArray[]
     # new([-1]) { |idx| idx } # => DimensionError
     # ```
     protected def initialize(shape : Enumerable, &block : Int32 -> T)
-      if shape.empty?
-        raise DimensionError.new("Cannot create NArray: `shape` was empty.")
-      end
-
       @shape = shape.map do |dim|
         if dim < 0
           raise DimensionError.new("Cannot create NArray: One or more of the provided dimensions was negative.")
@@ -824,39 +820,37 @@ module Phase
     end
 
     def self.new(pull : JSON::PullParser)
-      {% begin %}
-        shape = [] of Int32
-        elements = [] of {{ @type.type_vars[0] }}
+      shape = [] of Int32
+      elements = [] of T
 
-        found_shape = false
-        found_elements = false
+      found_shape = false
+      found_elements = false
 
-        pull.read_object do |key, key_loc|
-          case key
-          when "shape"
-            found_shape = true
-            pull.read_array do
-              shape << pull.read?(Int32).not_nil!
-            end
-          when "elements"
-            pull.read_array do
-              found_elements = true
-              elements << {{ @type.type_vars[0] }}.new(pull)
-            end
+      pull.read_object do |key, key_loc|
+        case key
+        when "shape"
+          found_shape = true
+          pull.read_array do
+            shape << pull.read?(Int32).not_nil!
+          end
+        when "elements"
+          found_elements = true
+          pull.read_array do
+            elements << T.new(pull)
           end
         end
+      end
 
-        if found_shape && found_elements
-          if ShapeUtil.shape_to_size(shape) == elements.size
-            buffer = Slice.new(elements.to_unsafe, elements.size)
-            return new(shape, buffer)
-          else
-            raise JSON::Error.new("Could not read NArray from YAML: wrong number of elements for shape #{shape}")
-          end
+      if found_shape && found_elements
+        if ShapeUtil.shape_to_size(shape) == elements.size
+          buffer = Slice.new(elements.to_unsafe, elements.size)
+          return new(shape, buffer)
         else
-          raise JSON::Error.new("Could not read NArray from YAML: 'shape' and/or 'elements' were missing.")
+          raise JSON::Error.new("Could not read NArray from JSON: wrong number of elements for shape #{shape}")
         end
-        {% end %}
+      else
+        raise JSON::Error.new("Could not read NArray from JSON: 'shape' and/or 'elements' were missing.")
+      end
     end
 
     def to_yaml(yaml : YAML::Nodes::Builder)

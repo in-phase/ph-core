@@ -342,7 +342,7 @@ describe NArray do
       copy.should eq stock_narr.@buffer.to_a
     end
 
-    it "stops immediately for 0D NArrays" do
+    it "stops immediately for 1D empty NArrays" do
       zerodim = NArray[0][...-1]
       zerodim.each do |el|
         fail("unexpected element: #{el}")
@@ -369,7 +369,7 @@ describe NArray do
       coords.should eq expected
     end
 
-    it "stops immediately for 0D NArrays" do
+    it "stops immediately for 1D empty NArrays" do
       zerodim = NArray[0][...-1]
       zerodim.each_coord do |el|
         fail("unexpected element: #{el}")
@@ -399,7 +399,7 @@ describe NArray do
       copy.should eq stock_narr.@buffer.to_a
     end
 
-    it "stops immediately for 0D NArrays" do
+    it "stops immediately for 1D empty NArrays" do
       zerodim = NArray[0][...-1]
       zerodim.each_with_coord do |el, coord|
         fail("unexpected element: #{el} at #{coord}")
@@ -426,7 +426,7 @@ describe NArray do
       copy.should eq stock_narr.@buffer.to_a
     end
 
-    it "stops immediately for 0D NArrays" do
+    it "stops immediately for 1D empty NArrays" do
       zerodim = NArray[0][...-1]
       zerodim.each_with_index do |el, index|
         fail("unexpected element: #{el} at #{index}")
@@ -521,11 +521,19 @@ describe NArray do
     it "converts the NArray to json" do
       stock_narr.to_json.should eq %({"shape":[2,3],"elements":[0,1,2,3,4,5]})
     end
+
+    it "converts a 1D empty NArray to json" do
+      NArray.fill([0], 0).to_json.should eq %({"shape":[0],"elements":[]})
+    end
   end
 
   describe ".from_json" do
     it "converts json into an NArray" do
       NArray(Int32).from_json(%({"shape":[2,3],"elements":[0,1,2,3,4,5]})).should eq stock_narr
+    end
+    
+    it "converts json into a 1D empty NArray" do
+      NArray(Int32).from_json(%({"shape":[0],"elements":[]})).should eq NArray.fill([0], 0)
     end
   end
 
@@ -533,11 +541,19 @@ describe NArray do
     it "converts the NArray to yaml" do
       stock_narr.to_yaml.should eq "---\nshape: [2, 3]\nelements: [0, 1, 2, 3, 4, 5]\n"
     end
+
+    it "converts a 1D empty NArray to yaml" do
+      NArray.fill([0], 0).to_yaml.should eq "---\nshape: [0]\nelements: []\n"
+    end
   end
 
   describe ".from_yaml" do
     it "converts yaml into an NArray" do
       NArray(Int32).from_yaml("---\nshape: [2, 3]\nelements: [0, 1, 2, 3, 4, 5]\n").should eq stock_narr
+    end
+
+    it "converts yaml into a 1D empty NArray" do
+      NArray(Int32).from_yaml("---\nshape: [0]\nelements: []\n").should eq NArray.fill([0], 0)
     end
   end
 end
