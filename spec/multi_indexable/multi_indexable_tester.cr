@@ -306,9 +306,9 @@ abstract class MultiIndexableTester(M, T, I)
 
       describe "#has_coord?" do
         it "returns true for a coordinate within the shape" do
-          all_coords_lex_order(m_inst.shape) do |(row, col)|
-            m_inst.has_coord?([row, col]).should be_true
-            m_inst.has_coord?(row, col).should be_true
+          all_coords_lex_order(m_inst.shape) do |coord|
+            # Note: We can't test the tuple accepting overload here, because the number of dimensions is allowed to vary.
+            m_inst.has_coord?(coord).should be_true
           end
         end
 
@@ -316,11 +316,10 @@ abstract class MultiIndexableTester(M, T, I)
           oversized_shape = m_inst.shape.map &.+(2)
           proper_coords = all_coords_lex_order(m_inst.shape)
 
-          all_coords_lex_order(oversized_shape) do |(row, col)|
-            next if proper_coords.includes? [row, col]
+          all_coords_lex_order(oversized_shape) do |coord|
+            next if proper_coords.includes? coord
 
-            m_inst.has_coord?([row, col]).should be_false
-            m_inst.has_coord?(row, col).should be_false
+            m_inst.has_coord?(coord).should be_false
           end
         end
 
@@ -666,7 +665,7 @@ abstract class MultiIndexableTester(M, T, I)
         end
       end
 
-      describe "#reverse", tags: ["yikes"] do
+      describe "#reverse" do
         it "returns a MultiIndexable with reversed element order" do
           m_inst.reverse.to_narr.should eq narr.reverse
         end

@@ -22,9 +22,9 @@ require "./buffered/indexed/*"
 require "./n_array.cr"
 
 require "./view_util/*"
-require "./readonly_view.cr"
-require "./proc_view.cr"
 require "./view.cr"
+require "./proc_view.cr"
+require "./mutable_view.cr"
 
 require "./multi_indexable/formatter/settings.cr"
 require "./multi_indexable/formatter/formatter.cr"

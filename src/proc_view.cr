@@ -1,5 +1,5 @@
 module Phase
-  class ProcView(S, T, R) < ReadonlyView(S, R)
+  class ProcView(S, T, R) < View(S, R)
     @proc : Proc(T, R)
 
     # DOCUMENT
@@ -11,7 +11,7 @@ module Phase
             {% end %}
 
       case src
-      when ReadonlyView
+      when View
         return src.process(proc)
       else
         return ProcView(S, T, R).new(src, src.shape, proc)

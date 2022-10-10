@@ -1,7 +1,7 @@
 require "./multi_indexable/multi_indexable_tester.cr"
 require "./test_narray.cr"
+require "./spec_helper.cr"
 
-alias CIS = Char | Int32 | Symbol
 class VanillaMultiIndexableTester < MultiIndexableTester(RONArray(CIS), CIS, Int32)
   @data : Array(Tuple(Array(Int32), Slice(CIS))) = [
     {[3, 4], Slice['a', 'b', 'c', 'd', 1, 2, 3, 4, :e, :f, :g, :h]},

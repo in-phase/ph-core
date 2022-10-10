@@ -3,6 +3,8 @@ require "../src/ph-core"
 
 include Phase
 
+alias CIS = Char | Int32 | Symbol
+
 # An arbitrary class
 class TestObject
 end
