@@ -14,7 +14,7 @@ module Phase
     # multidimensional coordinate, x, is equal to x dotted with axis_strides
     def self.axis_strides(shape)
       ret = shape.clone
-      ret[-1] = typeof(shape[0]).zero + 1
+      ret[-1] = typeof(shape[0]).new(1)
       
       ((ret.size - 2)..0).step(-1) do |idx|
         ret[idx] = ret[idx + 1] * shape[idx + 1]
