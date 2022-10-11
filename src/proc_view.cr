@@ -5,10 +5,10 @@ module Phase
     # DOCUMENT
     def self.of(src : S, proc : (T -> R)) : ProcView(S, T, R) forall T, R
       {% begin %}
-                {% unless S < MultiIndexable(T) %}
-                    {% raise "Error creating ProcView: proc input type does not match source element type." %}
-                {% end %}
-            {% end %}
+        {% unless S < MultiIndexable(T) %}
+          {% raise "Error creating ProcView: proc input type does not match source element type." %}
+        {% end %}
+      {% end %}
 
       case src
       when View
