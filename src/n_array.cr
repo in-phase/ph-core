@@ -13,8 +13,7 @@ module Phase
   #
   # TLDR: `NArray` is to Phase as `Array` is to Crystal.
   class NArray(T)
-    include MultiIndexable(T)
-    include MultiWritable(T)
+    include MultiIndexable::Mutable(T)
     include Buffered(T)
 
     # Stores the elements of an `NArray` in lexicographic (row-major) order.
@@ -520,9 +519,9 @@ module Phase
       end
     end
 
-    # :ditto:
+    # :nodoc:
+    # Overloaded for performance on NArrays by using the buffer directly
     def []=(mask : MultiIndexable(Bool), value : MultiIndexable(T))
-      # Overloaded for performance
       if mask.shape != @shape
         raise DimensionError.new("Cannot perform masking: mask shape does not match array shape.")
       end
@@ -535,7 +534,8 @@ module Phase
       end
     end
 
-    # :ditto:
+    # :nodoc:
+    # Overloaded for performance on NArrays by using the buffer directly
     def []=(mask : MultiIndexable(Bool), value : T)
       # Overloaded for performance
       if mask.shape != @shape
@@ -552,23 +552,20 @@ module Phase
 
     # Iterator overrides for buffer-based speedups
 
-    # :ditto:
+    # :inherit:
     def each
       @buffer.each
     end
 
+    # See `MultiIndexable#fast_each`.
+    # For an `NArray`, the iteration order of `#each` is already as fast as possible.
     def fast_each
       @buffer.each
     end
 
-    # :ditto:
+    # :inherit:
     def each_coord
       Indexed::LexIterator.cover(shape_internal)
-    end
-
-    # :ditto:
-    def each_with_coord(iter : IndexedStrideIterator(I)) forall I
-      Indexed::ElemAndCoordIterator.new(self, iter)
     end
 
     # Iterates over elements in lexicographic order, providing their lexicographic buffer index.
@@ -588,7 +585,7 @@ module Phase
       end
     end
 
-    # :ditto:
+    # :inherit:
     def map(&block : T -> U) forall U
       new_buffer = @buffer.map do |elem|
         yield elem
@@ -613,7 +610,7 @@ module Phase
       NArray.new(@shape.clone, new_buffer)
     end
 
-    # :ditto:
+    # :inherit:
     def map_with_coord(&block : T, ReadonlyWrapper(Array(Int32), Int32) -> U) forall U
       NArray(U).build(@shape) do |coord, idx|
         yield @buffer[idx], coord, idx
