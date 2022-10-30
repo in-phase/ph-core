@@ -30,7 +30,7 @@ module Phase
     end
 
     def process(new_proc : (R -> U)) : ProcView(S, R, U) forall U
-      ProcView(S, R, U).new(@src, @shape.clone, new_proc, @transform.clone)
+      ProcView(S, R, U).new(validated: @src, shape: @shape.clone, proc: new_proc, transform: @transform.clone)
     end
   end
 end

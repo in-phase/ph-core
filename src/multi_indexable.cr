@@ -891,7 +891,7 @@ module Phase
     end
 
     def process(proc : Proc(T, R)) : ProcView(self, T, R) forall R
-      ProcView.of(self, proc)
+      ProcView.new(self, proc)
     end
 
     # TODO: rename to elem_eq

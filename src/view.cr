@@ -117,11 +117,7 @@ module Phase
     end
 
     def process(new_proc : (R -> U)) : ProcView(S, R, U) forall U
-      ProcView(S, R, U).new(@src, @shape.clone, new_proc, @transform.clone)
-    end
-
-    def process(&block : (R -> U)) : ProcView(S, R, U) forall U
-      process(block)
+      ProcView(S, R, U).new(validated: @src, shape: @shape.clone, proc: new_proc, transform: @transform.clone)
     end
 
     def to_narr : NArray
