@@ -7,12 +7,12 @@ module Phase
     @transform : ComposedTransform
     @shape : Array(Int32)
 
-    def self.of(src : S, region = nil) : self
+    def self.of(src : MultiIndexable, region : RegionLiteral? = nil) : self
       case src
       when View
         return src.view(region)
       else
-        new_view = View(S, typeof(src.sample)).new(src)
+        new_view = View(typeof(src), typeof(src.sample)).new(src)
         new_view.restrict_to(region) if region
         return new_view
       end

@@ -1,8 +1,8 @@
 module Phase
   class MutableView(S, R) < View(S, R)
-    include MultiWritable(R)
+    include MultiIndexable::Mutable(R)
 
-    def self.of(src : S, region : Enumerable? = nil) : self
+    def self.of(src : MultiIndexable::Mutable, region : RegionLiteral? = nil) : self
       case src
       when View
         return src.view(region)
