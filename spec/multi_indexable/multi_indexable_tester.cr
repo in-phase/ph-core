@@ -502,21 +502,6 @@ abstract class MultiIndexableTester(M, T, I)
         end
       end
 
-      describe "#[]?(mask)" do
-        it "raises a ShapeError for mismatched mask size" do
-          mask = NArray.fill(m_inst.shape + [2], false)
-
-          expect_raises ShapeError do
-            m_inst[mask]?
-          end
-        end
-
-        it "returns nil where the mask is false and the copied element where the mask is true" do
-          mask = NArray.build(m_inst.shape) { |_, i| i % 2 == 0 }
-          m_inst[mask]?.to_narr.should eq narr[mask]?
-        end
-      end
-
       describe "#each_coord" do
         it "yields only the correct coordinates in the correct order" do
           m_inst.each_coord.to_a.should eq narr.each_coord.to_a

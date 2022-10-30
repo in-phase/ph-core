@@ -480,29 +480,6 @@ module Phase
       self
     end
 
-    # Returns a `MultiIndexable` that draws from `self` where *bool_mask* is true, but contains `nil` where *bool_mask* is false.
-    # If *bool_mask* has a different shape than `self`, this method will raise
-    # a `ShapeError`.
-    #
-    #
-    # ```crystal
-    # narr = NArray[3, 4, 5]
-    # mask = NArray[false, true, true]
-    # narr[mask]? # => NArray[nil, 4, 5]
-    # 
-    # oversized_mask = NArray[false, true, true, false]
-    # narr[oversized_mask]? # => ShapeError
-    # ```
-    def []?(bool_mask : MultiIndexable(Bool)) : MultiIndexable(T?)
-      if bool_mask.shape != shape_internal
-        raise ShapeError.new("Could not use mask: mask shape #{bool_mask.shape} does not match this MultiIndexable's shape (#{shape_internal}).")
-      end
-
-      bool_mask.map_with_coord do |bool_val, coord|
-        bool_val ? unsafe_fetch_element(coord) : nil
-      end
-    end
-
     # Copies the elements described by *region* into a new `MultiIndexable`.
     # If *region* does not describe a valid region of this `MultiIndexable`,
     # this method will raise either a `DimensionError` (in the case of
