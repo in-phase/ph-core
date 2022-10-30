@@ -3,6 +3,14 @@ module Phase
     include MultiIndexable(T)
     include MultiWritable(T)
 
+    def mutable_view(region : Indexable? | IndexRegion = nil) : MutableView(self, T)
+      MutableView.new(self, region)
+    end
+
+    def mutable_view(*region) : MutableView(self, T)
+      mutable_view(region)
+    end
+
     # TODO docs
     # DISCUSS is this good behaviour?
     def map_with_coord!(&block : (T -> T))

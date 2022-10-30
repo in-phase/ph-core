@@ -55,19 +55,19 @@ class ProcViewTester < MultiIndexableTester(ProcView(NArray(CIS), CIS, Int32), I
   end
 
   def make_pure_empty : ViewType
-    ViewType.of(NArray.of_buffer([0], Slice.new(0, get_value)), @proc)
+    ViewType.new(NArray.new_buffer([0], Slice.new(0, get_value)), @proc)
   end
 
   def make_volumetric_empty : ViewType
-    ViewType.of(NArray.of_buffer([3, 0, 0, 1], Slice.new(0, get_value)), @proc)
+    ViewType.new(NArray.new_buffer([3, 0, 0, 1], Slice.new(0, get_value)), @proc)
   end
 
   def make_pure_scalar : ViewType
-    ViewType.of(NArray.of_buffer([1], Slice.new(1, get_value)), @proc)
+    ViewType.new(NArray.new_buffer([1], Slice.new(1, get_value)), @proc)
   end
 
   def make_volumetric_scalar : ViewType
-    View.of(NArray.of_buffer([1, 1, 1], Slice.new(1, get_value)))
+    View.new(NArray.new_buffer([1, 1, 1], Slice.new(1, get_value)))
   end
 end
 

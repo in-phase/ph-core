@@ -10,7 +10,7 @@ class ViewTester < MultiIndexableTester(View(NArray(CIS), CIS), CIS, Int32)
   ]
 
   def make : Array(ViewType)
-    @data.map { |shape, buf| View.of(NArray.of_buffer(shape.clone, buf.clone)) }
+    @data.map { |shape, buf| View.new(NArray.of_buffer(shape.clone, buf.clone)) }
   end
 
   def test_make
@@ -42,19 +42,19 @@ class ViewTester < MultiIndexableTester(View(NArray(CIS), CIS), CIS, Int32)
   end
 
   def make_pure_empty : ViewType
-    View.of(NArray.of_buffer([0], Slice.new(0, get_value)))
+    View.new(NArray.of_buffer([0], Slice.new(0, get_value)))
   end
 
   def make_volumetric_empty : ViewType
-    View.of(NArray.of_buffer([3, 0, 0, 1], Slice.new(0, get_value)))
+    View.new(NArray.of_buffer([3, 0, 0, 1], Slice.new(0, get_value)))
   end
 
   def make_pure_scalar : ViewType
-    View.of(NArray.of_buffer([1], Slice.new(1, get_value)))
+    View.new(NArray.of_buffer([1], Slice.new(1, get_value)))
   end
 
   def make_volumetric_scalar : ViewType
-    View.of(NArray.of_buffer([1, 1, 1], Slice.new(1, get_value)))
+    View.new(NArray.of_buffer([1, 1, 1], Slice.new(1, get_value)))
   end
 end
 

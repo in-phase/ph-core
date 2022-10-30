@@ -879,7 +879,7 @@ module Phase
     end
 
     def view(region : Indexable? | IndexRegion = nil) : View(self, T)
-      View.of(self, region)
+      View.new(self, region)
     end
 
     def view(*region) : View(self, T)

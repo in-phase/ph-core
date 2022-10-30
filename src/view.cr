@@ -7,43 +7,51 @@ module Phase
     @transform : ComposedTransform
     @shape : Array(Int32)
 
-    def self.of(src : MultiIndexable, region : RegionLiteral? = nil) : self
+    def self.new(src : MultiIndexable, region = nil) : self
       case src
       when View
         return src.view(region)
       else
-        new_view = View(typeof(src), typeof(src.sample)).new(src)
+        new_view = View(typeof(src), typeof(src.sample)).new(validated: src)
         new_view.restrict_to(region) if region
         return new_view
       end
     end
 
-    protected def initialize(@src : S, @transform : ComposedTransform = ComposedTransform.new)
+    protected def initialize(*, validated @src : S, @transform : ComposedTransform = ComposedTransform.new)
       @shape = @src.shape
     end
 
-    protected def initialize(@src : S, @shape : Array(Int32), @transform = ComposedTransform.new)
+    protected def initialize(*, validated @src : S, @shape : Array(Int32), @transform = ComposedTransform.new)
     end
 
     def clone : self
-      typeof(self).new(@src, @shape.clone, @transform.clone)
+      typeof(self).new(validated: @src, shape: @shape.clone, transform: @transform.clone)
     end
 
     def shape_internal : Array(Int32)
       @shape
     end
 
-    def view(region = nil) : self
+    def view(region = nil) : View(S, R)
       new_view = clone
       new_view.restrict_to(region) if region
       new_view
     end
 
     # an in-place version of view(region), because view! didn't make much sense
-    protected def restrict_to(region) : self
+    protected def restrict_to(region : RegionLiteral) : self
+      puts "i'm getting called"
       canonical = IndexRegion.new(region, @shape)
       @shape = canonical.shape
       @transform.compose!(RegionTransform.new(canonical))
+      self
+    end
+
+    protected def restrict_to(region : IndexRegion) : self
+      # TODO: Verify that region is compatible
+      @shape = region.shape
+      @transform.compose!(RegionTransform.new(region))
       self
     end
 
