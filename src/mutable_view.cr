@@ -13,13 +13,6 @@ module Phase
       end
     end
 
-    # protected def initialize(@src : S, @transform : ComposedTransform = ComposedTransform.new)
-    #   @shape = @src.shape
-    # end
-
-    # protected def initialize(@src : S, @shape : Array(Int32), @transform = ComposedTransform.new)
-    # end
-
     def unsafe_set_element(coord : Indexable, value : R)
       @src.unsafe_set_element(@transform.apply(coord), value)
     end
@@ -34,6 +27,10 @@ module Phase
       new_view = clone
       new_view.restrict_to(region) if region
       new_view
+    end
+
+    def process(new_proc : (R -> U)) : ProcView(S, R, U) forall U
+      ProcView(S, R, U).new(@src, @shape.clone, new_proc, @transform.clone)
     end
   end
 end

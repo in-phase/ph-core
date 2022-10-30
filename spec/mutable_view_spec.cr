@@ -1,15 +1,15 @@
 require "./multi_indexable/multi_indexable_tester.cr"
 require "./spec_helper.cr"
 
-class ViewTester < MultiIndexableTester(View(NArray(CIS), CIS), CIS, Int32)
-  alias ViewType = View(NArray(CIS), CIS)
+class MutableViewTester < MultiIndexableTester(MutableView(NArray(CIS), CIS), CIS, Int32)
+  alias ViewType = MutableView(NArray(CIS), CIS)
   @data : Array(Tuple(Array(Int32), Slice(CIS))) = [
     {[2, 3, 4], Slice['a', 'b', 'c', 'd', 1, 2, 3, 4, :e, :f, :g, :h, 'i', 'j', 'k', 'l', 5, 6, 7, 8, :m, :n, :o, :p]},
     {[3, 5], Slice['a', 'b', 'c', 'd', 'e', 1, 2, 3, 4, 5, :e, :f, :g, :h, :i]},
   ]
 
   def make : Array(ViewType)
-    @data.map { |shape, buf| View.new(NArray.of_buffer(shape.clone, buf.clone)) }
+    @data.map { |shape, buf| MutableView.new(NArray.of_buffer(shape.clone, buf.clone)) }
   end
 
   def test_make
@@ -41,20 +41,20 @@ class ViewTester < MultiIndexableTester(View(NArray(CIS), CIS), CIS, Int32)
   end
 
   def make_pure_empty : ViewType
-    View.new(NArray.of_buffer([0], Slice.new(0, get_value)))
+    MutableView.new(NArray.of_buffer([0], Slice.new(0, get_value)))
   end
 
   def make_volumetric_empty : ViewType
-    View.new(NArray.of_buffer([3, 0, 0, 1], Slice.new(0, get_value)))
+    MutableView.new(NArray.of_buffer([3, 0, 0, 1], Slice.new(0, get_value)))
   end
 
   def make_pure_scalar : ViewType
-    View.new(NArray.of_buffer([1], Slice.new(1, get_value)))
+    MutableView.new(NArray.of_buffer([1], Slice.new(1, get_value)))
   end
 
   def make_volumetric_scalar : ViewType
-    View.new(NArray.of_buffer([1, 1, 1], Slice.new(1, get_value)))
+    MutableView.new(NArray.of_buffer([1, 1, 1], Slice.new(1, get_value)))
   end
 end
 
-ViewTester.new.run
+MutableViewTester.new.run

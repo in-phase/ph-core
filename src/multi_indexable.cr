@@ -878,7 +878,7 @@ module Phase
       true
     end
 
-    def view(region : Indexable? | IndexRegion = nil) : View(self, T)
+    def view(region : Indexable? | IndexRegion = nil) : View
       View.new(self, region)
     end
 
@@ -886,7 +886,7 @@ module Phase
       view(region)
     end
 
-    def process(&block : (T -> R)) : ProcView(self, T, R) forall R
+    def process(&block : (T -> R)) : ProcView forall R
       process(block)
     end
 
