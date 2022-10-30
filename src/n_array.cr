@@ -5,75 +5,85 @@ require "yaml"
 # alias Shape = Array(IndexType)
 
 module Phase
-  # An `{{@type}}` is a multidimensional array for any arbitrary type.
-  # It is the most general implementation of Abstract{{@type}}, and as a result
-  # only implements primitive data operations (construction, data reading,
-  # data writing, and region sampling / slicing).
+  # `NArray` is Phase's general-use n-dimensional array implementation. It stores
+  # its values in a memory buffer, allowing efficient reading, writing, and in-place manipulations
+  # of data. Most of the functionality of `NArray` is provided by `MultiIndexable` and `MultiWritable`,
+  # which are the most general container types in Phase (although NArray overloads many of these
+  # functions for performance).
   #
+  # TLDR: `NArray` is to Phase as `Array` is to Crystal.
   class NArray(T)
-    include MultiIndexable(T)
-    include MultiWritable(T)
+    include MultiIndexable::Mutable(T)
     include Buffered(T)
 
-    # Stores the elements of an `{{@type}}` in lexicographic (row-major) order.
+    # Stores the elements of an `NArray` in lexicographic (row-major) order.
     getter buffer : Slice(T)
 
-    # Contains the number of elements in each axis of the `{{@type}}`.
-    # More explicitly, axis *k* contains *@shape[k]* elements.
+    # Contains the number of elements in each axis of the `NArray`.
+    # More explicitly, axis `k` has valid ordinates `0...@shape[k]`
     @shape : Array(Int32)
 
     # Cached version of `.axis_strides`.
     protected getter axis_strides : Array(Int32)
 
-    # TODO: Doc
-    protected def self.ensure_valid(shape : Array(Int32), buffer : Slice)
-      if shape.product != buffer.size
-        raise ShapeError.new("Cannot create {{@type}}: Given shape does not match number of elements in buffer.")
+    # Raises a `ShapeError` if the provided *shape* has a computed element count which differs from the *buffer* size.
+    protected def self.ensure_valid!(shape : Array(Int32), buffer : Slice)
+      if ShapeUtil.shape_to_size(shape) != buffer.size
+        raise ShapeError.new("Cannot create NArray: Given shape does not match number of elements in buffer.")
       end
     end
 
-    # Creates an `{{@type}}` using only a shape (see `shape`) and a packed index.
-    # This is used internally to make code faster - converting from a packed
-    # index to an unpacked index isn't needed for many constructors, and generating
-    # them would waste resources.
+    # Creates an `NArray` using only a shape (see `shape`) and a lexicographic buffer index.
+    # This is used internally to make code faster - converting from an index to
+    # a coordinate isn't needed for many constructors, and generating them
+    # would waste resources.
     # For more information, see `coord_to_index`, `buffer`, and `build`.
+    #
+    # ```crystal
+    # new([2, 3]) { |idx| idx } # => NArray[[0, 1, 2], [3, 4, 5]]
+    # new([] of Int32) { |idx| idx } # => NArray[]
+    # new([-1]) { |idx| idx } # => DimensionError
+    # ```
     protected def initialize(shape : Enumerable, &block : Int32 -> T)
-      if shape.empty?
-        raise DimensionError.new("Cannot create {{@type}}: `shape` was empty.")
-      end
-
       @shape = shape.map do |dim|
         if dim < 0
-          raise DimensionError.new("Cannot create {{@type}}: One or more of the provided dimensions was negative.")
+          raise DimensionError.new("Cannot create NArray: One or more of the provided dimensions was negative.")
         end
         dim
       end.to_a
 
-      num_elements = shape.product.to_i32
+      num_elements = ShapeUtil.shape_to_size(shape).to_i32
       @axis_strides = Buffered.axis_strides(@shape)
 
       @buffer = Slice(T).new(num_elements) { |i| yield i }
     end
 
-    # Creates an `{{@type}}` out of a shape and a pre-populated buffer.
-    # Frequently used internally (for example, this is used in
-    # `reshape` as of Feb 5th 2021).
+    # Creates an `NArray` out of a shape and a pre-populated buffer.
+    # This method does not do any validation on the data provided to it,
+    # so ensure that *shape* and *buffer* are compatible.
     protected def initialize(shape : Array(Int32), @buffer : Slice(T))
       @shape = shape.dup
       @axis_strides = Buffered.axis_strides(@shape)
     end
 
+    # Creates an `NArray` out of a shape and a pre-populated lexicographic (row-major) buffer.
+    # This constructor will raise a `ShapeError` if the shape and buffer
+    # have incompatible sizes (see `ShapeUtil#shape_to_size`).
+    # ```crystal
+    # NArray.of_buffer([3, 1], Slice['a', 'b', 'c']) # => NArray[['a'], ['b'], ['c']]
+    # NArray.of_buffer([3, 1], Slice['a']) # => ShapeError
+    # ```
     def self.of_buffer(shape : Array(Int32), buffer : Slice(T))
-      NArray.ensure_valid(shape, buffer)
+      NArray.ensure_valid!(shape, buffer)
       new(shape.dup, buffer)
     end
 
-    # Constructs an `{{@type}}` using a user-provided *shape* (see `shape`) and a callback.
+    # Constructs an `NArray` using a user-provided *shape* (see `shape`) and a callback.
     # The provided callback should map a multidimensional index, *coord*, (and an optional packed
     # index) to the value you wish to store at that position.
     # For example, to create the 2x2 identity matrix:
     # ```
-    # Phase::{{@type}}.build([2, 2]) do |coord|
+    # Phase::NArray.build([2, 2]) do |coord|
     #   if coord[0] == coord[1]
     #     1
     #   else
@@ -90,55 +100,57 @@ module Phase
     # The buffer index allows you to easily index elements in lexicographic order.
     # For example:
     # ```
-    # {{@type}}.build([5, 1]) { |coord, index| index }
+    # NArray.build([3, 2]) { |coord, index| index }
     # ```
     # Will create:
     # ```text
-    # [[0],
-    #  [1],
-    #  [2],
-    #  [3],
-    #  [4]]
+    # [[0, 1],
+    #  [2, 3],
+    #  [4, 5]]
     # ```
     def self.build(shape : Enumerable, &block : ReadonlyWrapper(Array(Int32), Int32), Int32 -> T)
       coord_iter = Indexed::LexIterator.cover(shape.to_a)
-      {{@type}}.new(shape) do
+      NArray(T).new(shape) do
         yield *(coord_iter.unsafe_next_with_index)
       end
     end
 
+    # Tuple-accepting variant of `NArray.build(shape : Enumerable, &block).
+    # ```crystal
+    # NArray.build(3, 2) { |coord, index| index } # => NArray[[0, 1], [2, 3], [4, 5]]
+    # ```
     def self.build(*shape : Int, &block : ReadonlyWrapper(Array(Int32), Int32), Int32 -> T)
       build(shape, &block)
     end
 
-    # Creates an `{{@type}}` from a nested array with uniform dimensions.
+    # Creates an `NArray` from a nested array with uniform dimensions.
     # For example:
     # ```
-    # {{@type}}.new([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+    # NArray.new([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
     # ```
-    # Would create the 3x3 identity matrix of type `{{@type}}(Int32)`.
+    # Would create the 3x3 identity matrix of type `NArray(Int32)`.
     #
     # This constructor will figure out the types of the scalars at the
     # bottom of the nested array at compile time, which allows mixing
     # datatypes effortlessly.
     # For example, to create a matrix with 0.5 on the diagonals:
     # ```
-    # {{@type}}.new([[0.5, 0, 0], [0, 0.5, 0], [0, 0, 0.5]])
+    # NArray.new([[0.5, 0, 0], [0, 0.5, 0], [0, 0, 0.5]])
     # ```
     # This may seem trivial, but note that the `0.5`s are implicit
     # `Float32` literals, whereas the `0`s are implicit `Int32` literals.
-    # So, the type returned by that example will actually be an `{{@type}}(Float32 | Int32)`.
+    # So, the type returned by that example will actually be an `NArray(Float32 | Int32)`.
     # This also works for more disorganized examples:
     # ```
-    # {{@type}}.new([["We can mix types", 2, :do], ["C", 0.0, "l stuff."]])
+    # NArray.new([["We can mix types", 2, :do], ["C", 0.0, "l stuff."]])
     # ```
-    # The above line will create an `{{@type}}(String | Int32 | Symbol | Float32)`.
+    # The above line will create an `NArray(String | Int32 | Symbol | Float32)`.
     #
     # When a nested array with non-uniform dimensions is passed, this method will
     # raise a `DimensionError`.
     # For example:
     # ```
-    # {{@type}}.new([[1], [1, 2]]) # => DimensionError
+    # NArray.new([[1], [1, 2]]) # => DimensionError
     # ```
     def self.new(data : Enumerable)
       nested_array = data.to_a
@@ -148,20 +160,32 @@ module Phase
       # fill elements
       buffer = Slice.new(flattened.to_unsafe, flattened.size)
 
-      NArray.ensure_valid(shape, buffer)
+      NArray.ensure_valid!(shape, buffer)
       new(shape, buffer)
     end
 
     # NArray[1, 2, 3] == NArray.new([1, 2, 3])
     # NArray[[1, 2, 3]] == NArray.new([[1, 2, 3]])
+    # Convenience constructor for typing out an `NArray` as a literal.
+    #
+    # For example:
+    # ```crystal
+    # NArray[1, 2, 3] == NArray.new([1, 2, 3])
+    # NArray[1, 2, 3].shape # => [3]
+    # 
+    # NArray[[1, 2, 3]] == NArray.new([[1, 2, 3]])
+    # NArray[[1, 2, 3]].shape # => [1, 3]
+    #
+    # NArray[['a', 'b'], ['c', 'd']].shape # => [2, 2]
+    # ```
     def self.[](*contents)
       new(contents)
     end
 
-    # Fills an `{{@type}}` of given shape with a specified value.
+    # Fills an `NArray` of given shape with a specified value.
     # For example, to create a zero vector:
     # ```
-    # {{@type}}.fill([3, 1], 0)
+    # NArray.fill([3, 1], 0)
     # ```
     # Will produce
     # ```text
@@ -169,21 +193,61 @@ module Phase
     #  [0],
     #  [0]]
     # ```
-    # Note that this method makes no effort to duplicate *value*, so this should only be used
-    # for `Struct`s. If you want to populate an {{@type}} with `Object`s, see `new(shape, &block)`.
+    #
+    # Note that this method makes no effort to duplicate *value*, so this
+    # should only be used for `Value`s. If you want to populate an NArray with
+    # `Reference`s, see `new(shape, &block)`.
+    # For an example of this:
+    # ```crystal
+    # class ImAReference
+    # 	getter foo = 0
+    # 
+    # 	def mutate!
+    # 		@foo += 1
+    # 	end
+    # 
+    # 	def inspect(io : IO)
+    # 		io << "Foo #{@foo}"
+    # 	end
+    # end
+    # 
+    # # This is probably not what you want!
+    # # Fill won't duplicate the `ImAReference` object:
+    # narr = NArray.fill([2], ImAReference.new)
+    # puts narr # => NArray[Foo 0, Foo 0]
+    # narr.get(0).mutate!
+    # # So mutating one element will mutate both!
+    # puts narr # => NArray[Foo 1, Foo 1]
+    # 
+    # # You probably wanted to do this:
+    # # Using the block in NArray.build ensures that each element is distinct
+    # narr = NArray.build([2]) { ImAReference.new }
+    # puts narr # => NArray[Foo 0, Foo 0]
+    # narr.get(0).mutate!
+    # # Now, things behave as expected
+    # puts narr # => NArray[Foo 1, Foo 0]
+    # ```
     def self.fill(shape, value : T)
-      # \{% begin %} \{{ @type.id }}.new(shape) { value } \{% end %}
-      {{@type}}.new(shape) { value }
+      NArray(T).new(shape) { value }
     end
 
-    def self.tile(narr : MultiIndexable(T), counts : Enumerable)
-      shape = narr.shape.map_with_index { |axis, idx| axis * counts[idx] }
+    # Repeats a *source* `MultiIndexable` along its axes, *counts[i]* times along axis *i*.
+    #
+    # For example:
+    # ```crystal
+    # src = NArray[[1, 2], [3, 4]]
+    # NArray.tile(src, [2, 1])
+    # # => NArray[[1, 2, 1, 2],
+    # #           [3, 4, 3, 4]]
+    # ```
+    def self.tile(source : MultiIndexable(T), counts : Enumerable)
+      shape = source.shape.map_with_index { |axis, idx| axis * counts[idx] }
 
-      iter = TilingLexIterator.new(IndexRegion.cover(shape), narr.shape).each
+      iter = TilingLexIterator.new(IndexRegion.cover(shape), source.shape).each
 
       build(shape) do
         iter.next
-        narr.get(iter.smaller_coord)
+        source.get(iter.smaller_coord)
       end
     end
 
@@ -221,7 +285,7 @@ module Phase
 
     def fit(new_shape, *, align : Hash(Int32, NArray::Alignment | Int32)? = nil, pad_with value = nil)
       if new_shape.size != @shape.size
-        raise "Cannot fit a #{@shape.size} dimensional {{@type}} into a #{new_shape.size} dimensional shape. Consider calling `reshape` if you wish to change dimensionality."
+        raise "Cannot fit a #{@shape.size} dimensional NArray into a #{new_shape.size} dimensional shape. Consider calling `reshape` if you wish to change dimensionality."
       end
       # otherwise:
     end
@@ -250,15 +314,16 @@ module Phase
     end
 
 
-    # Adds a dimension at highest level, where each "row" is an input {{@type}}.
+    # Adds a dimension at highest level, where each "row" is an input NArray.
     # If pad is false, then throw error if shapes of objects do not match;
     # otherwise, pad subarrays along each axis to match whichever is largest in that axis
+    # TODO: Fix
     def self.wrap(*objects : AbstractNArray(T), pad = false) : NArray
       shapes = objects.to_a.map { |x| x.shape }
       if pad
         container = common_container(*objects)
         # TODO pad all arrays to this size
-        raise NotImplementedError.new("As of this time, {{@type}}.wrap() cannot pad arrays for you. Come back after reshaping has been implemented, or get off the couch and go do it yourself.")
+        raise NotImplementedError.new("As of this time, NArray.wrap() cannot pad arrays for you.")
       else
         container = shapes[0]
         # check that all arrays are same size
@@ -274,7 +339,7 @@ module Phase
       NArray(T).new(container) { |i| combined_buffer[i] }
     end
 
-    # creates an {{@type}}-type vector from a tuple of scalars.
+    # creates an NArray-type vector from a tuple of scalars.
     def self.wrap(*objects)
       NArray.new(objects.to_a)
     end
@@ -283,20 +348,50 @@ module Phase
       @shape
     end
 
+    # :ditto:
     def size : Int32
       @buffer.size
     end
 
-    # Creates a deep copy of this {{@type}};
-    # Allocates a new buffer of the same shape, and calls #clone on every item in the buffer.
+    # Creates a deep copy of this NArray.
+    # More specifically, this allocates a new buffer of the same shape, and
+    # calls #clone on every item in the buffer. Then, a new `NArray` is constructed
+    # with that copied buffer.
+    # ```crystal
+    # elem = Set{'a'}
+    # narr = NArray[elem]
+    # 
+    # # Calling clone will clone the element, too:
+    # copy = narr.clone
+    # narr.get(0) << 'b'
+    # 
+    # # So the data inside the narr and the copy are distinct
+    # puts narr # => NArray[Set{'a', 'b'}]
+    # puts copy # => NArray[Set{'a'}]
+    # ```
     def clone : self
-      {{@type}}.new(@shape, @buffer.clone)
+      NArray.new(@shape, @buffer.clone)
     end
 
-    # Creates a shallow copy of this {{@type}};
-    # Allocates a new buffer of the same shape, and duplicates every item in the buffer.
+    # Creates a shallow copy of this NArray.
+    # More specifically, this allocates a new buffer of the same shape, and
+    # calls #dup on every item in the buffer. Then, a new `NArray` is constructed
+    # with that copied buffer.
+    #
+    # ```crystal
+    # elem = Set{'a'}
+    # narr = NArray[elem]
+    # 
+    # # Calling clone will dup the element, too:
+    # copy = narr.dup
+    # narr.get(0) << 'b'
+    # 
+    # # So the data inside the narr and the copy aren't distinct:
+    # puts narr # => NArray[Set{'a', 'b'}]
+    # puts copy # => NArray[Set{'a', 'b'}]
+    # ```
     def dup : self
-      {{@type}}.new(@shape, @buffer.dup)
+      NArray.new(@shape, @buffer.dup)
     end
 
     # TODO any way to avoid copying these out yet, too? Iterator magic?
@@ -317,22 +412,28 @@ module Phase
 
     #   (0...@shape[axis]).map do |slice_number|
     #     offset = step * slice_number
-    #     {{@type}}.new(shape) { |i| mapping[i] + offset }
+    #     NArray.new(shape) { |i| mapping[i] + offset }
     #   end
     # end
 
+    # Converts a potentially multidimensional array into a flat, 1-dimensional NArray.
+    # The elements will be raveled into lexicographic order inside of the new array.
+    # For example:
+    # ```crystal
+    # ```
     def flatten : self
       reshape(@buffer.size)
     end
 
+    # TODO: reshape should return a clone by default
     def reshape(new_shape : Enumerable)
       shape_arr = new_shape.to_a
-      NArray.ensure_valid(shape_arr, @buffer)
-      {{@type}}.new(shape_arr, @buffer)
+      NArray.ensure_valid!(shape_arr, @buffer)
+      NArray.new(shape_arr, @buffer)
     end
 
-    def reshape(*splat)
-      reshape(splat)
+    def reshape(*new_shape)
+      reshape(new_shape)
     end
 
     # Checks for elementwise equality between `self` and *other*.
@@ -345,23 +446,21 @@ module Phase
       false
     end
 
-    # Copies the elements in `region` to a new `{{@type}}`, assuming that `region` is in canonical form and in-bounds for this `{{@type}}`.
-    # For full specification of canonical form see `IndexRegion` documentation.
+    # :ditto:
     def unsafe_fetch_chunk(region : IndexRegion)
       iter = Indexed::ElemAndCoordIterator.new(self, Indexed::LexIterator.new(region, @shape))
       typeof(self).new(region.shape) { iter.unsafe_next[0] }
     end
 
-    # Retrieves the element specified by `coord`, assuming that `coord` is in canonical form and in-bounds for this `{{@type}}`.
-    # For full specification of canonical form see `IndexRegion` documentation.
+    # :ditto:
     def unsafe_fetch_element(coord) : T
       @buffer.unsafe_fetch(Buffered.coord_to_index_fast(coord, @shape, @axis_strides))
     end
 
-    # Takes a single index into the {{@type}}, returning a slice of the largest dimension possible.
+    # Takes a single index into the NArray, returning a slice of the largest dimension possible.
     # For example, if `a` is a matrix, `a[0]` will be a vector. There is a special case when
-    # indexing into a 1D `{{@type}}` - the scalar at the index provided will be wrapped in an
-    # `{{@type}}`. This is to preserve type-safety - if you want to extract the scalar as type `T`,
+    # indexing into a 1D `NArray` - the scalar at the index provided will be wrapped in an
+    # `NArray`. This is to preserve type-safety - if you want to extract the scalar as type `T`,
     # invoke `#to_scalar`.
     # TODO: Either make the type restriction here go away (it was getting called when indexing
     # with a single range), or remove this method entirely in favor of read only views
@@ -381,8 +480,7 @@ module Phase
     #   typeof(self).new(new_shape, new_buffer.clone)
     # end
 
-    # Copies the elements from a MultiIndexable `src` into `region`, assuming that `region` is in canonical form and in-bounds for this `{{type}}`
-    # and the shape of `region` matches the shape of `src`.
+    # :ditto:
     def unsafe_set_chunk(region : IndexRegion, src : MultiIndexable(T))
       absolute_iter = Indexed::LexIterator.new(region, @shape)
       src_iter = src.each
@@ -393,7 +491,7 @@ module Phase
       end
     end
 
-    # Sets each element in `region` to `value`, assuming that `region` is in canonical form and in-bounds for this `{{type}}`
+    # :ditto:
     def unsafe_set_chunk(region : IndexRegion, value : T)
       iter = Indexed::LexIterator.new(region, @shape)
       iter.each do
@@ -401,91 +499,157 @@ module Phase
       end
     end
 
+    # :ditto:
     def unsafe_set_element(coord : Enumerable, value : T)
       @buffer[Buffered.coord_to_index_fast(coord, @shape, @axis_strides)] = value
     end
 
-    # replaces all values in a boolean mask with a given value
-    def []=(bool_mask : NArray(Bool), value : T)
-      if bool_mask.shape != @shape
+    # :nodoc:
+    # This is a faster implementation of #[]= for the case where
+    # the mask is an NArray.
+    def []=(mask : NArray(Bool), value : T)
+      if mask.shape != @shape
         raise DimensionError.new("Cannot perform masking: mask shape does not match array shape.")
       end
 
-      bool_mask.buffer.each_with_index do |bool_val, idx|
-        if bool_val
+      mask.buffer.each_with_index do |should_copy, idx|
+        if should_copy
           @buffer[idx] = value
+        end
+      end
+    end
+
+    # :nodoc:
+    # Overloaded for performance on NArrays by using the buffer directly
+    def []=(mask : MultiIndexable(Bool), value : MultiIndexable(T))
+      if mask.shape != @shape
+        raise DimensionError.new("Cannot perform masking: mask shape does not match array shape.")
+      end
+
+      iter = Indexed::LexIterator.cover(@shape)
+      iter.each do |coord|
+        if mask.get(coord)
+          @buffer[iter.current_index] = value.get(coord)
+        end
+      end
+    end
+
+    # :nodoc:
+    # Overloaded for performance on NArrays by using the buffer directly
+    def []=(mask : MultiIndexable(Bool), value : T)
+      # Overloaded for performance
+      if mask.shape != @shape
+        raise DimensionError.new("Cannot perform masking: mask shape does not match array shape.")
+      end
+
+      iter = Indexed::LexIterator.cover(@shape)
+      iter.each do |coord|
+        if mask.get(coord)
+          @buffer[iter.current_index] = value
         end
       end
     end
 
     # Iterator overrides for buffer-based speedups
 
-    # The default "each" with no iterator type passed is lexicographic.
-    # For other orders, default to MultiIndexable's implementation.
+    # :inherit:
     def each
       @buffer.each
     end
 
+    # See `MultiIndexable#fast_each`.
+    # For an `NArray`, the iteration order of `#each` is already as fast as possible.
     def fast_each
       @buffer.each
     end
 
+    # :inherit:
     def each_coord
       Indexed::LexIterator.cover(shape_internal)
     end
 
-    def each_with_coord(iter : IndexedStrideIterator(I)) forall I
-      Indexed::ElemAndCoordIterator.new(self, iter)
-    end
-
+    # Iterates over elements in lexicographic order, providing their lexicographic buffer index.
+    # ```crystal
+    # NArray[['a', 'b'],
+    #        ['c', 'd']].each_with_index do |el, idx|
+    #   puts "#{el} at #{idx}"
+    # end
+    # # => 'a' at 0
+    # # => 'b' at 1
+    # # => 'c' at 2
+    # # => 'd' at 3
+    # ```
     def each_with_index(&block : T, Int32 ->)
       @buffer.each_with_index do |elem, idx|
         yield elem, idx
       end
     end
 
+    # :inherit:
     def map(&block : T -> U) forall U
-      map_with_index do |elem|
+      new_buffer = @buffer.map do |elem|
         yield elem
       end
-    end
 
-    def map_with_index(&block : T, Int32 -> U) forall U
-      new_buffer = @buffer.map_with_index do |elem, idx|
-        yield elem, idx
-      end
       NArray.new(@shape.clone, new_buffer)
     end
 
-    def map_with_coord(&block : T, Indexable(Int32), Int32 -> U) forall U
+    # Creates a new `NArray` by mapping elements by their lexicographic buffer index and value.
+    # ```crystal
+    # narr = NArray["a", "b", "c"]
+    # narr.map_with_index { |el, idx| el * idx} # => NArray["", "b", "cc"]
+    #
+    # # Note that the source is not changed:
+    # narr # => NArray["a", "b", "c"]
+    # ```
+    def map_with_index(&block : T, Int32 -> U) : NArray(U) forall U
+      new_buffer = @buffer.map_with_index do |elem, idx|
+        yield elem, idx
+      end
+
+      NArray.new(@shape.clone, new_buffer)
+    end
+
+    # :inherit:
+    def map_with_coord(&block : T, ReadonlyWrapper(Array(Int32), Int32) -> U) forall U
       NArray(U).build(@shape) do |coord, idx|
         yield @buffer[idx], coord, idx
       end
     end
 
+    # In-place version of `#map`.
+    # The element type of this NArray cannot be changed via this method.
     def map!(&block : T -> T) : self
       map_with_index! do |elem|
         yield elem
       end
+
       self
     end
 
+    # In-place version of `#map_with_index`.
+    # The element type of this NArray cannot be changed via this method.
     def map_with_index!(&block : T, Int32 -> T) : self
       @buffer.map_with_index! do |elem, idx|
         yield elem, idx
       end
+
       self
     end
 
-    def map_with_coord!(&block : T, Indexable(Int32), Int32 -> T) : self
+    # In-place version of `#map_with_coord`.
+    # The element type of this NArray cannot be changed via this method.
+    def map_with_coord!(&block : T, ReadonlyWrapper(Array(Int32), Int32) -> U) forall U
       iter = LexIterator.cover(shape_internal)
+
       @buffer.map_with_index! do |el, idx|
         yield el, iter.unsafe_next, idx
       end
+
       self
     end
 
-    # Given a list of `{{@type}}`s, returns the smallest shape array in which any one of those `{{@type}}s` can be contained.
+    # Given a list of `NArray`s, returns the smallest shape array in which any one of those `NArrays` can be contained.
     # TODO: Example
     def self.common_container(*objects)
       shapes = objects.to_a.map { |x| x.shape }
@@ -570,7 +734,7 @@ module Phase
 
       partial_chunk_size = narrs[0].axis_strides[axis]
       chunk_sizes = narrs.map { |narr| narr.shape[axis] * partial_chunk_size }
-      num_chunks = concat_shape[...axis].product
+      num_chunks = ShapeUtil.shape_to_size(concat_shape[...axis])
 
       values = Array(T).new(initial_capacity: concat_size)
       iters = narrs.map { |narr| BufferedECIterator.of(narr) }
@@ -590,7 +754,7 @@ module Phase
     # Returns the estimated dimension of a multidimensional array that is provided as a nested array literal.
     # Used internally to determine the buffer size for several constructors. Note that this method
     # does not guarantee that the size reported is accurate.
-    # For example, `{{@type}}.recursive_probe_array([[1], [1, 2]])` will return `[2, 1]`. The `2` comes
+    # For example, `NArray.recursive_probe_array([[1], [1, 2]])` will return `[2, 1]`. The `2` comes
     # from the fact that the top-level array contains 2 elements, and the `1` comes from the size of
     # the sub-array `[1]`. However, we can clearly see that the size isn't uniform - the second
     # sub-array is `[1, 2]`, which is two elements, not one!
@@ -653,39 +817,37 @@ module Phase
     end
 
     def self.new(pull : JSON::PullParser)
-      {% begin %}
-        shape = [] of Int32
-        elements = [] of {{ @type.type_vars[0] }}
+      shape = [] of Int32
+      elements = [] of T
 
-        found_shape = false
-        found_elements = false
+      found_shape = false
+      found_elements = false
 
-        pull.read_object do |key, key_loc|
-          case key
-          when "shape"
-            found_shape = true
-            pull.read_array do
-              shape << pull.read?(Int32).not_nil!
-            end
-          when "elements"
-            pull.read_array do
-              found_elements = true
-              elements << {{ @type.type_vars[0] }}.new(pull)
-            end
+      pull.read_object do |key, key_loc|
+        case key
+        when "shape"
+          found_shape = true
+          pull.read_array do
+            shape << pull.read?(Int32).not_nil!
+          end
+        when "elements"
+          found_elements = true
+          pull.read_array do
+            elements << T.new(pull)
           end
         end
+      end
 
-        if found_shape && found_elements
-          if shape.product == elements.size
-            buffer = Slice.new(elements.to_unsafe, elements.size)
-            return new(shape, buffer)
-          else
-            raise JSON::Error.new("Could not read NArray from YAML: wrong number of elements for shape #{shape}")
-          end
+      if found_shape && found_elements
+        if ShapeUtil.shape_to_size(shape) == elements.size
+          buffer = Slice.new(elements.to_unsafe, elements.size)
+          return new(shape, buffer)
         else
-          raise JSON::Error.new("Could not read NArray from YAML: 'shape' and/or 'elements' were missing.")
+          raise JSON::Error.new("Could not read NArray from JSON: wrong number of elements for shape #{shape}")
         end
-        {% end %}
+      else
+        raise JSON::Error.new("Could not read NArray from JSON: 'shape' and/or 'elements' were missing.")
+      end
     end
 
     def to_yaml(yaml : YAML::Nodes::Builder)
@@ -733,7 +895,7 @@ module Phase
         end
 
         unless shape.nil? || elements.nil?
-          if elements.size == shape.product
+          if elements.size == ShapeUtil.shape_to_size(shape)
             elements = Slice.new(elements.to_unsafe, elements.size)
             ret = new(shape, elements)
             ctx.record_anchor(node, ret)

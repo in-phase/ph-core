@@ -48,7 +48,7 @@ abstract class MultiIndexableTester(M, T, I)
   abstract def test_to_narr
 
   {% for category in {:pure_empty, :volumetric_empty, :pure_scalar, :volumetric_scalar} %}
-  # If it is possible to construct one, invokes the block with a {{category.id}} {{@type}}.
+  # If it is possible to construct one, invokes the block with a {{category.id}} M.
   private def get_{{category.id}}(&block : M -> )
     if inst = make_{{category.id}}
       yield inst
@@ -56,7 +56,7 @@ abstract class MultiIndexableTester(M, T, I)
   end
   {% end %}
 
-  # Yields an empty {{@type}} once if possible.
+  # Yields an empty M once if possible.
   # Attempts to provide a volumetric one first, then falls back to scalar.
   private def get_empty(&block : M ->)
     if inst = make_volumetric_empty || make_pure_empty
@@ -64,7 +64,7 @@ abstract class MultiIndexableTester(M, T, I)
     end
   end
 
-  # Yields a scalar {{@type}} once if possible.
+  # Yields a scalar M once if possible.
   # Attempts to provide a volumetric one first, then falls back to scalar.
   private def get_scalar(&block : M ->)
     if inst = make_volumetric_scalar || make_pure_scalar
@@ -306,9 +306,9 @@ abstract class MultiIndexableTester(M, T, I)
 
       describe "#has_coord?" do
         it "returns true for a coordinate within the shape" do
-          all_coords_lex_order(m_inst.shape) do |(row, col)|
-            m_inst.has_coord?([row, col]).should be_true
-            m_inst.has_coord?(row, col).should be_true
+          all_coords_lex_order(m_inst.shape) do |coord|
+            # Note: We can't test the tuple accepting overload here, because the number of dimensions is allowed to vary.
+            m_inst.has_coord?(coord).should be_true
           end
         end
 
@@ -316,11 +316,10 @@ abstract class MultiIndexableTester(M, T, I)
           oversized_shape = m_inst.shape.map &.+(2)
           proper_coords = all_coords_lex_order(m_inst.shape)
 
-          all_coords_lex_order(oversized_shape) do |(row, col)|
-            next if proper_coords.includes? [row, col]
+          all_coords_lex_order(oversized_shape) do |coord|
+            next if proper_coords.includes? coord
 
-            m_inst.has_coord?([row, col]).should be_false
-            m_inst.has_coord?(row, col).should be_false
+            m_inst.has_coord?(coord).should be_false
           end
         end
 
@@ -503,21 +502,6 @@ abstract class MultiIndexableTester(M, T, I)
         end
       end
 
-      describe "#[]?(mask)" do
-        it "raises a ShapeError for mismatched mask size" do
-          mask = NArray.fill(m_inst.shape + [2], false)
-
-          expect_raises ShapeError do
-            m_inst[mask]?
-          end
-        end
-
-        it "returns nil where the mask is false and the copied element where the mask is true" do
-          mask = NArray.build(m_inst.shape) { |_, i| i % 2 == 0 }
-          m_inst[mask]?.to_narr.should eq narr[mask]?
-        end
-      end
-
       describe "#each_coord" do
         it "yields only the correct coordinates in the correct order" do
           m_inst.each_coord.to_a.should eq narr.each_coord.to_a
@@ -666,7 +650,7 @@ abstract class MultiIndexableTester(M, T, I)
         end
       end
 
-      describe "#reverse", tags: ["yikes"] do
+      describe "#reverse" do
         it "returns a MultiIndexable with reversed element order" do
           m_inst.reverse.to_narr.should eq narr.reverse
         end

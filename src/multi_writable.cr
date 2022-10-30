@@ -11,24 +11,19 @@ module Phase
     # optimizations where cloning and wrapping are too costly.
     protected abstract def shape_internal : Shape
 
-    # Given a coordinate representing some location in the {{@type}} and a value, store the value at that coordinate.
-    # Assumes that the coordinate is in-bounds for this {{@type}}.
+    # Given a coordinate and a value, store the value at that coordinate.
+    # Assumes that the coordinate is in-bounds for this `MultiWritable`.
     abstract def unsafe_set_element(coord : Coord, value : T)
 
     def size
-      shape = shape_internal
-      if shape.size == 0
-        0
-      else
-        shape.product
-      end
+      ShapeUtil.shape_to_size(shape_internal)
     end
 
     def shape : Shape
       shape_internal.clone
     end
 
-    # Copies the elements from a MultiIndexable `src` into `region`, assuming that `region` is in canonical form and in-bounds for this `{{@type}}`
+    # Copies the elements from a MultiIndexable `src` into `region`, assuming that `region` is in canonical form and in-bounds for this `MultiWritable`
     # and the shape of `region` matches the shape of `src`.
     # For full specification of canonical form see `RegionHelpers` documentation. TODO: make this actually happen
     def unsafe_set_chunk(region : IndexRegion, src : MultiIndexable(T))
@@ -40,7 +35,7 @@ module Phase
       end
     end
 
-    # Sets each element in `region` to `value`, assuming that `region` is in canonical form and in-bounds for this `{{@type}}`
+    # Sets each element in `region` to `value`, assuming that `region` is in canonical form and in-bounds for this `MultiWritable`
     # For full specification of canonical form see `RegionHelpers` documentation. TODO: make this actually happen
     def unsafe_set_chunk(region : IndexRegion, value : T)
       region.each do |coord|
@@ -49,14 +44,14 @@ module Phase
     end
 
     # Sets the element specified by `coord` to `value`.
-    # Raises an error if `coord` is out-of-bounds for this `{{@type}}`.
+    # Raises an error if `coord` is out-of-bounds for this `MultiWritable`.
     def set_element(coord : Indexable, value : T)
       unsafe_set_element(CoordUtil.canonicalize_coord(coord, shape_internal), value)
     end
 
     # NOTE: changed name from 'value' to 'src' - approve?
     # Copies the elements from a MultiIndexable `src` into `region`.
-    # Raises an error if `region` is out-of-bounds for this `{{@type}}` or if the shape of `region` does not match `src.shape`
+    # Raises an error if `region` is out-of-bounds for this `MultiWritable` or if the shape of `region` does not match `src.shape`
     def set_chunk(region_literal : Indexable, src : MultiIndexable(T))
       idx_region = IndexRegion.new(region_literal, shape_internal)
 
@@ -68,7 +63,7 @@ module Phase
     end
 
     # Sets each element in `region` to `value`.
-    # Raises an error if `region` is out-of-bounds for this `{{@type}}`.
+    # Raises an error if `region` is out-of-bounds for this `MultiWritable`.
     def set_chunk(region : Indexable | IndexRegion, value : T)
       idx_r = IndexRegion.new(region, shape_internal)
       unsafe_set_chunk(idx_r, value)
@@ -95,27 +90,81 @@ module Phase
     # def []?(narr : MultiIndexable(Bool), value) # = this returns
     # def []=(pred : MultiIndexable(Bool), src : MultiIndexable(T?))
 
-    # TODO: consider overriding these in NArray, may benefit from speedup?
-    def []=(bool_mask : MultiIndexable(Bool), value)
-      set_mask(bool_mask, value)
+    # Overwrites elements using a boolean *mask* to select which elements are rewritten.
+    # For example:
+    # ```crystal
+    # # 2x2 matrix of zeros
+    # narr = NArray.fill([2, 2], 0) # => NArray[[0, 0], [0, 0]]
+    # 
+    # # Diagonal mask
+    # mask = NArray.build([2, 2]) { |coord| coord[0] == coord[1] }
+    # # => NArray[[true, false],
+    # #           [false, true]]
+    # 
+    # # Create an identity matrix:
+    # narr[mask] = 1
+    # 
+    # puts narr
+    # # => NArray[[1, 0],
+    # #           [0, 1]]
+    # 
+    # # The source elements can come from another MultiIndexable, too:
+    # source = NArray.build(2, 2) { |_, idx| idx + 10 }
+    # # => NArray[[10, 11],
+    # #           [12, 13]]
+    # 
+    # narr[mask] = source
+    # 
+    # puts narr
+    # # => NArray[[10, 0],
+    # #           [0, 13]]
+    # ```
+    # Note that the elements from *value* (wether value is constant or a
+    # *MultiIndexable* are not duplicated or cloned. If you have a
+    # `MultiWritable` full of objects, this may be an issue. In this case, the
+    # block accepting version might be more desirable for you
+    # (`MultiWritable#set_mask(mask, &block`)
+    def []=(mask : MultiIndexable(Bool), value)
+      set_mask(mask, value)
     end
 
-    def set_mask(bool_mask, src : MultiIndexable(T))
+    # Copies elements from *src* into this `MultiWritable` at coordinates where *mask* is true.
+    # The copied elements are not duplicated or cloned - be aware of this if you
+    # have a `MultiIndexable` of Objects.
+    #
+    # ```crystal
+    # # 2x2 matrix of zeros
+    # narr = NArray.fill([2, 2], 0) # => NArray[[0, 0], [0, 0]]
+    # 
+    # # Diagonal mask
+    # mask = NArray.build([2, 2]) { |coord| coord[0] == coord[1] }
+    # # => NArray[[true, false],
+    # #           [false, true]]
+    # 
+    # source = NArray.build(2, 2) { |_, idx| idx + 10 }
+    # # => NArray[[10, 11],
+    # #           [12, 13]]
+    # 
+    # narr[mask] = source
+    # 
+    # puts narr
+    # # => NArray[[10, 0],
+    # #           [0, 13]]
+    # ```
+    def set_mask(mask : MultiIndexable(Bool), src : MultiIndexable(T))
       if src.shape != shape_internal
         raise ShapeError.new("Cannot perform masking: source shape #{src.shape} does not match array shape #{shape_internal}.")
       end
-      set_mask(bool_mask) { |coord| src.unsafe_fetch_element(coord).as(T) }
+
+      set_mask(mask) { |coord| src.unsafe_fetch_element(coord).as(T) }
     end
 
-    def set_mask(bool_mask, value)
-      set_mask(bool_mask) { value }
-    end
-
-    def set_mask(bool_mask : MultiIndexable(Bool), &block)
-      if bool_mask.shape != shape_internal
-        raise ShapeError.new("Cannot perform masking: mask shape #{bool_mask.shape} does not match array shape #{shape_internal}.")
+    def set_mask(mask : MultiIndexable(Bool), &block)
+      if mask.shape != shape_internal
+        raise ShapeError.new("Cannot perform masking: mask shape #{mask.shape} does not match array shape #{shape_internal}.")
       end
-      bool_mask.each_with_coord do |bool_val, coord|
+
+      mask.each_with_coord do |bool_val, coord|
         if bool_val
           unsafe_set_element(coord, yield coord)
         end

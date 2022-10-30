@@ -158,7 +158,7 @@ macro test_on(type, cast)
 
                     max_val = {v[:first], v[:last]}.max
                     if max_val > 0
-                        new_bound = {{type}}.zero + max_val - 1
+                        new_bound = {{type}}.new(max_val - 1)
                         expect_raises ShapeError do 
                             copy = IndexRegion.new(idx_r, [new_bound])
                         end
@@ -252,7 +252,7 @@ macro test_on(type, cast)
 
             it "returns false if the region does not fit in shape" do 
                 max_val = {v[:first], v[:last]}.max
-                new_bound = {{type}}.zero + max_val
+                new_bound = {{type}}.new(max_val)
                 IndexRegion.new([r],[bound.{{cast}}]).fits_in?([new_bound]).should be_false
             end
         end

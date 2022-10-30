@@ -320,14 +320,14 @@ module Phase
     # Computes the reduced shape of an `IndexRegion` given its *proper_shape*, *degeneracy* and *drop* value.
     # More specifically, it drops axes off of the *proper_shape* where appropriate, and handles the
     # scalar case.
-    protected def self.compute_reduced_shape(proper_shape : Shape, degeneracy : Array(Bool), drop : Bool)
+    protected def self.compute_reduced_shape(proper_shape : Shape(T), degeneracy : Array(Bool), drop : Bool) : Array(T) forall T
       if drop
         drop_degenerate(proper_shape, degeneracy) do
           # This block is only called when all of the axes are degenerate. That
           # means that the IndexRegion selects a single element, or that the
           # IndexRegion contains no elements at all. In both of these cases,
           # we want the reduced shape to be 1d and contain either 0 or 1 elements:
-          [proper_shape.product]
+          [ShapeUtil.shape_to_size(proper_shape)]
         end
       else
         proper_shape.dup

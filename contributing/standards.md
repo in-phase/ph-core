@@ -23,6 +23,10 @@
     first implement an in place version (`index_region.reverse!`) and then implement the producer by cloning `self` and
     invoking the in-place version (`index_region.clone.reverse!`) - two birds with one stone
 
+# Code Patterns to Avoid
+- Do not use @type to try and call methods on subclasses (e.g. `class Parent; def foo; {@type}.do_something; end; end`)
+    - This is always replacable with a more reliable inheritance structure. The truth is, you don't know what subclasses will end up doing, and you shouldn't try to predict their API outside of normal inheritance requirements. 
+
 # Pull requests
 - General courtesy! 
     - change as little as possible
@@ -55,6 +59,9 @@
     - don't raise `IndexWasNegativeException`, raise `IndexError`
     - at the same time, don't be too general: raise `ArgumentError` when you should have created `DimensionError`
     - only create new exceptions for broad categories of issues that users will want to distinguish from other error types
+- Avoid mentioning the class name in an error message
+    - Don't say "Could not create NArray due to x", say "Creation failed due to x"
+    - If this error bubbles up due to the actions of a subclass, it can be confusing to understand. If `NArraySubclass` raises "Could not create NArray due to x", a user might think that `NArraySubclass` has an `NArray` member variable.
 
 # Language
 - Coord (`coord`) - coordinate, represented by an indexable where `coord[i]` is the index along axis i

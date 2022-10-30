@@ -84,17 +84,18 @@ module Phase
     end
 
     # Returns the total number of elements in this `MultiIndexable`.
-    # This quantity is always equal to `shape.product`. However, this method is
-    # almost always more performant than computing the product directly.
     #
     # ```crystal
     # NArray.new(['a', 'b', 'c']).size # => 3
     # NArray.new([[0, 1], [1, 0]]).size # => 4
+    # 
+    # narr = NArray['a']
+    # narr.size # => 1
+    # empty_narr = narr[...0] # By excluding the only valid index, we create an empty NArray
+    # empty_narr.size # => 0
     # ```
     def size
-      s = shape_internal
-      return 0 if s.size == 0
-      s.product
+      ShapeUtil.shape_to_size(shape_internal)
     end
 
     # Returns `true` if and only if this `MultiIndexable` spans no elements.
@@ -174,7 +175,7 @@ module Phase
     # ```
     def first : T
       if size == 0
-        raise ShapeError.new("{{@type}} has zero elements (shape: #{shape_internal}).")
+        raise ShapeError.new("This MultiIndexable has zero elements (shape: #{shape_internal}).")
       end
 
       get_element(Array.new(shape_internal.size, 0))
@@ -194,13 +195,13 @@ module Phase
     # ```
     def last : T
       if size == 0
-        raise ShapeError.new("{{@type}} has zero elements (shape: #{shape_internal}).")
+        raise ShapeError.new("This MultiIndexable has zero elements (shape: #{shape_internal}).")
       end
 
       get_element(shape_internal.map &.pred)
     end
 
-    # Returns a random element from the `{{@type}}`. Note that this might not
+    # Returns a random element from the MultiIndexable. Note that this might not
     # return distinct elements if the random number generator returns the same
     # coordinate twice.
 
@@ -479,29 +480,6 @@ module Phase
       self
     end
 
-    # Returns a `MultiIndexable` that draws from `self` where *bool_mask* is true, but contains `nil` where *bool_mask* is false.
-    # If *bool_mask* has a different shape than `self`, this method will raise
-    # a `ShapeError`.
-    #
-    #
-    # ```crystal
-    # narr = NArray[3, 4, 5]
-    # mask = NArray[false, true, true]
-    # narr[mask]? # => NArray[nil, 4, 5]
-    # 
-    # oversized_mask = NArray[false, true, true, false]
-    # narr[oversized_mask]? # => ShapeError
-    # ```
-    def []?(bool_mask : MultiIndexable(Bool)) : MultiIndexable(T?)
-      if bool_mask.shape != shape_internal
-        raise ShapeError.new("Could not use mask: mask shape #{bool_mask.shape} does not match this MultiIndexable's shape (#{shape_internal}).")
-      end
-
-      bool_mask.map_with_coord do |bool_val, coord|
-        bool_val ? unsafe_fetch_element(coord) : nil
-      end
-    end
-
     # Copies the elements described by *region* into a new `MultiIndexable`.
     # If *region* does not describe a valid region of this `MultiIndexable`,
     # this method will raise either a `DimensionError` (in the case of
@@ -745,28 +723,6 @@ module Phase
       end
     end
 
-    # TODO docs
-    # DISCUSS is this good behaviour?
-    def map_with_coord!(&block : (T -> T))
-      each_coord do |coord|
-        unsafe_set_element(coord, yield(unsafe_fetch_element(coord), coord))
-      end
-    end
-
-    def map_with_coord!(&block : (T -> MultiIndexable(T)))
-      each_coord do |coord|
-        val = yield unsafe_fetch_element(coord), coord
-        unsafe_set_element(coord, val.to_scalar)
-      end
-    end
-
-    # TODO docs, test
-    def map!(&block : (T -> T | MultiIndexable(T))) : MultiIndexable(T)
-      map_with_coord! do |el, coord|
-        yield el
-      end
-    end
-
     # Returns an Iterator over the elements in this `MultiIndexable` that will iterate in the fastest order possible.
     # For most implementations, it is very likely that `#each` will be just as fast.
     # However, certain implementations of `MultiIndexable` may have substantial
@@ -922,20 +878,20 @@ module Phase
       true
     end
 
-    def view(region : Indexable? | IndexRegion = nil) : View(self, T)
-      View.of(self, region)
+    def view(region : Indexable? | IndexRegion = nil) : View
+      View.new(self, region)
     end
 
     def view(*region) : View(self, T)
       view(region)
     end
 
-    def process(&block : (T -> R)) : ProcView(self, T, R) forall R
+    def process(&block : (T -> R)) : ProcView forall R
       process(block)
     end
 
     def process(proc : Proc(T, R)) : ProcView(self, T, R) forall R
-      ProcView.of(self, proc)
+      ProcView.new(self, proc)
     end
 
     # TODO: rename to elem_eq
@@ -1067,12 +1023,6 @@ module Phase
       end
     end
 
-    def ensure_writable
-      {% unless @type < MultiWritable %}
-        {% raise "ensure_writable failed: #{@type} is not a MultiWritable." %}
-      {% end %}
-    end
-
     def map_with(*args : *U, &block) forall U
       {% begin %}
 
@@ -1127,23 +1077,6 @@ module Phase
       {% end %}
     end
     
-
-    def map_with!(*args : *U, &block) forall U 
-      {% begin %}
-      ensure_writable
-      each_coord do |coord|
-        unsafe_set_element(coord, 
-          yield(
-            unsafe_fetch_element(coord),
-            {% for i in 0...(U.size) %}
-              {% if U[i] < MultiIndexable %} args[{{i}}].unsafe_fetch_element(coord) {% else %} args[{{i}}]{% end %},
-            {% end %}
-          ))
-      end
-      {% end %}
-    end
-
-
     def self.each_with(*args : *U, &block) forall U
       {% begin %}
         {% found_first = false %}
@@ -1170,10 +1103,6 @@ module Phase
 
     def apply : ApplyProxy
       ApplyProxy.of(self)
-    end
-
-    def apply! : InPlaceApplyProxy
-      InPlaceApplyProxy.of(self)
     end
 
     private class ApplyProxy(S, T)
@@ -1211,20 +1140,6 @@ module Phase
       
     end
 
-    private class InPlaceApplyProxy(S,T) < ApplyProxy(S,T)
-      def self.of(src : S) forall S
-        InPlaceApplyProxy(S, typeof(src.first)).new(src)
-      end
-      
-      macro method_missing(call)
-        def {{call.name.id}}(*args : *U) forall U
-          @src.map_with!(*args) do |elem, *arg_elems|
-            elem.{{call.name.id}}(*arg_elems)
-          end
-        end
-      end
-
-    end 
 
   end
 end

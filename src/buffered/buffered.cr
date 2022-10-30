@@ -14,7 +14,7 @@ module Phase
     # multidimensional coordinate, x, is equal to x dotted with axis_strides
     def self.axis_strides(shape)
       ret = shape.clone
-      ret[-1] = typeof(shape[0]).zero + 1
+      ret[-1] = typeof(shape[0]).new(1)
       
       ((ret.size - 2)..0).step(-1) do |idx|
         ret[idx] = ret[idx + 1] * shape[idx + 1]
@@ -48,7 +48,7 @@ module Phase
       end
       index
     rescue exception
-      raise IndexError.new("Cannot convert coordinate to index: the given index is out of bounds for this {{@type}} along at least one dimension.")
+      raise IndexError.new("Cannot convert coordinate to index: the given index is out of bounds along at least one dimension.")
     end
     
     # Convert from a buffer location to an n-dimensional coord
@@ -65,8 +65,8 @@ module Phase
     # in this `MultiIndexable`. The coordinate will be produced in canonical 
     # form (nonnegative indexes).
     def self.index_to_coord(index, shape) : Array
-      if index > shape.product
-        raise IndexError.new("Cannot convert index to coordinate: the given index is out of bounds for this {{@type}} along at least one dimension.")
+      if index > ShapeUtil.shape_to_size(shape)
+        raise IndexError.new("Cannot convert index to coordinate: the given index is out of bounds along at least one dimension.")
       end
       coord = shape.dup # <- untested; was: Array(Int32).new(shape.size, typeof(shape[0]).zero)
       shape.reverse.each_with_index do |length, dim|

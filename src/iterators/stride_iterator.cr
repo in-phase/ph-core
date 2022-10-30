@@ -71,14 +71,9 @@ module Phase
       @coord = Array(I).new(@first.size) { |i| @first[i] }
       @wrapper = ReadonlyWrapper.new(@coord)
 
-      # Normally we want to give the first coordinate a chance to be consumed,
-      # but that's not true if the step size is zero (which would mean that
-      # no coordinates should be provided).
-      if @step.any? &.zero?
-        @hold = false
-      else
-        @hold = true
-      end
+      # The first coordinate needs a chance to get consumed - @hold prevents the coordinate
+      # from being advanced on the first invocation of #next
+      @hold = true
     end
 
     # Constructs an iterator that will provide every coordinate described by an `IndexRegion`.
@@ -114,8 +109,11 @@ module Phase
 
     def next : ReadonlyWrapper(Array(I), I) | Stop
       if @hold
+        # This check is cheap, because @hold will only
+        # be true when #next is called for the first time.
+        return stop if @step.any? &.zero?
+
         @hold = false
-        # return stop if started_empty?
       else
         return stop if advance!.is_a? Stop
       end
@@ -163,16 +161,20 @@ module Phase
     end
 
     # Returns true if and only if this `StrideIterator` does not contain a single coordinate. 
-    protected def started_empty? : Bool
-      @step.any? &.zero?
-    end
+    # protected def started_empty? : Bool
+    #   @step.any? &.zero?
+    # end
 
     macro def_standard_clone
+      # Copy constructor that preserves wrapper semantics
       protected def copy_from(other : self)
         @first = other.@first.clone
         @step = other.@step.clone
         @last = other.@last.clone
         @coord = other.@coord.clone
+        # normal clone semantics would set
+        # @wrapper = other.@wrapper.clone, which would be a 
+        # ReadonlyWrapper around other.@coord, not self.@coord!
         @wrapper = ReadonlyWrapper.new(@coord)
         self
       end

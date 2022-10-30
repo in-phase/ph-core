@@ -30,7 +30,7 @@ module Phase
       end
 
       def clone 
-        {{@type}}.new(@src, @region_iter.clone)
+        ChunkAndRegionIterator.new(@src, @region_iter.clone)
       end
 
       def next : Stop | Tuple(C, IndexRegion(I))

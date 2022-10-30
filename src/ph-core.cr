@@ -13,18 +13,18 @@ require "./range_syntax/range_syntax.cr"
 require "./index_region.cr"
 
 require "./iterators/*"
-require "./multi_indexable/*"
-require "./multi_indexable.cr"
 require "./multi_writable.cr"
+require "./multi_indexable.cr"
+require "./multi_indexable/*"
 
 require "./buffered/buffered.cr"
 require "./buffered/indexed/*"
 require "./n_array.cr"
 
 require "./view_util/*"
-require "./readonly_view.cr"
-require "./proc_view.cr"
 require "./view.cr"
+require "./proc_view.cr"
+require "./mutable_view.cr"
 
 require "./multi_indexable/formatter/settings.cr"
 require "./multi_indexable/formatter/formatter.cr"

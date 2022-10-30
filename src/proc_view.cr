@@ -1,28 +1,24 @@
 module Phase
-  class ProcView(S, T, R) < ReadonlyView(S, R)
+  class ProcView(S, T, R) < View(S, R)
     @proc : Proc(T, R)
 
     # DOCUMENT
-    def self.of(src : S, proc : (T -> R)) : ProcView(S, T, R) forall T, R
-      {% begin %}
-                {% unless S < MultiIndexable(T) %}
-                    {% raise "Error creating ProcView: proc input type does not match source element type." %}
-                {% end %}
-            {% end %}
-
+    def self.new(src : MultiIndexable(T), proc : (T -> R), *, region = nil) : self forall T, R
       case src
-      when ReadonlyView
+      when View
         return src.process(proc)
       else
-        return ProcView(S, T, R).new(src, src.shape, proc)
+        new_view = ProcView(typeof(src), T, R).new(validated: src, shape: src.shape, proc: proc)
+        new_view.restrict_to(region) if region
+        return new_view
       end
     end
 
-    def self.of(src : B, &block : (T -> R)) : ProcView(S, T, R) forall T, R
-      self.of(src, block)
+    def self.new(src : B, region = nil, &block : (T -> R)) : self forall T, R
+      new(src, region, block)
     end
 
-    protected def initialize(@src : S, @shape : Array(Int32), @proc : Proc(T, R), @transform = ComposedTransform.new)
+    protected def initialize(*, validated @src : S, @shape : Array(Int32), @proc : Proc(T, R), @transform = ComposedTransform.new)
     end
 
     def clone : self

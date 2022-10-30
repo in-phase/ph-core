@@ -1,5 +1,5 @@
 module Phase
-  class ReadonlyView(S, R)
+  class View(S, R)
     # probably done
     abstract struct CoordTransform
       @@commutes = [] of CoordTransform.class
@@ -196,7 +196,7 @@ module Phase
       @wrapper : ReadonlyWrapper(Array(Int32), Int32)
 
       def initialize(@region)
-        @buffer = Array.new(@region.dimensions, 0)
+        @buffer = Array.new(@region.proper_dimensions, 0)
         @wrapper = ReadonlyWrapper.new(@buffer)
       end
 
@@ -213,8 +213,6 @@ module Phase
       end
 
       def apply(coord : InputCoord(Int32)) : ReadonlyWrapper(OutputCoord(Int32), Int32)
-        # TODO: Optimize by directly populating the buffer with
-        # this calculation
         @region.unsafe_fetch_element(coord).each_with_index do |el, idx|
           @buffer[idx] = el
         end

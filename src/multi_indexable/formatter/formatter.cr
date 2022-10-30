@@ -20,6 +20,7 @@ module Phase
         ELEM
         SKIP
         LAST
+        EMPTY
       end
 
       @settings : Settings
@@ -33,6 +34,7 @@ module Phase
 
       # This will be set in the measurement step, and should never be used before.
       @justify_length = 0
+      @empty : Bool
 
       def self.print(narr : S, io : IO = STDOUT, settings = nil)
         settings ||= Settings.new
@@ -59,10 +61,12 @@ module Phase
       def initialize(narr : MultiIndexable(E), @io, @settings)
         @iter = ElemIterator.new(narr, LexIterator.cover(narr.shape))
         @shape = narr.shape
+        @empty = narr.shape.any? { |axis_size| axis_size == 0 }
       end
 
       private def capped_iterator(depth, max_count, &action)
         size = @shape[depth]
+
         if size > max_count
           left = max_count // 2
           right = max_count - left - 1
@@ -80,10 +84,13 @@ module Phase
           (right - 1).times do |idx|
             yield Flags::ELEM, size - right + idx
           end
-        else
+        elsif size > 0
           (size - 1).times do |idx|
             yield Flags::ELEM, idx
           end
+        else
+          yield Flags::EMPTY, -1
+          return
         end
 
         yield Flags::LAST, size - 1
@@ -113,6 +120,10 @@ module Phase
       end
 
       protected def walk_n_measure(depth = 0)
+        if ShapeUtil.shape_to_size(@shape) == 0
+          return 0
+        end
+
         height = @shape.size - depth - 1
         max_columns = @settings.display_limit[{@settings.display_limit.size - 1, height}.min]
 
@@ -157,6 +168,13 @@ module Phase
         height = @shape.size - depth - 1
         max_columns = @settings.display_limit[{@settings.display_limit.size - 1, height}.min]
 
+        # If we reach an empty axis, quit recursing and just print an empty array
+        if @shape[depth] == 0
+          open(height, idx)
+          close(height, idx)
+          return
+        end
+
         open(height, idx)
         if height > 0
           # iterating over rows
@@ -167,7 +185,7 @@ module Phase
               newline if height == 2 || (@settings.collapse_height < 2 && height != 1)
             else
               walk_n_print(depth + 1, i)
-              unless flag == Flags::LAST
+              if flag == Flags::ELEM
                 color_print(",", height)
                 newline
                 newline if height == 2 || (@settings.collapse_height < 2 && height != 1)
@@ -177,9 +195,10 @@ module Phase
         else
           # printing elements in a single "row" (deepest axis)
           capped_iterator(depth, max_columns) do |flag, _|
-            if flag == Flags::SKIP
+            case flag
+            when Flags::SKIP
               @io << "..., "
-            else
+            when Flags::ELEM, Flags::LAST
               @io << format_element(@iter.unsafe_next).rjust(@justify_length, ' ')
               @io << ", " unless flag == Flags::LAST
             end
