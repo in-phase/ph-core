@@ -84,7 +84,12 @@ module Phase
     end
 
     def set_available(region : Indexable, value : T)
-      unsafe_set_chunk(IndexRegion.new(region, trim_to: shape))
+      # NOTE: A chunk accepting overload of this method doesn't really make
+      # sense, because we'd need a notion of where the source chunk is
+      # "anchored" in order to trim it. We could assume it's pinned such that
+      # it's origin is at the lowest coordinate in the trimming region, but
+      # that doesn't seem super useful
+      unsafe_set_chunk(IndexRegion.new(region, trim_to: shape), value)
     end
 
     # See `#set_chunk(region : Enumerable, value)`

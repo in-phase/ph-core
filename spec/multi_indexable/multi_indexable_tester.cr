@@ -24,9 +24,9 @@ require "../spec_helper.cr"
 # `M` must also incur no unexpected mutations during use:
 # ```crystal
 # # Values must not randomly mutate
-# old_value = m[coord]
+# old_value = m.get(coord)
 # # arbitrary code that doesn't explicitly aim to modify m[coord]
-# m[coord] == old_value # must be true
+# m.get(coord) == old_value # must be true
 # ```
 #
 # There is no analogue to this class for `MultiWritable` instances, as we
@@ -150,7 +150,7 @@ abstract class MultiIndexableTester(M, T, I)
   end
 
   private def make_valid_regions(shape : Indexable(I))
-    {
+    [
       # Cover the whole region
       shape.map { |axis| 0...axis },
 
@@ -182,11 +182,11 @@ abstract class MultiIndexableTester(M, T, I)
       [..] * shape.size,
       [] of I,
       [] of Range(Nil, Nil),
-    }
+    ]
   end
 
   private def make_invalid_regions(shape : Indexable(I))
-    {
+    [
       # Region that's too positively large
       shape.map { |axis| axis..(2 * axis) },
 
@@ -201,7 +201,7 @@ abstract class MultiIndexableTester(M, T, I)
 
       # Region who's stride and bounds are misaligned
       shape.map { |axis| axis..1..0 },
-    }
+    ]
   end
 
   # `#slices` and `#each_slice` have effectively the same API, and can

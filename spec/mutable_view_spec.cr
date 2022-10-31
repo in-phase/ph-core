@@ -1,7 +1,7 @@
-require "./multi_indexable/multi_indexable_tester.cr"
+require "./multi_indexable/mutable_multi_indexable_tester.cr"
 require "./spec_helper.cr"
 
-class MutableViewTester < MultiIndexableTester(MutableView(NArray(CIS), CIS), CIS, Int32)
+class MutableViewTester < MutableMultiIndexableTester(MutableView(NArray(CIS), CIS), CIS, Int32)
   alias ViewType = MutableView(NArray(CIS), CIS)
   @data : Array(Tuple(Array(Int32), Slice(CIS))) = [
     {[2, 3, 4], Slice['a', 'b', 'c', 'd', 1, 2, 3, 4, :e, :f, :g, :h, 'i', 'j', 'k', 'l', 5, 6, 7, 8, :m, :n, :o, :p]},
