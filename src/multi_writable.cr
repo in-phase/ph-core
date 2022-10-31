@@ -62,6 +62,20 @@ module Phase
       unsafe_set_chunk(idx_region, src)
     end
 
+    # Copies the elements from a MultiIndexable `src` into `region`.
+    # Raises an error if `region` is out-of-bounds for this `MultiWritable`, if the shape of `region` does not match `src.shape`, or if `idx_region` does not fit in this `MultiWritable`.
+    def set_chunk(idx_region : IndexRegion, src : MultiIndexable(T))
+      if !ShapeUtil.compatible_shapes?(src.shape_internal, idx_region.shape)
+        raise ShapeError.new("Cannot substitute #{typeof(src)}: the given #{typeof(src)} has shape #{src.shape_internal}, but region #{idx_region} has shape #{idx_region.shape}.")
+      end
+
+      unless idx_region.fits_in? shape_internal
+        raise ShapeError.new("Cannot set chunk: This MultiWritable has shape #{shape_internal}, which #{idx_region} does not fit inside.")
+      end
+
+      unsafe_set_chunk(idx_region, src)
+    end
+
     # Sets each element in `region` to `value`.
     # Raises an error if `region` is out-of-bounds for this `MultiWritable`.
     def set_chunk(region : Indexable | IndexRegion, value : T)
