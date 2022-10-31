@@ -9,7 +9,7 @@ class VanillaMultiIndexableTester < MultiIndexableTester(RONArray(CIS), CIS, Int
   ]
 
   def make :  Array(RONArray(CIS))
-    @data.map { |shape, buf| RONArray.new(shape.clone, buf.clone) }
+    to_return = @data.map { |shape, buf| RONArray.new(shape.clone, buf.clone) }
   end
 
   def test_make

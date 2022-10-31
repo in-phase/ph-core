@@ -96,7 +96,6 @@ end
 # Write only NArray
 class WONArray(T) < TestNArray(T)
   include WriteUtils(T)
-  include ReadUtils(T)
 end
 
 # Read-Write NArray

@@ -10,6 +10,29 @@ require "../spec_helper.cr"
 # m_inst_2.to_narr`. This will always return the correct value, given that
 # `NArray#==` and `#to_narr` are implemented correctly, which is somewhat
 # axiomatic. `I` is the index type of `M` - `M#shape` has elements of type `I`.
+#
+# This tester requires that that `T` have reasonable equality semantics -
+# effectively, this must hold:
+# ```crystal
+# # a is an instance of T
+# b = a
+# a == b && b == a # equality must hold and be commutative
+# c = a.clone
+# a == c && c == a # cloning should produce equal objects, also commutative
+# ```
+# 
+# `M` must also incur no unexpected mutations during use:
+# ```crystal
+# # Values must not randomly mutate
+# old_value = m[coord]
+# # arbitrary code that doesn't explicitly aim to modify m[coord]
+# m[coord] == old_value # must be true
+# ```
+#
+# There is no analogue to this class for `MultiWritable` instances, as we
+# cannot test the effect of unobservable mutation.
+# `MutableMultiIndexableTester` provides test fixtures similar to this class,
+# but also tests read/write operations.
 abstract class MultiIndexableTester(M, T, I)
   # Produces a new instance of `M`, which is a MultiIndexable.
   # If `M` has a generic element type, it is good idea to return
@@ -38,13 +61,13 @@ abstract class MultiIndexableTester(M, T, I)
   # It isn't possible to test `#make` without domain knowledge of your `MultiIndexable`.
   # Because it is so critical, you must write a test for it here. This function
   # will be called from within a `describe "#make"` block, so you'll want to
-  # write tests contained in `it` calls.
+  # write tests contained in Spec's `it .. do` blocks.
   abstract def test_make
 
   # It isn't possible to test `#to_narr` without domain knowledge of your `MultiIndexable`.
   # Because it is so critical, you must write a test for it here. This function
   # will be called from within a `describe "#to_narr"` block, so you'll want to
-  # write tests contained in `it` calls.
+  # write tests contained in Spec's `it .. do` blocks.
   abstract def test_to_narr
 
   {% for category in {:pure_empty, :volumetric_empty, :pure_scalar, :volumetric_scalar} %}
@@ -221,6 +244,16 @@ abstract class MultiIndexableTester(M, T, I)
         test_to_narr
       end
 
+      describe "#unsafe_fetch_element" do
+        it "returns the expected elements for an input coordinate" do
+          pairs.each do |m, n|
+            n.each_with_coord do |el, coord|
+              n.unsafe_fetch_element(coord).should eq el
+            end
+          end
+        end
+      end
+
       # The tests we do on #empty? and #scalar? are almost identical. This is
       # mostly here to entertain me while I write specs
       {% for test in {:empty, :scalar} %}
@@ -244,8 +277,10 @@ abstract class MultiIndexableTester(M, T, I)
 
       describe "#to_scalar" do
         it "raises for a non-scalar #{M}" do
-          expect_raises ShapeError do
-            m_inst.to_scalar
+          pairs.each do |m, _|
+            expect_raises ShapeError do
+              m.to_scalar
+            end
           end
         end
 
@@ -264,7 +299,9 @@ abstract class MultiIndexableTester(M, T, I)
 
       describe "#first" do
         it "returns the element at the zero coordinate from a populated #{M}" do
-          m_inst.first.should eq narr.first
+          pairs.each do |m, n|
+            m.first.should eq n.first
+          end
         end
 
         get_empty do |inst|
@@ -284,8 +321,10 @@ abstract class MultiIndexableTester(M, T, I)
         end
 
         it "raises when given a negative sample count" do
-          expect_raises ArgumentError do
-            m_inst.sample(-1)
+          pairs.each do |m, n|
+            expect_raises ArgumentError do
+              m.sample(-1)
+            end
           end
         end
 
@@ -300,32 +339,40 @@ abstract class MultiIndexableTester(M, T, I)
 
       describe "#dimensions" do
         it "returns the correct number of dimensions" do
-          m_inst.dimensions.should eq narr.dimensions
+          pairs.each do |m, n|
+            m.dimensions.should eq n.dimensions
+          end
         end
       end
 
       describe "#has_coord?" do
         it "returns true for a coordinate within the shape" do
-          all_coords_lex_order(m_inst.shape) do |coord|
-            # Note: We can't test the tuple accepting overload here, because the number of dimensions is allowed to vary.
-            m_inst.has_coord?(coord).should be_true
+          pairs.each do |m, n|
+            all_coords_lex_order(m.shape) do |coord|
+              # Note: We can't test the tuple accepting overload here, because the number of dimensions is allowed to vary.
+              m.has_coord?(coord).should be_true
+            end
           end
         end
 
         it "returns false for a coordinate outside the shape" do
-          oversized_shape = m_inst.shape.map &.+(2)
-          proper_coords = all_coords_lex_order(m_inst.shape)
+          pairs.each do |m, _|
+            oversized_shape = m.shape.map &.+(2)
+            proper_coords = all_coords_lex_order(m.shape)
 
-          all_coords_lex_order(oversized_shape) do |coord|
-            next if proper_coords.includes? coord
+            all_coords_lex_order(oversized_shape) do |coord|
+              next if proper_coords.includes? coord
 
-            m_inst.has_coord?(coord).should be_false
+              m.has_coord?(coord).should be_false
+            end
           end
         end
 
         it "returns false when the coordinate is of the wrong dimension" do
-          m_inst.has_coord?([0]).should be_false
-          m_inst.has_coord?(0).should be_false
+          pairs.each do |m, _|
+            m.has_coord?([0]).should be_false
+            m.has_coord?(0).should be_false
+          end
         end
       end
 
