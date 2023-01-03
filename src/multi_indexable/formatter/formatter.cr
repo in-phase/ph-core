@@ -1,6 +1,5 @@
 require "colorize"
 require "yaml"
-require "big"
 
 # when you first print an narray, it loads whatever it should find from file, and then saves it in a static variable on FormatterSettings
 module Phase
@@ -210,7 +209,7 @@ module Phase
       def format_element(el : Int) : String
         str = @settings.integer_format % el
         if str.size > @justify_length
-          return format_element(BigFloat.new(el))
+          return format_element(el.to_f64)
         end
         str
       end

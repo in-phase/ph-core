@@ -1,5 +1,6 @@
 require "./spec_helper"
 require "./test_narray"
+require "big/big_int"
 
 include Phase
 

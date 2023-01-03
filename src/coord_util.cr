@@ -12,7 +12,7 @@ module Phase
       # order to make sure we don't overflow the axis. But this is slow and could
       # probably be replaced with a macro to ensure that we just cast to the smallest
       # native container
-      index < size && index >= -(size.to_big_i)
+      index < size && index >= -(size.to_i64)
     end
 
     # Returns true if a given `index` can be used to access an array axis with `size` elements.
@@ -53,7 +53,7 @@ module Phase
     # that the index be validated before or after this method is called.
     protected def canonicalize_index_unsafe(index, size : Int::Unsigned)
       if index < 0
-        return size.to_big_i + index
+        return size.to_i64 + index
       else
         return index
       end
